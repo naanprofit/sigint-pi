@@ -1,0 +1,49 @@
+[Unit]
+Description=SIGINT-Pi Security Monitor
+Documentation=https://github.com/yourusername/sigint-pi
+After=network.target gpsd.service bluetooth.service
+Wants=gpsd.service bluetooth.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/sigint-pi
+
+# Enable monitor mode before starting
+ExecStartPre=/usr/local/bin/enable-monitor-mode.sh wlan1
+
+# Main application
+ExecStart=/opt/sigint-pi/sigint-pi
+
+# Restart policy
+Restart=always
+RestartSec=10
+TimeoutStopSec=30
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=sigint-pi
+
+# Security hardening
+NoNewPrivileges=false  # Needed for monitor mode
+ProtectSystem=strict
+ProtectHome=read-only
+PrivateTmp=true
+ReadWritePaths=/var/lib/sigint-pi /var/log/sigint-pi
+
+# Resource limits
+MemoryMax=256M
+CPUWeight=80
+
+# Real-time priority for capture
+Nice=-10
+IOSchedulingClass=realtime
+IOSchedulingPriority=0
+
+# Capabilities needed for packet capture
+AmbientCapabilities=CAP_NET_RAW CAP_NET_ADMIN CAP_SYS_RAWIO
+
+[Install]
+WantedBy=multi-user.target

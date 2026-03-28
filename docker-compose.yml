@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  sigint-pi:
+    build:
+      context: .
+      dockerfile: Dockerfile.mac
+    ports:
+      - "8080:8080"
+    volumes:
+      - sigint-data:/data
+      - ./config.toml:/etc/sigint-pi/config.toml:ro
+    environment:
+      - SIGINT_SIMULATION=1
+      - RUST_LOG=info
+    restart: unless-stopped
+
+  # Optional: InfluxDB for metrics
+  influxdb:
+    image: influxdb:2.7
+    ports:
+      - "8086:8086"
+    volumes:
+      - influx-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=sigintpi123
+      - DOCKER_INFLUXDB_INIT_ORG=sigint
+      - DOCKER_INFLUXDB_INIT_BUCKET=sigint
+    profiles:
+      - metrics
+
+  # Optional: Grafana for dashboards
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=sigintpi
+    depends_on:
+      - influxdb
+    profiles:
+      - metrics
+
+  # Optional: Mosquitto MQTT broker
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    profiles:
+      - mqtt
+
+volumes:
+  sigint-data:
+  influx-data:
+  grafana-data:
+  mosquitto-data:

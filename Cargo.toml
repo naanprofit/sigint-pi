@@ -1,0 +1,98 @@
+[package]
+name = "sigint-pi"
+version = "0.1.0"
+edition = "2021"
+authors = ["Your Name <your@email.com>"]
+description = "Portable SIGINT security device for Raspberry Pi Zero 2 W"
+license = "MIT"
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.36", features = ["full"] }
+
+# Packet capture
+pcap = "2.0"
+
+# BLE scanning
+btleplug = "0.11"
+
+# Database
+sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono"] }
+
+# Web server
+actix-web = "4"
+actix-files = "0.6"
+
+# MQTT
+rumqttc = "0.24"
+
+# Telegram bot
+teloxide = { version = "0.12", features = ["macros"] }
+
+# GPS
+gpsd_proto = "1.0"
+
+# Serialization
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.8"
+
+# Configuration
+config = "0.14"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Error handling
+anyhow = "1.0"
+thiserror = "1.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+time = "=0.3.36"  # Pin to avoid edition2024 issue
+
+# HTTP client (for Twilio, email)
+reqwest = { version = "0.11", features = ["json"] }
+
+# Email
+lettre = { version = "0.11", features = ["tokio1-native-tls"] }
+
+# MAC address parsing
+macaddr = "1.0"
+
+# Hex encoding
+hex = "0.4"
+
+# UUID generation
+uuid = { version = "1.7", features = ["v4"] }
+
+# Radiotap header parsing (802.11)
+radiotap = "1.3"
+
+# Channel for async messaging
+async-channel = "2.2"
+
+# Geospatial calculations
+geo = "0.28"
+
+# Config directory
+dirs = "5.0"
+
+[features]
+default = []
+simulation = ["rand"]
+
+[dependencies.rand]
+version = "0.8"
+optional = true
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.release-pi]
+inherits = "release"
+target = "armv7-unknown-linux-gnueabihf"

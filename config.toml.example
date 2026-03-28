@@ -1,0 +1,90 @@
+# SIGINT-Pi Configuration
+# Copy this file to /etc/sigint-pi/config.toml or ./config.toml
+
+[device]
+name = "sigint-pi-01"
+location_name = "home"
+
+[wifi]
+enabled = true
+interface = "wlan1"  # External adapter for monitor mode
+scan_interval_ms = 5000
+rssi_threshold = -80
+attack_detection = true
+pcap_enabled = true
+pcap_path = "/var/lib/sigint-pi/pcap"
+pcap_rotate_mb = 100
+
+[bluetooth]
+enabled = true
+scan_interval_ms = 10000
+rssi_threshold = -90
+detect_airtags = true
+
+[gps]
+enabled = true
+gpsd_host = "127.0.0.1"
+gpsd_port = 2947
+update_interval_ms = 1000
+
+[database]
+path = "/var/lib/sigint-pi/sigint.db"
+retention_days = 30
+
+[web]
+enabled = true
+bind_address = "0.0.0.0"
+port = 8080
+
+[learning]
+enabled = true
+training_hours = 24
+anomaly_threshold = 0.7
+geofence_radius_meters = 100.0
+
+[power]
+low_power_mode = false
+battery_scan_interval_ms = 15000
+ac_scan_interval_ms = 5000
+
+# Alert Configuration
+# Fill in your credentials for each service you want to use
+
+[alerts.telegram]
+enabled = false
+bot_token = "YOUR_BOT_TOKEN"  # Get from @BotFather
+chat_id = "YOUR_CHAT_ID"      # Get from @userinfobot
+
+[alerts.twilio]
+enabled = false
+account_sid = "YOUR_ACCOUNT_SID"
+auth_token = "YOUR_AUTH_TOKEN"
+from_number = "+1234567890"
+to_number = "+1234567890"
+
+[alerts.email]
+enabled = false
+smtp_host = "smtp.gmail.com"
+smtp_port = 587
+smtp_user = "your-email@gmail.com"
+smtp_password = "your-app-password"
+from_address = "your-email@gmail.com"
+to_addresses = ["alerts@example.com"]
+
+[alerts.mqtt]
+enabled = false
+broker_host = "localhost"
+broker_port = 1883
+client_id = "sigint-pi"
+topic_prefix = "sigint"
+# username = "optional-username"
+# password = "optional-password"
+
+# InfluxDB Cloud Export (Optional)
+# For time-series metrics and Grafana dashboards
+[influxdb]
+enabled = false
+url = "http://localhost:8086"  # Or your InfluxDB Cloud URL
+token = "YOUR_INFLUXDB_TOKEN"
+org = "your-org"
+bucket = "sigint"
