@@ -2,7 +2,7 @@
 name = "sigint-pi"
 version = "0.1.0"
 edition = "2021"
-authors = ["Your Name <your@email.com>"]
+authors = ["sigkill"]
 description = "Portable SIGINT security device for Raspberry Pi Zero 2 W"
 license = "MIT"
 

@@ -1,0 +1,49 @@
+# Build artifacts
+/target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Config with real credentials (use config.toml.example as template)
+config.toml
+!config.toml.example
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+logs/
+
+# PCAP captures (contain network traffic)
+*.pcap
+*.pcapng
+pcap/
+
+# Environment files
+.env
+.env.*
+!.env.example
+
+# Docker volumes
+data/
+sigint-data/
+
+# OUI database (downloaded at runtime)
+oui.txt
+
+# Secrets
+*.pem
+*.key
+*.crt
