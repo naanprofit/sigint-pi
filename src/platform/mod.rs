@@ -6,6 +6,10 @@
 //! - Generic Linux
 //! - macOS (simulation only)
 
+pub mod capabilities;
+
+pub use capabilities::HardwareStatus;
+
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::process::Command;
