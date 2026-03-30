@@ -37,8 +37,11 @@ pcap/
 !.env.example
 
 # Docker volumes
-data/
 sigint-data/
+
+# Data directory - keep OUI database files
+!data/
+data/ieee-oui-raw.txt
 
 # OUI database (downloaded at runtime)
 oui.txt
