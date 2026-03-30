@@ -2,6 +2,17 @@
 
 Portable signals intelligence and security monitoring device for Raspberry Pi Zero 2 W and Steam Deck.
 
+## Screenshots
+
+![Dashboard - WiFi](docs/images/dashboard-wifi.png)
+*WiFi monitoring with device detection, channel info, and signal strength*
+
+![Dashboard - BLE](docs/images/dashboard-ble.png)
+*Bluetooth/BLE scanning with tracker detection (AirTag, Tile, etc.)*
+
+![Settings](docs/images/dashboard-settings.png)
+*Settings panel with AI/LLM integration and quick toggles*
+
 > ⚠️ **LEGAL DISCLAIMER**: This tool is for authorized security research and educational purposes only. Monitoring wireless communications without authorization may be illegal in your jurisdiction. You are solely responsible for ensuring your use complies with all applicable laws. See the [Legal Notice](#legal-notice) section for full details.
 
 ## Features
