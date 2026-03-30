@@ -846,6 +846,12 @@ This software is provided "AS IS" without warranty of any kind. The authors are 
 
 ---
 
+## Support
+
+If you find SIGINT-Pi useful, consider supporting development:
+
+**Bitcoin:** `3GD3hpufcCPCemfQdoAFu9JH5Td5US1pzJ`
+
 ## License
 
 MIT License - See LICENSE file
