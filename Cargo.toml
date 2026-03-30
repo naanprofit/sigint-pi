@@ -19,9 +19,10 @@ btleplug = "0.11"
 # Database
 sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono"] }
 
-# Web server
-actix-web = "4"
-actix-files = "0.6"
+# Web server (pin to versions compatible with Rust 1.85)
+actix-web = "=4.9.0"
+actix-files = "=0.6.6"
+actix-http = "=3.9.0"
 
 # MQTT
 rumqttc = "0.24"
