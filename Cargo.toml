@@ -50,8 +50,9 @@ thiserror = "1.0"
 
 # Time handling
 chrono = { version = "0.4", features = ["serde"] }
-time = "=0.3.36"  # Pin to avoid edition2024 issue
-home = "=0.5.9"   # Pin to avoid edition2024 issue
+time = "=0.3.36"      # Pin to avoid edition2024 issue
+home = "=0.5.9"       # Pin to avoid edition2024 issue  
+getrandom = "=0.2.15" # Pin to avoid edition2024 issue
 
 # HTTP client (for Twilio, email)
 reqwest = { version = "0.11", features = ["json"] }

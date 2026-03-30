@@ -4,7 +4,7 @@
 # Build: podman build -f Containerfile.steamdeck -t sigint-pi:steamdeck .
 # Run:   See podman-compose.steamdeck.yml or scripts/steamdeck-launch.sh
 
-FROM docker.io/library/rust:1.82-bookworm AS builder
+FROM docker.io/library/rust:1.85-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
