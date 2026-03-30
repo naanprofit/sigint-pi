@@ -1,8 +1,8 @@
-# SIGINT-Pi Configuration
-# Copy this file to /etc/sigint-pi/config.toml or ./config.toml
+# SIGINT-Deck Configuration
+# Copy this file to ~/sigint-deck/config.toml
 
 [device]
-name = "sigint-pi-01"
+name = "sigint-deck-01"
 location_name = "home"
 
 [wifi]
@@ -38,9 +38,9 @@ port = 8080
 
 [learning]
 enabled = true
-training_hours = 24
-anomaly_threshold = 0.7
-geofence_radius_meters = 100.0
+training_hours = 1              # Hours to learn baseline (1 = faster, 24 = thorough)
+anomaly_threshold = 0.7         # Score > this = anomalous (0.0-1.0)
+geofence_radius_meters = 100.0  # Distance to trigger location change
 
 [power]
 low_power_mode = false
@@ -133,6 +133,83 @@ enabled = false
 # payload_format = "json"  # json, slack, discord, openclaw, custom
 # timeout_secs = 30
 # min_priority = "medium"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# LLM Integration (Optional) - AI-powered device analysis
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# PRIVACY RECOMMENDATION: Use LOCAL LLMs when possible!
+# Local LLMs keep all data on your device - nothing is sent to the cloud.
+# Cloud providers (OpenAI, Anthropic, xAI) will receive device MACs and network info.
+#
+# RECOMMENDED LOCAL MODELS:
+#   Steam Deck (16GB):  phi3:mini (2.3GB), llama3.2:3b (2GB), qwen2.5:3b (2GB)
+#   Raspberry Pi 5:     tinyllama (637MB), qwen2.5:0.5b (400MB)
+#   Pi Zero 2W:         tinyllama (637MB) only
+#
+# QUICK START (Ollama):
+#   curl -fsSL https://ollama.ai/install.sh | sh
+#   ollama pull phi3:mini
+#   ollama serve
+#
+# ═══════════════════════════════════════════════════════════════════════════════
+[llm]
+enabled = false
+# Provider: ollama, llamacpp, openai, anthropic, xai
+# LOCAL (recommended):  ollama, llamacpp
+# CLOUD (privacy risk): openai, anthropic, xai
+provider = "ollama"
+endpoint = "http://localhost:11434"          # Ollama default
+model = "phi3:mini"                          # Recommended for Steam Deck
+# api_key = ""                               # Not needed for local LLMs
+max_tokens = 200
+timeout_secs = 60
+
+# ─────────────────────────────────────────────────────────────────────────────
+# ALTERNATIVE: llama.cpp (more control, manual model loading)
+# ─────────────────────────────────────────────────────────────────────────────
+# [llm]
+# enabled = true
+# provider = "llamacpp"
+# endpoint = "http://localhost:8080"
+# model = "local"
+# max_tokens = 200
+# timeout_secs = 60
+
+# ─────────────────────────────────────────────────────────────────────────────
+# CLOUD PROVIDERS (use only if local LLM not feasible)
+# WARNING: Device MACs and network data sent to cloud servers
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Anthropic Claude
+# [llm]
+# enabled = true
+# provider = "anthropic"
+# endpoint = "https://api.anthropic.com"
+# model = "claude-3-haiku-20240307"
+# api_key = "sk-ant-api..."             # Get from console.anthropic.com
+# max_tokens = 200
+# timeout_secs = 60
+
+# xAI Grok
+# [llm]
+# enabled = true
+# provider = "xai"
+# endpoint = "https://api.x.ai"
+# model = "grok-2"
+# api_key = "xai-..."                   # Get from console.x.ai
+# max_tokens = 200
+# timeout_secs = 60
+
+# OpenAI
+# [llm]
+# enabled = true
+# provider = "openai"
+# endpoint = "https://api.openai.com"
+# model = "gpt-4o-mini"
+# api_key = "sk-..."                    # Get from platform.openai.com
+# max_tokens = 200
+# timeout_secs = 60
 
 # InfluxDB Cloud Export (Optional)
 # For time-series metrics and Grafana dashboards
