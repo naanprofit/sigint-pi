@@ -172,12 +172,16 @@ impl SoundPlayer {
         let volume = self.config.volume;
 
         std::thread::spawn(move || {
+            // Pre-format volume strings to avoid temporary value issues
+            let paplay_volume = format!("{}", volume as u32 * 655);
+            let afplay_volume = format!("{}", volume as f32 / 100.0);
+            
             // Try various audio players available on different platforms
-            let players = [
-                ("paplay", vec!["--volume", &format!("{}", volume * 655), &path_str]),
+            let players: [(&str, Vec<&str>); 4] = [
+                ("paplay", vec!["--volume", &paplay_volume, &path_str]),
                 ("aplay", vec![&path_str]),
                 ("pw-play", vec![&path_str]),
-                ("afplay", vec!["-v", &format!("{}", volume as f32 / 100.0), &path_str]),
+                ("afplay", vec!["-v", &afplay_volume, &path_str]),
             ];
 
             for (player, args) in players {

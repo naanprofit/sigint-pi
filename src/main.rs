@@ -14,8 +14,7 @@ mod settings;
 #[cfg(feature = "simulation")]
 mod simulation;
 
-use platform::{Platform, PlatformCapabilities, HardwareStatus};
-use power::PowerManager;
+use platform::PlatformCapabilities;
 use settings::LEGAL_DISCLAIMER;
 
 use anyhow::Result;
