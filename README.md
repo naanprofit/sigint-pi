@@ -1,6 +1,8 @@
 # SIGINT-Pi
 
-Portable signals intelligence and security monitoring device for Raspberry Pi Zero 2 W.
+Portable signals intelligence and security monitoring device for Raspberry Pi Zero 2 W and Steam Deck.
+
+> ⚠️ **LEGAL DISCLAIMER**: This tool is for authorized security research and educational purposes only. Monitoring wireless communications without authorization may be illegal in your jurisdiction. You are solely responsible for ensuring your use complies with all applicable laws. See the [Legal Notice](#legal-notice) section for full details.
 
 ## Features
 
@@ -426,6 +428,207 @@ SIGINT-Pi publishes to these topics:
 
 ---
 
+## Steam Deck Support
+
+SIGINT-Pi runs on Steam Deck OLED/LCD using rootless Podman containers.
+
+### Critical Hardware Requirements
+
+> ⚠️ **The Steam Deck's internal WiFi (wlan0) does NOT support monitor mode!**
+> You MUST use an external USB WiFi adapter for WiFi packet capture.
+
+**Recommended Setup:**
+| Component | Recommendation | Notes |
+|-----------|---------------|-------|
+| USB WiFi Adapter | Alfa AWUS036ACHM | Dual-band, excellent Linux support |
+| USB GPS | VK-162 u-blox 7 | For location tracking |
+| USB Hub | Powered hub recommended | Ensures stable power to devices |
+
+### Installation on Steam Deck
+
+```bash
+# SSH into Steam Deck (enable SSH in Settings)
+ssh deck@steamdeck.local
+
+# Clone the repo
+git clone https://github.com/naanprofit/sigint-pi.git
+cd sigint-pi
+
+# Create config directories
+mkdir -p ~/.local/share/sigint-pi/data ~/.config/sigint-pi
+cp config.toml.example ~/.config/sigint-pi/config.toml
+
+# Build the container
+podman build -f Containerfile.steamdeck -t sigint-pi:steamdeck .
+
+# Run in simulation mode (no special hardware needed)
+podman-compose -f podman-compose.steamdeck.yml --profile simulation up -d
+
+# Or run with real hardware (requires external USB WiFi)
+# First, put your USB WiFi adapter in monitor mode:
+sudo ./scripts/wifi-monitor.sh wlan1
+
+# Then start with hardware profile:
+podman-compose -f podman-compose.steamdeck.yml --profile hardware up -d
+```
+
+### Adding to Steam as Non-Steam App
+
+1. Copy launcher script: `cp scripts/steamdeck-launch.sh ~/bin/`
+2. Make executable: `chmod +x ~/bin/steamdeck-launch.sh`
+3. In Steam Desktop Mode: **Games → Add Non-Steam Game**
+4. Browse to `~/bin/steamdeck-launch.sh` and add it
+5. Optionally set a custom icon and controller configuration
+
+### Steam Deck Scripts
+
+| Script | Purpose |
+|--------|---------|
+| `steamdeck-launch.sh` | Start container and open browser |
+| `steamdeck-stop.sh` | Stop container cleanly |
+| `steamdeck-status.sh` | Show hardware and runtime status |
+| `wifi-list.sh` | List wireless interfaces and capabilities |
+| `wifi-monitor.sh` | Enable monitor mode on interface |
+| `wifi-managed.sh` | Restore managed mode |
+
+---
+
+## Signal Messenger Alerts
+
+Signal provides end-to-end encrypted alert delivery using signal-cli.
+
+### Setup
+
+1. **Install signal-cli:**
+```bash
+# Download from https://github.com/AsamK/signal-cli/releases
+wget https://github.com/AsamK/signal-cli/releases/download/v0.13.2/signal-cli-0.13.2-Linux.tar.gz
+tar xf signal-cli-*.tar.gz
+sudo mv signal-cli-*/bin/signal-cli /usr/local/bin/
+sudo mv signal-cli-*/lib /usr/local/lib/signal-cli
+```
+
+2. **Register a phone number (requires receiving SMS):**
+```bash
+signal-cli -a +1YOURNUMBER register
+signal-cli -a +1YOURNUMBER verify CODE_FROM_SMS
+```
+
+3. **Configure SIGINT-Pi:**
+```toml
+[alerts.signal]
+enabled = true
+sender_number = "+1YOURNUMBER"
+recipients = ["+1RECIPIENT1", "+1RECIPIENT2"]
+signal_cli_path = "/usr/local/bin/signal-cli"
+config_dir = "/etc/sigint-pi/signal"
+min_priority = "high"
+```
+
+4. **Test:**
+```bash
+signal-cli -a +1YOURNUMBER send -m "Test from SIGINT-Pi" +1RECIPIENT
+```
+
+---
+
+## OpenClaw Integration
+
+OpenClaw is a centralized alert aggregation platform that can receive alerts from multiple SIGINT-Pi devices.
+
+### Configuration
+
+```toml
+[alerts.openclaw]
+enabled = true
+api_url = "https://api.openclaw.io/v1/alerts"
+api_key = "your-api-key-here"
+device_id = "sigint-pi-001"
+device_name = "SIGINT-Pi Living Room"
+tags = ["home", "primary"]
+include_raw_data = false
+min_priority = "medium"
+```
+
+### API Key Setup
+
+1. Create an account at your OpenClaw instance (or https://openclaw.io)
+2. Navigate to **Settings → API Keys**
+3. Create a new API key with `alerts:write` scope
+4. Copy the key to your config.toml
+
+### Alert Payload Format
+
+SIGINT-Pi sends alerts to OpenClaw in this JSON format:
+
+```json
+{
+    "device_id": "sigint-pi-001",
+    "device_name": "SIGINT-Pi Living Room",
+    "alert_type": "new_device|attack|tracker|geofence",
+    "priority": "low|medium|high|critical",
+    "title": "Alert Title",
+    "message": "Detailed message",
+    "timestamp": 1234567890,
+    "location": {
+        "latitude": 40.7128,
+        "longitude": -74.0060
+    },
+    "tags": ["home", "primary"],
+    "metadata": {
+        "mac_address": "AA:BB:CC:DD:EE:FF",
+        "vendor": "Apple Inc",
+        "rssi": -45
+    }
+}
+```
+
+### Multi-Device Setup
+
+For multiple SIGINT-Pi devices reporting to one OpenClaw instance:
+- Use unique `device_id` for each device
+- Use descriptive `device_name` for identification
+- Use tags to group devices by location/purpose
+
+### Testing
+
+```bash
+curl -X POST https://api.openclaw.io/v1/alerts \
+  -H "Authorization: Bearer your-api-key" \
+  -H "Content-Type: application/json" \
+  -d '{"device_id":"test","alert_type":"test","title":"Test","message":"Test message","timestamp":0}'
+```
+
+---
+
+## Sound Alerts & Ninja Mode
+
+### Sound Alerts
+
+SIGINT-Pi can play audio alerts for various events:
+
+```toml
+[alerts.sound]
+enabled = true
+ninja_mode = false
+volume = 70
+new_device_sound = true
+tracker_sound = true
+attack_sound = true
+geofence_sounds = true
+```
+
+### Ninja Mode 🥷
+
+**Ninja Mode** silences ALL audio alerts and can disable visual indicators for covert operation:
+
+- Toggle via Settings UI or API: `POST /api/settings/ninja_mode`
+- Keyboard shortcut in dashboard: Press `N`
+- All sounds are immediately silenced
+- Useful when you need silent monitoring
+
+---
+
 ## Running on macOS (Development/Testing)
 
 You can run SIGINT-Pi in simulation mode on your Mac for testing:
@@ -447,10 +650,57 @@ Dashboard: http://localhost:8080
 
 ---
 
+## Legal Notice
+
+### ⚠️ IMPORTANT LEGAL DISCLAIMER
+
+**READ THIS BEFORE USING SIGINT-Pi**
+
+This software is provided for **authorized security research, penetration testing, and educational purposes ONLY**.
+
+#### Legal Compliance
+
+- **You are solely responsible** for ensuring your use of this tool complies with all applicable local, state, federal, and international laws.
+- **Monitoring wireless communications without authorization is ILLEGAL** in most jurisdictions.
+- The legality of passive WiFi monitoring varies by country and region.
+
+#### Authorized Use Only
+
+- **ONLY** use this tool on networks and devices you own or have explicit written permission to monitor.
+- Unauthorized interception of communications may result in **criminal prosecution**.
+
+#### Prohibited Uses
+
+Do NOT use this tool to:
+- Intercept, capture, or analyze communications of third parties without consent
+- Stalk, harass, or invade the privacy of others
+- Conduct attacks on networks or devices
+- Any illegal or unethical purpose
+
+#### Hardware Requirements
+
+For proper operation, you MUST use appropriate hardware:
+
+| Requirement | Details |
+|-------------|---------|
+| **WiFi Monitor Mode** | Requires an **external USB WiFi adapter** that supports monitor mode. The Steam Deck's internal WiFi does NOT support monitor mode. Recommended: Alfa AWUS036ACHM |
+| **GPS** | Requires an **external USB GPS receiver** (e.g., VK-162 u-blox 7) |
+| **Portable Power** | Use a **powered USB hub** to ensure stable power delivery to all connected USB devices |
+
+#### No Warranty
+
+This software is provided "AS IS" without warranty of any kind. The authors are not responsible for any damages, legal issues, or consequences arising from the use of this software.
+
+---
+
 ## License
 
 MIT License - See LICENSE file
 
-## Security Note
+## Author
 
-This tool is for authorized security monitoring only. Always ensure you have permission to monitor wireless networks in your area. Unauthorized interception of wireless communications may be illegal in your jurisdiction.
+**sigkill**
+
+---
+
+*By using this software, you acknowledge that you have read, understood, and agree to comply with all applicable laws and the terms of this disclaimer.*

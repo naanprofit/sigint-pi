@@ -80,6 +80,60 @@ topic_prefix = "sigint"
 # username = "optional-username"
 # password = "optional-password"
 
+# Sound Alerts
+# Audio alerts for events (disable with ninja_mode for silent operation)
+[alerts.sound]
+enabled = false
+ninja_mode = false        # Silent mode - disables ALL audio
+volume = 70               # 0-100
+new_device_sound = true   # Play sound on new device detection
+tracker_sound = true      # Play sound on tracker (AirTag/Tile) detection
+attack_sound = true       # Play sound on attack detection
+geofence_sounds = true    # Play sound on geofence enter/exit
+sounds_dir = "/app/sounds"
+
+# Signal Messenger (End-to-End Encrypted)
+# Requires signal-cli to be installed and registered
+# See: https://github.com/AsamK/signal-cli
+[alerts.signal]
+enabled = false
+sender_number = "+1234567890"          # Your registered Signal number
+recipients = ["+1234567890"]           # Recipients to notify
+signal_cli_path = "/usr/local/bin/signal-cli"
+config_dir = "/etc/sigint-pi/signal"
+use_jsonrpc = false                    # Use signal-cli daemon for faster sending
+jsonrpc_socket = "/var/run/signal-cli/socket"
+min_priority = "high"                  # low, medium, high, critical
+rate_limit_per_hour = 30
+
+# OpenClaw Integration
+# Centralized alert aggregation platform for multiple SIGINT-Pi devices
+# See documentation for API setup
+[alerts.openclaw]
+enabled = false
+api_url = "https://api.openclaw.io/v1/alerts"
+api_key = "YOUR_OPENCLAW_API_KEY"
+device_id = "sigint-pi-001"            # Unique ID for this device
+device_name = "SIGINT-Pi Living Room"  # Human-readable name
+tags = ["home", "primary"]             # Tags for organizing devices
+include_raw_data = false               # Include full device data in alerts
+min_priority = "medium"                # low, medium, high, critical
+
+# Custom Webhooks
+# Send alerts to any HTTP endpoint
+[alerts.webhook]
+enabled = false
+
+# Example webhook endpoint:
+# [[alerts.webhook.endpoints]]
+# name = "my-webhook"
+# url = "https://example.com/webhook"
+# method = "POST"
+# auth = { type = "bearer", token = "secret" }
+# payload_format = "json"  # json, slack, discord, openclaw, custom
+# timeout_secs = 30
+# min_priority = "medium"
+
 # InfluxDB Cloud Export (Optional)
 # For time-series metrics and Grafana dashboards
 [influxdb]

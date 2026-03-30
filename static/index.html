@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>SIGINT-Pi Dashboard</title>
     <style>
         :root {
@@ -15,13 +15,16 @@
             --accent-red: #f85149;
             --accent-yellow: #d29922;
             --accent-blue: #58a6ff;
+            --accent-purple: #a371f7;
             --border-color: #30363d;
+            --touch-target: 48px;
         }
 
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
         body {
@@ -29,26 +32,39 @@
             background: var(--bg-primary);
             color: var(--text-primary);
             min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Steam Deck optimized: 1280x800 */
+        @media (max-width: 1280px) and (max-height: 800px) {
+            :root {
+                font-size: 14px;
+            }
         }
 
         .header {
             background: var(--bg-secondary);
             border-bottom: 1px solid var(--border-color);
-            padding: 1rem 2rem;
+            padding: 0.75rem 1rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
         }
 
         .header h1 {
-            font-size: 1.5rem;
+            font-size: 1.25rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
 
-        .header h1::before {
-            content: "📡";
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
         }
 
         .status-indicator {
@@ -58,8 +74,8 @@
         }
 
         .status-dot {
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             border-radius: 50%;
             background: var(--accent-green);
             animation: pulse 2s infinite;
@@ -75,53 +91,101 @@
             50% { opacity: 0.5; }
         }
 
-        .container {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 1rem;
-            padding: 1rem;
-            max-width: 1800px;
-            margin: 0 auto;
-        }
-
-        @media (max-width: 1200px) {
-            .container {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .card {
-            background: var(--bg-secondary);
+        /* Settings Button */
+        .settings-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: var(--touch-target);
+            height: var(--touch-target);
+            background: var(--bg-tertiary);
             border: 1px solid var(--border-color);
             border-radius: 8px;
-            overflow: hidden;
+            color: var(--text-primary);
+            text-decoration: none;
+            font-size: 1.25rem;
+            transition: all 0.2s;
         }
 
-        .card-header {
-            background: var(--bg-tertiary);
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border-color);
+        .settings-btn:hover, .settings-btn:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+        }
+
+        /* Power Mode Toggle - Large touch target */
+        .power-toggle {
             display: flex;
-            justify-content: space-between;
             align-items: center;
+            gap: 0.5rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            min-height: var(--touch-target);
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        .card-header h2 {
-            font-size: 1rem;
-            font-weight: 600;
+        .power-toggle:hover, .power-toggle:focus {
+            border-color: var(--accent-blue);
+            outline: none;
         }
 
-        .card-body {
-            padding: 1rem;
-            max-height: 400px;
-            overflow-y: auto;
+        .power-toggle.performance { border-color: var(--accent-red); }
+        .power-toggle.balanced { border-color: var(--accent-yellow); }
+        .power-toggle.lowpower { border-color: var(--accent-green); }
+
+        .power-icon {
+            font-size: 1.25rem;
         }
 
+        .power-label {
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        /* Hardware Status Bar */
+        .hw-status-bar {
+            display: flex;
+            gap: 1rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .hw-status-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+            white-space: nowrap;
+        }
+
+        .hw-status-icon {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .hw-status-icon.ready { background: var(--accent-green); }
+        .hw-status-icon.warning { background: var(--accent-yellow); }
+        .hw-status-icon.error { background: var(--accent-red); }
+        .hw-status-icon.disabled { background: var(--text-secondary); }
+
+        /* Stats Grid - Large touch targets */
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1rem;
+            gap: 0.75rem;
+            padding: 0.75rem;
+        }
+
+        @media (max-width: 800px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .stat-card {
@@ -130,20 +194,104 @@
             border-radius: 8px;
             padding: 1rem;
             text-align: center;
+            min-height: 80px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .stat-card:hover, .stat-card:focus {
+            border-color: var(--accent-blue);
+            transform: scale(1.02);
+        }
+
+        .stat-card.active {
+            border-color: var(--accent-blue);
+            background: rgba(88, 166, 255, 0.1);
         }
 
         .stat-value {
             font-size: 2rem;
             font-weight: bold;
             color: var(--accent-blue);
+            line-height: 1;
         }
 
         .stat-label {
-            font-size: 0.875rem;
+            font-size: 0.8rem;
             color: var(--text-secondary);
             margin-top: 0.25rem;
         }
 
+        /* Tab Navigation - Controller friendly */
+        .tab-nav {
+            display: flex;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-btn {
+            flex: 1;
+            min-width: 120px;
+            min-height: var(--touch-target);
+            padding: 0.75rem 1rem;
+            background: none;
+            border: none;
+            border-bottom: 2px solid transparent;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+
+        .tab-btn:hover, .tab-btn:focus {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            outline: none;
+        }
+
+        .tab-btn.active {
+            color: var(--accent-blue);
+            border-bottom-color: var(--accent-blue);
+        }
+
+        .tab-btn .badge-count {
+            background: var(--accent-blue);
+            color: #000;
+            padding: 0.1rem 0.4rem;
+            border-radius: 10px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .tab-btn.alert .badge-count {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        /* Tab Content */
+        .tab-content {
+            display: none;
+            padding: 0.75rem;
+            max-height: calc(100vh - 280px);
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Device List - Large touch targets */
         .device-list {
             list-style: none;
         }
@@ -153,12 +301,15 @@
             justify-content: space-between;
             align-items: center;
             padding: 0.75rem;
+            min-height: var(--touch-target);
             border-bottom: 1px solid var(--border-color);
             transition: background 0.2s;
+            cursor: pointer;
         }
 
-        .device-item:hover {
+        .device-item:hover, .device-item:focus {
             background: var(--bg-tertiary);
+            outline: none;
         }
 
         .device-item:last-child {
@@ -168,23 +319,32 @@
         .device-info {
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
+            gap: 0.2rem;
+            min-width: 0;
+            flex: 1;
         }
 
         .device-mac {
             font-family: monospace;
             font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .device-vendor {
             font-size: 0.8rem;
             color: var(--text-secondary);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .device-meta {
             display: flex;
             align-items: center;
-            gap: 1rem;
+            gap: 0.5rem;
+            flex-shrink: 0;
         }
 
         .rssi {
@@ -192,6 +352,8 @@
             padding: 0.25rem 0.5rem;
             border-radius: 4px;
             font-size: 0.8rem;
+            min-width: 70px;
+            text-align: center;
         }
 
         .rssi.strong { background: var(--accent-green); color: #000; }
@@ -201,23 +363,34 @@
         .badge {
             padding: 0.2rem 0.5rem;
             border-radius: 4px;
-            font-size: 0.75rem;
+            font-size: 0.7rem;
             font-weight: 600;
+            text-transform: uppercase;
         }
 
-        .badge.new { background: var(--accent-blue); }
-        .badge.tracker { background: var(--accent-red); }
+        .badge.new { background: var(--accent-blue); color: #000; }
+        .badge.tracker { background: var(--accent-red); color: #fff; }
         .badge.ap { background: var(--accent-green); color: #000; }
+        .badge.attack { background: var(--accent-red); color: #fff; }
 
+        .channel-badge {
+            font-size: 0.7rem;
+            padding: 0.15rem 0.4rem;
+            background: var(--bg-tertiary);
+            border-radius: 3px;
+        }
+
+        /* Alert Items */
         .alert-item {
             padding: 0.75rem;
-            border-left: 3px solid;
+            border-left: 4px solid;
             margin-bottom: 0.5rem;
-            background: var(--bg-tertiary);
-            border-radius: 0 4px 4px 0;
+            background: var(--bg-secondary);
+            border-radius: 0 8px 8px 0;
+            min-height: var(--touch-target);
         }
 
-        .alert-item.critical { border-color: var(--accent-red); }
+        .alert-item.critical { border-color: var(--accent-red); background: rgba(248, 81, 73, 0.1); }
         .alert-item.high { border-color: var(--accent-yellow); }
         .alert-item.medium { border-color: var(--accent-blue); }
         .alert-item.low { border-color: var(--text-secondary); }
@@ -238,38 +411,53 @@
             margin-top: 0.25rem;
         }
 
-        .gps-info {
+        /* Attack Items */
+        .attack-item {
+            padding: 0.75rem;
+            background: rgba(248, 81, 73, 0.1);
+            border: 1px solid var(--accent-red);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+
+        .attack-type {
+            font-weight: 600;
+            color: var(--accent-red);
+            font-size: 1rem;
+        }
+
+        /* GPS Info */
+        .gps-grid {
             display: grid;
-            grid-template-columns: repeat(2, 1fr);
+            grid-template-columns: repeat(3, 1fr);
             gap: 0.5rem;
+        }
+
+        @media (max-width: 800px) {
+            .gps-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
         }
 
         .gps-item {
             display: flex;
-            justify-content: space-between;
-            padding: 0.5rem;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
+            flex-direction: column;
+            padding: 0.75rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
         }
 
         .gps-label {
             color: var(--text-secondary);
+            font-size: 0.75rem;
+            margin-bottom: 0.25rem;
         }
 
         .gps-value {
             font-family: monospace;
-        }
-
-        #map {
-            width: 100%;
-            height: 200px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--text-secondary);
-            margin-top: 1rem;
+            font-size: 1rem;
+            font-weight: 500;
         }
 
         .empty-state {
@@ -278,137 +466,273 @@
             color: var(--text-secondary);
         }
 
-        .attack-item {
-            padding: 0.75rem;
-            background: rgba(248, 81, 73, 0.1);
-            border: 1px solid var(--accent-red);
-            border-radius: 4px;
-            margin-bottom: 0.5rem;
+        /* Power Mode Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 200;
+            align-items: center;
+            justify-content: center;
         }
 
-        .attack-type {
-            font-weight: 600;
-            color: var(--accent-red);
+        .modal-overlay.active {
+            display: flex;
         }
 
-        .channel-badge {
-            font-size: 0.75rem;
-            padding: 0.1rem 0.4rem;
+        .modal {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            max-width: 400px;
+            width: 90%;
+        }
+
+        .modal h2 {
+            margin-bottom: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .modal-option {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
             background: var(--bg-tertiary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            margin-bottom: 0.75rem;
+            cursor: pointer;
+            min-height: 60px;
+            transition: all 0.2s;
+        }
+
+        .modal-option:hover, .modal-option:focus {
+            border-color: var(--accent-blue);
+            outline: none;
+        }
+
+        .modal-option.selected {
+            border-color: var(--accent-green);
+            background: rgba(63, 185, 80, 0.1);
+        }
+
+        .modal-option-icon {
+            font-size: 1.5rem;
+        }
+
+        .modal-option-info h3 {
+            font-size: 1rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .modal-option-info p {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .modal-close {
+            width: 100%;
+            padding: 0.75rem;
+            margin-top: 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            cursor: pointer;
+            min-height: var(--touch-target);
+        }
+
+        .modal-close:hover {
+            background: var(--border-color);
+        }
+
+        /* Keyboard shortcut hint */
+        .shortcut-hint {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.5rem 1rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            z-index: 50;
+        }
+
+        .shortcut-hint kbd {
+            background: var(--bg-tertiary);
+            padding: 0.1rem 0.3rem;
             border-radius: 3px;
-            margin-left: 0.5rem;
+            margin: 0 0.2rem;
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>SIGINT-Pi</h1>
-        <div class="status-indicator">
-            <div class="status-dot" id="connectionStatus"></div>
-            <span id="connectionText">Connecting...</span>
+        <h1>📡 SIGINT-Pi</h1>
+        <div class="header-controls">
+            <a href="/settings.html" class="settings-btn" tabindex="0" aria-label="Settings">
+                ⚙️
+            </a>
+            <button class="power-toggle balanced" id="powerToggle" tabindex="0" aria-label="Power mode">
+                <span class="power-icon">⚡</span>
+                <span class="power-label" id="powerLabel">Balanced</span>
+            </button>
+            <div class="status-indicator">
+                <div class="status-dot" id="connectionStatus"></div>
+                <span id="connectionText">Connecting...</span>
+            </div>
         </div>
     </div>
 
-    <div class="stats-grid" style="padding: 1rem; max-width: 1800px; margin: 0 auto;">
-        <div class="stat-card">
+    <div class="hw-status-bar" id="hwStatusBar">
+        <div class="hw-status-item">
+            <div class="hw-status-icon disabled" id="hwWifi"></div>
+            <span>WiFi</span>
+        </div>
+        <div class="hw-status-item">
+            <div class="hw-status-icon disabled" id="hwBle"></div>
+            <span>BLE</span>
+        </div>
+        <div class="hw-status-item">
+            <div class="hw-status-icon disabled" id="hwGps"></div>
+            <span>GPS</span>
+        </div>
+        <div class="hw-status-item" id="batteryItem" style="display: none;">
+            <span>🔋</span>
+            <span id="batteryPercent">--</span>
+        </div>
+        <div class="hw-status-item">
+            <span id="platformName">--</span>
+        </div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card" tabindex="0" data-tab="wifi">
             <div class="stat-value" id="wifiTotal">0</div>
             <div class="stat-label">WiFi Devices</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" tabindex="0" data-tab="ble">
             <div class="stat-value" id="bleTotal">0</div>
             <div class="stat-label">BLE Devices</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" tabindex="0" data-tab="alerts">
             <div class="stat-value" id="newDevices">0</div>
             <div class="stat-label">New (24h)</div>
         </div>
-        <div class="stat-card">
+        <div class="stat-card" tabindex="0" data-tab="attacks">
             <div class="stat-value" id="attackCount">0</div>
             <div class="stat-label">Attacks</div>
         </div>
     </div>
 
-    <div class="container">
-        <div class="card">
-            <div class="card-header">
-                <h2>📶 WiFi Devices</h2>
-                <span id="wifiCount">0 devices</span>
+    <nav class="tab-nav">
+        <button class="tab-btn active" data-tab="wifi" tabindex="0">
+            📶 WiFi <span class="badge-count" id="wifiCount">0</span>
+        </button>
+        <button class="tab-btn" data-tab="ble" tabindex="0">
+            📱 BLE <span class="badge-count" id="bleCount">0</span>
+        </button>
+        <button class="tab-btn" data-tab="alerts" tabindex="0">
+            🚨 Alerts <span class="badge-count" id="alertCount">0</span>
+        </button>
+        <button class="tab-btn" data-tab="attacks" tabindex="0">
+            ⚠️ Attacks <span class="badge-count" id="attackBadge">0</span>
+        </button>
+        <button class="tab-btn" data-tab="gps" tabindex="0">
+            🛰️ GPS
+        </button>
+    </nav>
+
+    <div class="tab-content active" id="tab-wifi">
+        <ul class="device-list" id="wifiList">
+            <li class="empty-state">Waiting for devices...</li>
+        </ul>
+    </div>
+
+    <div class="tab-content" id="tab-ble">
+        <ul class="device-list" id="bleList">
+            <li class="empty-state">Waiting for devices...</li>
+        </ul>
+    </div>
+
+    <div class="tab-content" id="tab-alerts">
+        <div id="alertList">
+            <div class="empty-state">No alerts</div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-attacks">
+        <div id="attackList">
+            <div class="empty-state">No attacks detected</div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-gps">
+        <div class="gps-grid" id="gpsInfo">
+            <div class="gps-item">
+                <span class="gps-label">Latitude</span>
+                <span class="gps-value" id="gpsLat">--</span>
             </div>
-            <div class="card-body">
-                <ul class="device-list" id="wifiList">
-                    <li class="empty-state">Waiting for devices...</li>
-                </ul>
+            <div class="gps-item">
+                <span class="gps-label">Longitude</span>
+                <span class="gps-value" id="gpsLon">--</span>
+            </div>
+            <div class="gps-item">
+                <span class="gps-label">Altitude</span>
+                <span class="gps-value" id="gpsAlt">--</span>
+            </div>
+            <div class="gps-item">
+                <span class="gps-label">Speed</span>
+                <span class="gps-value" id="gpsSpeed">--</span>
+            </div>
+            <div class="gps-item">
+                <span class="gps-label">Satellites</span>
+                <span class="gps-value" id="gpsSats">--</span>
+            </div>
+            <div class="gps-item">
+                <span class="gps-label">Last Update</span>
+                <span class="gps-value" id="gpsTime">--</span>
             </div>
         </div>
+    </div>
 
-        <div class="card">
-            <div class="card-header">
-                <h2>📱 Bluetooth Devices</h2>
-                <span id="bleCount">0 devices</span>
-            </div>
-            <div class="card-body">
-                <ul class="device-list" id="bleList">
-                    <li class="empty-state">Waiting for devices...</li>
-                </ul>
-            </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2>🚨 Alerts</h2>
-            </div>
-            <div class="card-body">
-                <div id="alertList">
-                    <div class="empty-state">No alerts</div>
+    <!-- Power Mode Modal -->
+    <div class="modal-overlay" id="powerModal">
+        <div class="modal">
+            <h2>⚡ Power Mode</h2>
+            <div class="modal-option" data-mode="performance" tabindex="0">
+                <span class="modal-option-icon">🔥</span>
+                <div class="modal-option-info">
+                    <h3>Performance</h3>
+                    <p>Fastest scans, highest power usage</p>
                 </div>
             </div>
-        </div>
-
-        <div class="card">
-            <div class="card-header">
-                <h2>⚠️ Attack Detection</h2>
-            </div>
-            <div class="card-body">
-                <div id="attackList">
-                    <div class="empty-state">No attacks detected</div>
+            <div class="modal-option selected" data-mode="balanced" tabindex="0">
+                <span class="modal-option-icon">⚖️</span>
+                <div class="modal-option-info">
+                    <h3>Balanced</h3>
+                    <p>Good scan rate, moderate power</p>
                 </div>
             </div>
-        </div>
-
-        <div class="card" style="grid-column: span 2;">
-            <div class="card-header">
-                <h2>🛰️ GPS Position</h2>
-            </div>
-            <div class="card-body">
-                <div class="gps-info" id="gpsInfo">
-                    <div class="gps-item">
-                        <span class="gps-label">Latitude</span>
-                        <span class="gps-value" id="gpsLat">--</span>
-                    </div>
-                    <div class="gps-item">
-                        <span class="gps-label">Longitude</span>
-                        <span class="gps-value" id="gpsLon">--</span>
-                    </div>
-                    <div class="gps-item">
-                        <span class="gps-label">Altitude</span>
-                        <span class="gps-value" id="gpsAlt">--</span>
-                    </div>
-                    <div class="gps-item">
-                        <span class="gps-label">Speed</span>
-                        <span class="gps-value" id="gpsSpeed">--</span>
-                    </div>
-                    <div class="gps-item">
-                        <span class="gps-label">Satellites</span>
-                        <span class="gps-value" id="gpsSats">--</span>
-                    </div>
-                    <div class="gps-item">
-                        <span class="gps-label">Last Update</span>
-                        <span class="gps-value" id="gpsTime">--</span>
-                    </div>
+            <div class="modal-option" data-mode="lowpower" tabindex="0">
+                <span class="modal-option-icon">🔋</span>
+                <div class="modal-option-info">
+                    <h3>Low Power</h3>
+                    <p>Slower scans, extended battery life</p>
                 </div>
-                <div id="map">Map view requires Leaflet.js</div>
             </div>
+            <button class="modal-close" tabindex="0">Close</button>
         </div>
+    </div>
+
+    <div class="shortcut-hint">
+        <kbd>P</kbd> Power Mode &nbsp; <kbd>1-5</kbd> Switch Tabs
     </div>
 
     <script>
@@ -419,65 +743,126 @@
             alerts: [],
             attacks: [],
             gps: null,
-            connected: false
+            connected: false,
+            powerMode: 'balanced',
+            hwStatus: {
+                wifi: false,
+                ble: false,
+                gps: false,
+                battery: null,
+                platform: 'Unknown'
+            }
         };
+
+        // Tab switching
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.tab === tabName);
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.classList.toggle('active', content.id === `tab-${tabName}`);
+            });
+        }
+
+        // Power mode
+        function setPowerMode(mode) {
+            state.powerMode = mode;
+            const toggle = document.getElementById('powerToggle');
+            const label = document.getElementById('powerLabel');
+            
+            toggle.className = `power-toggle ${mode}`;
+            label.textContent = mode.charAt(0).toUpperCase() + mode.slice(1).replace('lowpower', 'Low Power');
+            
+            document.querySelectorAll('.modal-option').forEach(opt => {
+                opt.classList.toggle('selected', opt.dataset.mode === mode);
+            });
+            
+            // Send to backend
+            fetch('/api/power/mode', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ mode })
+            }).catch(e => console.error('Failed to set power mode:', e));
+        }
+
+        function togglePowerModal() {
+            const modal = document.getElementById('powerModal');
+            modal.classList.toggle('active');
+            if (modal.classList.contains('active')) {
+                modal.querySelector('.modal-option.selected').focus();
+            }
+        }
 
         // WebSocket connection
         let ws = null;
-        let reconnectTimeout = null;
 
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
             
-            ws = new WebSocket(wsUrl);
+            try {
+                ws = new WebSocket(wsUrl);
 
-            ws.onopen = () => {
-                state.connected = true;
-                updateConnectionStatus();
-                console.log('WebSocket connected');
-                
-                // Subscribe to all events
-                ws.send(JSON.stringify({ cmd: 'subscribe', topics: ['all'] }));
-            };
+                ws.onopen = () => {
+                    state.connected = true;
+                    updateConnectionStatus();
+                    ws.send(JSON.stringify({ cmd: 'subscribe', topics: ['all'] }));
+                };
 
-            ws.onclose = () => {
-                state.connected = false;
-                updateConnectionStatus();
-                console.log('WebSocket disconnected, reconnecting...');
-                reconnectTimeout = setTimeout(connect, 3000);
-            };
+                ws.onclose = () => {
+                    state.connected = false;
+                    updateConnectionStatus();
+                    setTimeout(connect, 3000);
+                };
 
-            ws.onerror = (error) => {
-                console.error('WebSocket error:', error);
-            };
+                ws.onerror = () => {
+                    state.connected = false;
+                    updateConnectionStatus();
+                };
 
-            ws.onmessage = (event) => {
-                try {
-                    const msg = JSON.parse(event.data);
-                    handleMessage(msg);
-                } catch (e) {
-                    console.error('Failed to parse message:', e);
-                }
-            };
+                ws.onmessage = (event) => {
+                    try {
+                        handleMessage(JSON.parse(event.data));
+                    } catch (e) {
+                        console.error('Failed to parse message:', e);
+                    }
+                };
+            } catch (e) {
+                console.error('WebSocket connection failed:', e);
+                setTimeout(connect, 3000);
+            }
         }
 
         function handleMessage(msg) {
             switch (msg.type) {
                 case 'wifi_device':
-                    handleWifiDevice(msg.data);
+                    state.wifiDevices.set(msg.data.mac, { ...msg.data, lastSeen: Date.now() });
+                    renderWifiDevices();
+                    updateStats();
                     break;
                 case 'ble_device':
-                    handleBleDevice(msg.data);
+                    state.bleDevices.set(msg.data.mac, { ...msg.data, lastSeen: Date.now() });
+                    renderBleDevices();
+                    updateStats();
                     break;
                 case 'gps_update':
-                    handleGpsUpdate(msg.data);
+                    state.gps = msg.data;
+                    renderGps();
                     break;
                 case 'attack':
-                    handleAttack(msg.data);
+                    state.attacks.unshift(msg.data);
+                    if (state.attacks.length > 50) state.attacks.pop();
+                    renderAttacks();
+                    updateStats();
                     break;
                 case 'alert':
-                    handleAlert(msg.data);
+                    state.alerts.unshift(msg.data);
+                    if (state.alerts.length > 50) state.alerts.pop();
+                    renderAlerts();
+                    break;
+                case 'hw_status':
+                    state.hwStatus = msg.data;
+                    renderHwStatus();
                     break;
                 case 'stats':
                     handleStats(msg.data);
@@ -485,47 +870,11 @@
             }
         }
 
-        function handleWifiDevice(data) {
-            state.wifiDevices.set(data.mac, {
-                ...data,
-                lastSeen: Date.now()
-            });
-            renderWifiDevices();
-            updateStats();
-        }
-
-        function handleBleDevice(data) {
-            state.bleDevices.set(data.mac, {
-                ...data,
-                lastSeen: Date.now()
-            });
-            renderBleDevices();
-            updateStats();
-        }
-
-        function handleGpsUpdate(data) {
-            state.gps = data;
-            renderGps();
-        }
-
-        function handleAttack(data) {
-            state.attacks.unshift(data);
-            if (state.attacks.length > 50) state.attacks.pop();
-            renderAttacks();
-            updateStats();
-        }
-
-        function handleAlert(data) {
-            state.alerts.unshift(data);
-            if (state.alerts.length > 50) state.alerts.pop();
-            renderAlerts();
-        }
-
         function handleStats(data) {
-            document.getElementById('wifiTotal').textContent = data.wifi_devices_total;
-            document.getElementById('bleTotal').textContent = data.ble_devices_total;
-            document.getElementById('newDevices').textContent = data.wifi_devices_new + data.ble_devices_new;
-            document.getElementById('attackCount').textContent = data.attacks_detected;
+            document.getElementById('wifiTotal').textContent = data.wifi_devices_total || 0;
+            document.getElementById('bleTotal').textContent = data.ble_devices_total || 0;
+            document.getElementById('newDevices').textContent = (data.wifi_devices_new || 0) + (data.ble_devices_new || 0);
+            document.getElementById('attackCount').textContent = data.attacks_detected || 0;
         }
 
         function getRssiClass(rssi) {
@@ -535,8 +884,7 @@
         }
 
         function formatTime(timestamp) {
-            const date = new Date(timestamp * 1000);
-            return date.toLocaleTimeString();
+            return new Date(timestamp * 1000).toLocaleTimeString();
         }
 
         function renderWifiDevices() {
@@ -545,27 +893,27 @@
                 .sort((a, b) => b.rssi - a.rssi)
                 .slice(0, 50);
 
+            document.getElementById('wifiCount').textContent = state.wifiDevices.size;
+
             if (devices.length === 0) {
                 list.innerHTML = '<li class="empty-state">Waiting for devices...</li>';
                 return;
             }
 
             list.innerHTML = devices.map(d => `
-                <li class="device-item">
+                <li class="device-item" tabindex="0">
                     <div class="device-info">
                         <span class="device-mac">${d.mac}</span>
-                        <span class="device-vendor">${d.vendor || 'Unknown vendor'}${d.ssid ? ' • ' + d.ssid : ''}</span>
+                        <span class="device-vendor">${d.vendor || 'Unknown'}${d.ssid ? ' • ' + d.ssid : ''}</span>
                     </div>
                     <div class="device-meta">
                         ${d.is_new ? '<span class="badge new">NEW</span>' : ''}
                         ${d.is_ap ? '<span class="badge ap">AP</span>' : ''}
-                        <span class="channel-badge">CH ${d.channel}</span>
+                        <span class="channel-badge">CH${d.channel || '?'}</span>
                         <span class="rssi ${getRssiClass(d.rssi)}">${d.rssi} dBm</span>
                     </div>
                 </li>
             `).join('');
-
-            document.getElementById('wifiCount').textContent = `${state.wifiDevices.size} devices`;
         }
 
         function renderBleDevices() {
@@ -574,16 +922,18 @@
                 .sort((a, b) => b.rssi - a.rssi)
                 .slice(0, 50);
 
+            document.getElementById('bleCount').textContent = state.bleDevices.size;
+
             if (devices.length === 0) {
                 list.innerHTML = '<li class="empty-state">Waiting for devices...</li>';
                 return;
             }
 
             list.innerHTML = devices.map(d => `
-                <li class="device-item">
+                <li class="device-item" tabindex="0">
                     <div class="device-info">
                         <span class="device-mac">${d.name || d.mac}</span>
-                        <span class="device-vendor">${d.device_type}</span>
+                        <span class="device-vendor">${d.device_type || 'Unknown'}</span>
                     </div>
                     <div class="device-meta">
                         ${d.is_new ? '<span class="badge new">NEW</span>' : ''}
@@ -592,12 +942,11 @@
                     </div>
                 </li>
             `).join('');
-
-            document.getElementById('bleCount').textContent = `${state.bleDevices.size} devices`;
         }
 
         function renderAlerts() {
             const container = document.getElementById('alertList');
+            document.getElementById('alertCount').textContent = state.alerts.length;
             
             if (state.alerts.length === 0) {
                 container.innerHTML = '<div class="empty-state">No alerts</div>';
@@ -605,8 +954,8 @@
             }
 
             container.innerHTML = state.alerts.slice(0, 20).map(a => `
-                <div class="alert-item ${a.priority.toLowerCase()}">
-                    <div class="alert-title">${a.title}</div>
+                <div class="alert-item ${(a.priority || 'medium').toLowerCase()}">
+                    <div class="alert-title">${a.title || 'Alert'}</div>
                     <div class="alert-message">${a.message}</div>
                     <div class="alert-time">${formatTime(a.timestamp)}</div>
                 </div>
@@ -615,6 +964,7 @@
 
         function renderAttacks() {
             const container = document.getElementById('attackList');
+            document.getElementById('attackBadge').textContent = state.attacks.length;
             
             if (state.attacks.length === 0) {
                 container.innerHTML = '<div class="empty-state">No attacks detected</div>';
@@ -624,12 +974,12 @@
             container.innerHTML = state.attacks.slice(0, 10).map(a => `
                 <div class="attack-item">
                     <span class="attack-type">${a.attack_type}</span>
-                    <span class="badge">${a.severity}</span>
+                    <span class="badge attack">${a.severity || 'HIGH'}</span>
                     <div style="margin-top: 0.5rem; font-size: 0.875rem;">
                         Source: <code>${a.source_mac}</code>
                     </div>
                     <div style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                        ${a.description}
+                        ${a.description || ''}
                     </div>
                     <div class="alert-time">${formatTime(a.timestamp)}</div>
                 </div>
@@ -639,25 +989,34 @@
         function renderGps() {
             if (!state.gps) return;
             
-            document.getElementById('gpsLat').textContent = state.gps.latitude.toFixed(6);
-            document.getElementById('gpsLon').textContent = state.gps.longitude.toFixed(6);
+            document.getElementById('gpsLat').textContent = state.gps.latitude?.toFixed(6) || '--';
+            document.getElementById('gpsLon').textContent = state.gps.longitude?.toFixed(6) || '--';
             document.getElementById('gpsAlt').textContent = state.gps.altitude ? `${state.gps.altitude.toFixed(1)}m` : '--';
             document.getElementById('gpsSpeed').textContent = state.gps.speed ? `${(state.gps.speed * 3.6).toFixed(1)} km/h` : '--';
-            document.getElementById('gpsSats').textContent = state.gps.satellites;
-            document.getElementById('gpsTime').textContent = formatTime(state.gps.timestamp);
+            document.getElementById('gpsSats').textContent = state.gps.satellites || '--';
+            document.getElementById('gpsTime').textContent = state.gps.timestamp ? formatTime(state.gps.timestamp) : '--';
+        }
+
+        function renderHwStatus() {
+            const hw = state.hwStatus;
+            
+            document.getElementById('hwWifi').className = `hw-status-icon ${hw.wifi ? 'ready' : 'disabled'}`;
+            document.getElementById('hwBle').className = `hw-status-icon ${hw.ble ? 'ready' : 'disabled'}`;
+            document.getElementById('hwGps').className = `hw-status-icon ${hw.gps ? 'ready' : 'disabled'}`;
+            document.getElementById('platformName').textContent = hw.platform || 'Unknown';
+            
+            if (hw.battery !== null) {
+                document.getElementById('batteryItem').style.display = 'flex';
+                document.getElementById('batteryPercent').textContent = `${hw.battery}%`;
+            }
         }
 
         function updateConnectionStatus() {
             const dot = document.getElementById('connectionStatus');
             const text = document.getElementById('connectionText');
             
-            if (state.connected) {
-                dot.classList.remove('disconnected');
-                text.textContent = 'Connected';
-            } else {
-                dot.classList.add('disconnected');
-                text.textContent = 'Disconnected';
-            }
+            dot.classList.toggle('disconnected', !state.connected);
+            text.textContent = state.connected ? 'Connected' : 'Disconnected';
         }
 
         function updateStats() {
@@ -670,37 +1029,104 @@
             document.getElementById('attackCount').textContent = state.attacks.length;
         }
 
-        // Fetch initial stats
         async function fetchStats() {
             try {
                 const response = await fetch('/api/stats');
                 const data = await response.json();
                 handleStats(data);
             } catch (e) {
-                console.error('Failed to fetch stats:', e);
+                // Silently fail
             }
         }
 
-        // Initialize
+        async function fetchHwStatus() {
+            try {
+                const response = await fetch('/api/hardware/status');
+                const data = await response.json();
+                state.hwStatus = data;
+                renderHwStatus();
+            } catch (e) {
+                // Silently fail
+            }
+        }
+
+        // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
+            // Tab navigation
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+            });
+
+            document.querySelectorAll('.stat-card').forEach(card => {
+                card.addEventListener('click', () => switchTab(card.dataset.tab));
+            });
+
+            // Power mode
+            document.getElementById('powerToggle').addEventListener('click', togglePowerModal);
+            document.querySelector('.modal-close').addEventListener('click', togglePowerModal);
+            
+            document.querySelectorAll('.modal-option').forEach(opt => {
+                opt.addEventListener('click', () => {
+                    setPowerMode(opt.dataset.mode);
+                    togglePowerModal();
+                });
+            });
+
+            // Close modal on backdrop click
+            document.getElementById('powerModal').addEventListener('click', (e) => {
+                if (e.target.classList.contains('modal-overlay')) {
+                    togglePowerModal();
+                }
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', (e) => {
+                // Ignore if in input
+                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+                
+                switch (e.key.toLowerCase()) {
+                    case 'p':
+                        togglePowerModal();
+                        break;
+                    case '1':
+                        switchTab('wifi');
+                        break;
+                    case '2':
+                        switchTab('ble');
+                        break;
+                    case '3':
+                        switchTab('alerts');
+                        break;
+                    case '4':
+                        switchTab('attacks');
+                        break;
+                    case '5':
+                        switchTab('gps');
+                        break;
+                    case 'escape':
+                        if (document.getElementById('powerModal').classList.contains('active')) {
+                            togglePowerModal();
+                        }
+                        break;
+                }
+            });
+
+            // Initialize
             connect();
             fetchStats();
+            fetchHwStatus();
             
-            // Refresh stats periodically
             setInterval(fetchStats, 30000);
+            setInterval(fetchHwStatus, 10000);
             
             // Cleanup old devices
             setInterval(() => {
-                const cutoff = Date.now() - 300000; // 5 minutes
+                const cutoff = Date.now() - 300000;
                 for (const [mac, device] of state.wifiDevices) {
-                    if (device.lastSeen < cutoff) {
-                        state.wifiDevices.delete(mac);
-                    }
+                    if (device.lastSeen < cutoff) state.wifiDevices.delete(mac);
                 }
                 for (const [mac, device] of state.bleDevices) {
-                    if (device.lastSeen < cutoff) {
-                        state.bleDevices.delete(mac);
-                    }
+                    if (device.lastSeen < cutoff) state.bleDevices.delete(mac);
                 }
                 renderWifiDevices();
                 renderBleDevices();

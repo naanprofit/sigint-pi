@@ -1,0 +1,1299 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>SIGINT-Pi Settings</title>
+    <style>
+        :root {
+            --bg-primary: #0d1117;
+            --bg-secondary: #161b22;
+            --bg-tertiary: #21262d;
+            --text-primary: #c9d1d9;
+            --text-secondary: #8b949e;
+            --accent-green: #3fb950;
+            --accent-red: #f85149;
+            --accent-yellow: #d29922;
+            --accent-blue: #58a6ff;
+            --accent-purple: #a371f7;
+            --border-color: #30363d;
+            --touch-target: 48px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header h1 {
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .back-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            text-decoration: none;
+            min-height: var(--touch-target);
+            display: flex;
+            align-items: center;
+        }
+
+        .back-btn:hover {
+            border-color: var(--accent-blue);
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+            padding-bottom: 0.5rem;
+        }
+
+        .tab-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            padding: 0.75rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            white-space: nowrap;
+            min-height: var(--touch-target);
+            font-size: 0.9rem;
+        }
+
+        .tab-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #000;
+        }
+
+        .settings-section {
+            display: none;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .settings-section.active {
+            display: block;
+        }
+
+        .section-title {
+            font-size: 1.1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .setting-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .setting-group h3 {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            margin-bottom: 0.5rem;
+            min-height: var(--touch-target);
+        }
+
+        .setting-item label {
+            flex: 1;
+        }
+
+        .setting-item .description {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-top: 0.25rem;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 50px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: var(--border-color);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 4px;
+            bottom: 4px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+
+        .toggle-switch input:checked + .toggle-slider {
+            background: var(--accent-green);
+        }
+
+        .toggle-switch input:checked + .toggle-slider:before {
+            transform: translateX(22px);
+        }
+
+        .text-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 4px;
+            width: 200px;
+            min-height: 36px;
+        }
+
+        .text-input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+
+        .select-input {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 0.5rem;
+            border-radius: 4px;
+            min-width: 150px;
+            min-height: 36px;
+        }
+
+        .btn {
+            background: var(--accent-blue);
+            color: #000;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            min-height: var(--touch-target);
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border: 1px solid var(--border-color);
+        }
+
+        .btn-danger {
+            background: var(--accent-red);
+            color: #fff;
+        }
+
+        .ninja-mode-banner {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border: 2px solid var(--accent-purple);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .ninja-mode-banner .ninja-icon {
+            font-size: 2rem;
+        }
+
+        .ninja-mode-banner h3 {
+            color: var(--accent-purple);
+        }
+
+        .ninja-mode-banner p {
+            font-size: 0.875rem;
+            color: var(--text-secondary);
+        }
+
+        .alert-box {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-bottom: 1rem;
+        }
+
+        .alert-box.warning {
+            background: rgba(210, 153, 34, 0.1);
+            border: 1px solid var(--accent-yellow);
+        }
+
+        .alert-box.info {
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid var(--accent-blue);
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 500;
+        }
+
+        .status-badge.enabled {
+            background: var(--accent-green);
+            color: #000;
+        }
+
+        .status-badge.disabled {
+            background: var(--text-secondary);
+            color: #000;
+        }
+
+        .save-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-color);
+            padding: 1rem;
+            display: flex;
+            justify-content: flex-end;
+            gap: 1rem;
+            z-index: 100;
+        }
+
+        .config-preview {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* About Page Styles */
+        .about-section {
+            margin-bottom: 2rem;
+        }
+
+        .about-section h2 {
+            margin-bottom: 1rem;
+            color: var(--accent-blue);
+        }
+
+        .about-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+        }
+
+        .about-card {
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            padding: 1rem;
+        }
+
+        .about-card .label {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+
+        .about-card .value {
+            font-size: 1rem;
+            font-weight: 500;
+        }
+
+        /* About Hero Page with Background Image */
+        .about-hero {
+            position: relative;
+            min-height: 600px;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .about-hero-image {
+            position: absolute;
+            right: 0;
+            top: 0;
+            height: 100%;
+            width: auto;
+            max-width: 50%;
+            object-fit: contain;
+            object-position: right center;
+            opacity: 0.85;
+            z-index: 1;
+        }
+
+        .about-content-overlay {
+            position: relative;
+            z-index: 10;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-width: 65%;
+        }
+
+        @media (max-width: 900px) {
+            .about-hero-image {
+                max-width: 40%;
+                opacity: 0.5;
+            }
+            .about-content-overlay {
+                max-width: 100%;
+            }
+        }
+
+        .info-box {
+            background: rgba(255, 255, 255, 0.95);
+            border: 2px solid #000;
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            color: #000;
+            box-shadow: 4px 4px 0 rgba(0, 0, 0, 0.3);
+        }
+
+        .info-box h1 {
+            font-size: 1.75rem;
+            margin-bottom: 0.25rem;
+            color: #000;
+        }
+
+        .info-box h2 {
+            font-size: 1.1rem;
+            margin-bottom: 0.75rem;
+            color: #000;
+            border-bottom: 2px solid #000;
+            padding-bottom: 0.5rem;
+        }
+
+        .info-box h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: #c00;
+        }
+
+        .info-box h4 {
+            font-size: 0.9rem;
+            margin: 0.75rem 0 0.5rem 0;
+            color: #333;
+        }
+
+        .info-box p {
+            font-size: 0.9rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+            line-height: 1.5;
+        }
+
+        .info-box .version {
+            font-size: 0.8rem;
+            color: #666;
+        }
+
+        .info-box.main-title {
+            background: linear-gradient(135deg, #fff 0%, #f0f0f0 100%);
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 0.5rem;
+        }
+
+        @media (max-width: 600px) {
+            .info-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .info-item:last-child {
+            border-bottom: none;
+        }
+
+        .info-label {
+            font-size: 0.85rem;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .info-value {
+            font-size: 0.85rem;
+            color: #000;
+            font-weight: 600;
+        }
+
+        .info-value.mono {
+            font-family: monospace;
+            font-size: 0.75rem;
+        }
+
+        .info-box .status-badge {
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            font-weight: 600;
+        }
+
+        .info-box .status-badge.enabled {
+            background: #2da44e;
+            color: #fff;
+        }
+
+        .info-box .status-badge.disabled {
+            background: #6e7681;
+            color: #fff;
+        }
+
+        .info-box.disclaimer-box {
+            background: #fff5f5;
+            border-color: #c00;
+        }
+
+        .info-box.disclaimer-box h3 {
+            color: #c00;
+            font-weight: 700;
+        }
+
+        .info-box.disclaimer-box p {
+            color: #333;
+        }
+
+        .hardware-notice {
+            margin-top: 0.75rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid #ddd;
+        }
+
+        .hardware-notice ul {
+            margin: 0;
+            padding-left: 1.25rem;
+            font-size: 0.85rem;
+            color: #333;
+        }
+
+        .hardware-notice li {
+            margin-bottom: 0.35rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>⚙️ Settings</h1>
+        <a href="/" class="back-btn">← Dashboard</a>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="general">General</button>
+            <button class="tab-btn" data-tab="scanning">Scanning</button>
+            <button class="tab-btn" data-tab="alerts">Alerts</button>
+            <button class="tab-btn" data-tab="integrations">Integrations</button>
+            <button class="tab-btn" data-tab="power">Power</button>
+            <button class="tab-btn" data-tab="about">About</button>
+        </div>
+
+        <!-- General Settings -->
+        <div class="settings-section active" id="tab-general">
+            <h2 class="section-title">General Settings</h2>
+
+            <div class="setting-group">
+                <h3>Device Identity</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Device Name</div>
+                        <div class="description">Human-readable name for this device</div>
+                    </label>
+                    <input type="text" class="text-input" id="deviceName" value="SIGINT-Pi">
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Device ID</div>
+                        <div class="description">Unique identifier (auto-generated)</div>
+                    </label>
+                    <input type="text" class="text-input" id="deviceId" readonly>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Operation Mode</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Simulation Mode</div>
+                        <div class="description">Generate fake data for testing (no real hardware)</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="simulationMode">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Auto-Start Scanning</div>
+                        <div class="description">Begin scanning when application starts</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="autoStart" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scanning Settings -->
+        <div class="settings-section" id="tab-scanning">
+            <h2 class="section-title">Scanning Settings</h2>
+
+            <div class="setting-group">
+                <h3>WiFi Scanning</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable WiFi Scanning</div>
+                        <div class="description">Monitor WiFi devices and networks</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="wifiEnabled" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>WiFi Interface</div>
+                        <div class="description">Network interface for monitoring</div>
+                    </label>
+                    <input type="text" class="text-input" id="wifiInterface" value="wlan1">
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Attack Detection</div>
+                        <div class="description">Detect deauth, evil twin, and other attacks</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="attackDetection" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>PCAP Capture</div>
+                        <div class="description">Record packets for forensic analysis</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="pcapCapture">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Bluetooth Scanning</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable BLE Scanning</div>
+                        <div class="description">Monitor Bluetooth Low Energy devices</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="bleEnabled" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Tracker Detection</div>
+                        <div class="description">Detect AirTags, Tiles, and other trackers</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="trackerDetection" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>GPS</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable GPS</div>
+                        <div class="description">Track location and enable geofencing</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="gpsEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Geofencing</div>
+                        <div class="description">Alert when devices enter/exit defined areas</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="geofencing">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alerts Settings -->
+        <div class="settings-section" id="tab-alerts">
+            <h2 class="section-title">Alert Settings</h2>
+
+            <!-- Ninja Mode -->
+            <div class="ninja-mode-banner">
+                <span class="ninja-icon">🥷</span>
+                <div style="flex: 1;">
+                    <h3>Ninja Mode</h3>
+                    <p>Silent operation - disables all sounds and visual indicators</p>
+                </div>
+                <label class="toggle-switch">
+                    <input type="checkbox" id="ninjaMode">
+                    <span class="toggle-slider"></span>
+                </label>
+            </div>
+
+            <div class="setting-group">
+                <h3>Sound Alerts</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable Sound Alerts</div>
+                        <div class="description">Play audio for events (disabled in Ninja Mode)</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="soundEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Volume</div>
+                    </label>
+                    <input type="range" min="0" max="100" value="70" id="soundVolume" style="width: 150px;">
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>New Device Sound</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="soundNewDevice" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Tracker Sound</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="soundTracker" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Attack Sound</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="soundAttack" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Telegram</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable Telegram Alerts</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="telegramEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>Bot Token</label>
+                    <input type="password" class="text-input" id="telegramToken" placeholder="123456:ABC...">
+                </div>
+                <div class="setting-item">
+                    <label>Chat ID</label>
+                    <input type="text" class="text-input" id="telegramChatId" placeholder="-1001234567890">
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Signal Messenger</h3>
+                <div class="alert-box info">
+                    Requires signal-cli to be installed and configured. See documentation for setup.
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable Signal Alerts</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="signalEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>Sender Number</label>
+                    <input type="text" class="text-input" id="signalSender" placeholder="+1234567890">
+                </div>
+                <div class="setting-item">
+                    <label>Recipients (comma-separated)</label>
+                    <input type="text" class="text-input" id="signalRecipients" placeholder="+1234567890,+0987654321">
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Email (SMTP)</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable Email Alerts</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="emailEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>SMTP Host</label>
+                    <input type="text" class="text-input" id="smtpHost" placeholder="smtp.gmail.com">
+                </div>
+                <div class="setting-item">
+                    <label>SMTP Port</label>
+                    <input type="number" class="text-input" id="smtpPort" value="587">
+                </div>
+            </div>
+        </div>
+
+        <!-- Integrations Settings -->
+        <div class="settings-section" id="tab-integrations">
+            <h2 class="section-title">Integrations</h2>
+
+            <div class="setting-group">
+                <h3>MQTT (Home Assistant)</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable MQTT</div>
+                        <div class="description">Publish events to MQTT broker</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="mqttEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>Broker URL</label>
+                    <input type="text" class="text-input" id="mqttBroker" placeholder="mqtt://localhost:1883">
+                </div>
+                <div class="setting-item">
+                    <label>Topic Prefix</label>
+                    <input type="text" class="text-input" id="mqttPrefix" value="sigint-pi">
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>OpenClaw Integration</h3>
+                <div class="alert-box info">
+                    OpenClaw is a centralized alert aggregation platform. Configure your device to send
+                    alerts to OpenClaw for unified monitoring across multiple SIGINT-Pi devices.
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable OpenClaw</div>
+                        <div class="description">Send alerts to OpenClaw API</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="openclawEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <label>API URL</label>
+                    <input type="text" class="text-input" id="openclawUrl" placeholder="https://api.openclaw.io/v1/alerts">
+                </div>
+                <div class="setting-item">
+                    <label>API Key</label>
+                    <input type="password" class="text-input" id="openclawKey" placeholder="your-api-key">
+                </div>
+                <div class="setting-item">
+                    <label>Device ID</label>
+                    <input type="text" class="text-input" id="openclawDeviceId" placeholder="sigint-pi-001">
+                </div>
+                <div class="setting-item">
+                    <label>Tags (comma-separated)</label>
+                    <input type="text" class="text-input" id="openclawTags" value="sigint,wireless">
+                </div>
+                <div class="setting-item">
+                    <label>Min Priority</label>
+                    <select class="select-input" id="openclawPriority">
+                        <option value="low">Low</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="high">High</option>
+                        <option value="critical">Critical</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <button class="btn btn-secondary" onclick="testOpenclaw()">Test Connection</button>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Custom Webhooks</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Enable Webhooks</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="webhookEnabled">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div id="webhookList"></div>
+                <button class="btn btn-secondary" onclick="addWebhook()">+ Add Webhook</button>
+            </div>
+        </div>
+
+        <!-- Power Settings -->
+        <div class="settings-section" id="tab-power">
+            <h2 class="section-title">Power Settings</h2>
+
+            <div class="setting-group">
+                <h3>Power Mode</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Current Mode</div>
+                    </label>
+                    <select class="select-input" id="powerMode">
+                        <option value="performance">🔥 Performance</option>
+                        <option value="balanced" selected>⚖️ Balanced</option>
+                        <option value="lowpower">🔋 Low Power</option>
+                    </select>
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Auto Low-Power at Battery %</div>
+                        <div class="description">Automatically switch to low power mode</div>
+                    </label>
+                    <input type="number" class="text-input" id="autoLowPower" value="20" min="0" max="100">
+                </div>
+            </div>
+        </div>
+
+        <!-- About -->
+        <div class="settings-section" id="tab-about">
+            <h2 class="section-title">About SIGINT-Pi</h2>
+
+            <!-- About page with background image -->
+            <div class="about-hero">
+                <img src="/images/about-hero.png" alt="SIGINT-Pi" class="about-hero-image">
+                
+                <div class="about-content-overlay">
+                    <div class="info-box main-title">
+                        <h1>SIGINT-Pi</h1>
+                        <p>Portable Signals Intelligence Platform</p>
+                        <p class="version">v0.1.0 | by sigkill</p>
+                    </div>
+
+                    <div class="info-box system-info">
+                        <h2>System Information</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Version</span>
+                                <span class="info-value" id="aboutVersion">0.1.0</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Platform</span>
+                                <span class="info-value" id="aboutPlatform">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Device ID</span>
+                                <span class="info-value mono" id="aboutDeviceId">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Uptime</span>
+                                <span class="info-value" id="aboutUptime">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-box config-status">
+                        <h2>Current Configuration</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">WiFi Scanning</span>
+                                <span class="status-badge enabled" id="statusWifi">Enabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">BLE Scanning</span>
+                                <span class="status-badge enabled" id="statusBle">Enabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">GPS</span>
+                                <span class="status-badge disabled" id="statusGps">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Attack Detection</span>
+                                <span class="status-badge enabled" id="statusAttack">Enabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">PCAP Capture</span>
+                                <span class="status-badge disabled" id="statusPcap">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Sound Alerts</span>
+                                <span class="status-badge disabled" id="statusSound">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Ninja Mode</span>
+                                <span class="status-badge disabled" id="statusNinja">Off</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Power Mode</span>
+                                <span class="info-value" id="statusPower">Balanced</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-box alert-channels">
+                        <h2>Alert Channels</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Telegram</span>
+                                <span class="status-badge disabled" id="statusTelegram">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Signal</span>
+                                <span class="status-badge disabled" id="statusSignal">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Email</span>
+                                <span class="status-badge disabled" id="statusEmail">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">MQTT</span>
+                                <span class="status-badge disabled" id="statusMqtt">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OpenClaw</span>
+                                <span class="status-badge disabled" id="statusOpenclaw">Disabled</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Webhooks</span>
+                                <span class="info-value" id="statusWebhooks">0 configured</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="info-box disclaimer-box">
+                        <h3>⚠️ LEGAL DISCLAIMER</h3>
+                        <p>
+                            <strong>AUTHORIZED USE ONLY.</strong> This tool is for security research 
+                            and educational purposes. Monitoring wireless communications without 
+                            authorization is ILLEGAL in most jurisdictions.
+                        </p>
+                        <p>
+                            You are solely responsible for ensuring compliance with all applicable 
+                            local, state, federal, and international laws.
+                        </p>
+                        <div class="hardware-notice">
+                            <h4>Hardware Requirements</h4>
+                            <ul>
+                                <li><strong>WiFi Monitor Mode:</strong> Requires external USB WiFi adapter (e.g., Alfa AWUS036ACHM)</li>
+                                <li><strong>GPS:</strong> Requires external USB GPS receiver</li>
+                                <li><strong>Portable Operation:</strong> Use a powered USB hub for stable power delivery</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="save-bar">
+        <button class="btn btn-secondary" onclick="resetSettings()">Reset to Defaults</button>
+        <button class="btn" onclick="saveSettings()">Save Settings</button>
+    </div>
+
+    <script>
+        // Tab switching
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.settings-section').forEach(s => s.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
+            });
+        });
+
+        // Load settings
+        async function loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const settings = await response.json();
+                applySettings(settings);
+            } catch (e) {
+                console.error('Failed to load settings:', e);
+            }
+        }
+
+        function applySettings(s) {
+            // General
+            document.getElementById('deviceName').value = s.general?.device_name || 'SIGINT-Pi';
+            document.getElementById('deviceId').value = s.general?.device_id || '';
+            document.getElementById('simulationMode').checked = s.general?.simulation_mode || false;
+            document.getElementById('autoStart').checked = s.general?.auto_start_scanning !== false;
+
+            // Scanning
+            document.getElementById('wifiEnabled').checked = s.wifi?.enabled !== false;
+            document.getElementById('wifiInterface').value = s.wifi?.interface || 'wlan1';
+            document.getElementById('attackDetection').checked = s.wifi?.attack_detection !== false;
+            document.getElementById('pcapCapture').checked = s.wifi?.capture_pcap || false;
+            document.getElementById('bleEnabled').checked = s.bluetooth?.enabled !== false;
+            document.getElementById('trackerDetection').checked = s.bluetooth?.detect_trackers !== false;
+            document.getElementById('gpsEnabled').checked = s.gps?.enabled || false;
+            document.getElementById('geofencing').checked = s.gps?.geofencing || false;
+
+            // Alerts
+            document.getElementById('ninjaMode').checked = s.alerts?.sound?.ninja_mode || false;
+            document.getElementById('soundEnabled').checked = s.alerts?.sound?.enabled || false;
+            document.getElementById('soundVolume').value = s.alerts?.sound?.volume || 70;
+            document.getElementById('telegramEnabled').checked = s.alerts?.telegram?.enabled || false;
+            document.getElementById('signalEnabled').checked = s.alerts?.signal?.enabled || false;
+            document.getElementById('emailEnabled').checked = s.alerts?.email?.enabled || false;
+
+            // Integrations
+            document.getElementById('mqttEnabled').checked = s.alerts?.mqtt?.enabled || false;
+            document.getElementById('openclawEnabled').checked = s.alerts?.openclaw?.enabled || false;
+
+            // Power
+            document.getElementById('powerMode').value = s.power?.mode || 'balanced';
+            document.getElementById('autoLowPower').value = s.power?.auto_low_power_percent || 20;
+
+            // Update about page
+            updateAboutPage(s);
+        }
+
+        function updateAboutPage(s) {
+            document.getElementById('aboutDeviceId').textContent = s.general?.device_id || '--';
+            
+            const setStatus = (id, enabled) => {
+                const el = document.getElementById(id);
+                el.className = `status-badge ${enabled ? 'enabled' : 'disabled'}`;
+                el.textContent = enabled ? 'Enabled' : 'Disabled';
+            };
+
+            setStatus('statusWifi', s.wifi?.enabled);
+            setStatus('statusBle', s.bluetooth?.enabled);
+            setStatus('statusGps', s.gps?.enabled);
+            setStatus('statusAttack', s.wifi?.attack_detection);
+            setStatus('statusPcap', s.wifi?.capture_pcap);
+            setStatus('statusSound', s.alerts?.sound?.enabled);
+            setStatus('statusNinja', s.alerts?.sound?.ninja_mode);
+            setStatus('statusTelegram', s.alerts?.telegram?.enabled);
+            setStatus('statusSignal', s.alerts?.signal?.enabled);
+            setStatus('statusEmail', s.alerts?.email?.enabled);
+            setStatus('statusMqtt', s.alerts?.mqtt?.enabled);
+            setStatus('statusOpenclaw', s.alerts?.openclaw?.enabled);
+            
+            document.getElementById('statusPower').textContent = 
+                (s.power?.mode || 'balanced').charAt(0).toUpperCase() + (s.power?.mode || 'balanced').slice(1);
+        }
+
+        async function saveSettings() {
+            const settings = {
+                general: {
+                    device_name: document.getElementById('deviceName').value,
+                    simulation_mode: document.getElementById('simulationMode').checked,
+                    auto_start_scanning: document.getElementById('autoStart').checked,
+                },
+                wifi: {
+                    enabled: document.getElementById('wifiEnabled').checked,
+                    interface: document.getElementById('wifiInterface').value,
+                    attack_detection: document.getElementById('attackDetection').checked,
+                    capture_pcap: document.getElementById('pcapCapture').checked,
+                },
+                bluetooth: {
+                    enabled: document.getElementById('bleEnabled').checked,
+                    detect_trackers: document.getElementById('trackerDetection').checked,
+                },
+                gps: {
+                    enabled: document.getElementById('gpsEnabled').checked,
+                    geofencing: document.getElementById('geofencing').checked,
+                },
+                alerts: {
+                    sound: {
+                        enabled: document.getElementById('soundEnabled').checked,
+                        ninja_mode: document.getElementById('ninjaMode').checked,
+                        volume: parseInt(document.getElementById('soundVolume').value),
+                    },
+                    telegram: {
+                        enabled: document.getElementById('telegramEnabled').checked,
+                        bot_token: document.getElementById('telegramToken').value,
+                        chat_id: document.getElementById('telegramChatId').value,
+                    },
+                    signal: {
+                        enabled: document.getElementById('signalEnabled').checked,
+                        sender_number: document.getElementById('signalSender').value,
+                        recipients: document.getElementById('signalRecipients').value.split(',').map(s => s.trim()).filter(s => s),
+                    },
+                    mqtt: {
+                        enabled: document.getElementById('mqttEnabled').checked,
+                        broker_url: document.getElementById('mqttBroker').value,
+                        topic_prefix: document.getElementById('mqttPrefix').value,
+                    },
+                    openclaw: {
+                        enabled: document.getElementById('openclawEnabled').checked,
+                        api_url: document.getElementById('openclawUrl').value,
+                        api_key: document.getElementById('openclawKey').value,
+                        device_id: document.getElementById('openclawDeviceId').value,
+                        tags: document.getElementById('openclawTags').value.split(',').map(s => s.trim()),
+                        min_priority: document.getElementById('openclawPriority').value,
+                    },
+                },
+                power: {
+                    mode: document.getElementById('powerMode').value,
+                    auto_low_power_percent: parseInt(document.getElementById('autoLowPower').value),
+                },
+            };
+
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(settings)
+                });
+                
+                if (response.ok) {
+                    alert('Settings saved successfully!');
+                } else {
+                    alert('Failed to save settings');
+                }
+            } catch (e) {
+                console.error('Failed to save settings:', e);
+                alert('Failed to save settings: ' + e.message);
+            }
+        }
+
+        function resetSettings() {
+            if (confirm('Reset all settings to defaults?')) {
+                fetch('/api/settings/reset', { method: 'POST' })
+                    .then(() => loadSettings())
+                    .catch(e => alert('Failed to reset: ' + e.message));
+            }
+        }
+
+        async function testOpenclaw() {
+            try {
+                const response = await fetch('/api/integrations/openclaw/test', { method: 'POST' });
+                const result = await response.json();
+                alert(result.success ? 'OpenClaw connection successful!' : 'Failed: ' + result.error);
+            } catch (e) {
+                alert('Test failed: ' + e.message);
+            }
+        }
+
+        function addWebhook() {
+            alert('Webhook editor coming soon. Configure in config.toml for now.');
+        }
+
+        // Load system info
+        async function loadSystemInfo() {
+            try {
+                const response = await fetch('/api/system/info');
+                const info = await response.json();
+                document.getElementById('aboutVersion').textContent = info.version || '0.1.0';
+                document.getElementById('aboutPlatform').textContent = info.platform || 'Unknown';
+                document.getElementById('aboutUptime').textContent = formatUptime(info.uptime_secs || 0);
+            } catch (e) {
+                console.error('Failed to load system info:', e);
+            }
+        }
+
+        function formatUptime(secs) {
+            const hours = Math.floor(secs / 3600);
+            const mins = Math.floor((secs % 3600) / 60);
+            return `${hours}h ${mins}m`;
+        }
+
+        // Initialize
+        loadSettings();
+        loadSystemInfo();
+    </script>
+</body>
+</html>

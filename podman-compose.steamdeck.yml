@@ -1,0 +1,119 @@
+# Podman Compose for Steam Deck
+# 
+# Usage:
+#   podman-compose -f podman-compose.steamdeck.yml up -d
+#
+# For real hardware capture (requires external USB WiFi adapter):
+#   podman-compose -f podman-compose.steamdeck.yml --profile hardware up -d
+#
+# For simulation/testing mode:
+#   podman-compose -f podman-compose.steamdeck.yml --profile simulation up -d
+
+version: "3.8"
+
+services:
+  # Main application - simulation mode (safe, no special permissions)
+  sigint-pi-sim:
+    build:
+      context: .
+      dockerfile: Containerfile.steamdeck
+    container_name: sigint-pi
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent data in user home directory
+      - ${HOME}/.local/share/sigint-pi/data:/data:Z
+      - ${HOME}/.config/sigint-pi:/etc/sigint-pi:Z
+    environment:
+      - SIGINT_PLATFORM=steamdeck
+      - SIGINT_SIMULATION=1
+      - RUST_LOG=info
+    restart: unless-stopped
+    profiles:
+      - simulation
+      - default
+
+  # Main application - real hardware mode
+  # REQUIRES: External USB WiFi adapter with monitor mode support
+  # REQUIRES: Running with elevated privileges for network capture
+  sigint-pi-hw:
+    build:
+      context: .
+      dockerfile: Containerfile.steamdeck
+    container_name: sigint-pi
+    ports:
+      - "8080:8080"
+    volumes:
+      # Persistent data
+      - ${HOME}/.local/share/sigint-pi/data:/data:Z
+      - ${HOME}/.config/sigint-pi:/etc/sigint-pi:Z
+      # D-Bus for Bluetooth access
+      - /run/dbus:/run/dbus:ro
+      - /var/run/dbus:/var/run/dbus:ro
+    environment:
+      - SIGINT_PLATFORM=steamdeck
+      - RUST_LOG=info
+      # Disable simulation for real hardware
+      # - SIGINT_SIMULATION=1
+    # Network capabilities for packet capture
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # Host networking required for WiFi monitor mode
+    network_mode: host
+    # Device access for GPS (if connected)
+    devices:
+      - /dev/ttyUSB0:/dev/ttyUSB0
+      - /dev/ttyACM0:/dev/ttyACM0
+    privileged: false  # Prefer capability-based access over full privileged
+    security_opt:
+      - label=disable  # Required for host network access on SELinux
+    restart: unless-stopped
+    profiles:
+      - hardware
+
+  # Minimal hardware mode (WiFi only, no BLE/GPS)
+  sigint-pi-wifi:
+    build:
+      context: .
+      dockerfile: Containerfile.steamdeck
+    container_name: sigint-pi
+    ports:
+      - "8080:8080"
+    volumes:
+      - ${HOME}/.local/share/sigint-pi/data:/data:Z
+      - ${HOME}/.config/sigint-pi:/etc/sigint-pi:Z
+    environment:
+      - SIGINT_PLATFORM=steamdeck
+      - RUST_LOG=info
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    network_mode: host
+    security_opt:
+      - label=disable
+    restart: unless-stopped
+    profiles:
+      - wifi-only
+
+# Notes for Steam Deck users:
+#
+# 1. Create config directories first:
+#    mkdir -p ~/.local/share/sigint-pi/data ~/.config/sigint-pi
+#    cp config.toml.example ~/.config/sigint-pi/config.toml
+#
+# 2. Edit your config:
+#    nano ~/.config/sigint-pi/config.toml
+#
+# 3. For real WiFi capture, you MUST:
+#    - Connect an external USB WiFi adapter (e.g., Alfa AWUS036ACHM)
+#    - Put it in monitor mode BEFORE starting the container:
+#      sudo ip link set wlan1 down
+#      sudo iw wlan1 set type monitor
+#      sudo ip link set wlan1 up
+#
+# 4. The Steam Deck's internal WiFi (wlan0) does NOT support monitor mode!
+#
+# 5. For Bluetooth access from container:
+#    - D-Bus socket is mounted read-only
+#    - May need to run: systemctl --user start dbus

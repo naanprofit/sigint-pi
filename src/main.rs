@@ -7,9 +7,16 @@ mod storage;
 mod alerts;
 mod web;
 mod cloud;
+mod platform;
+mod power;
+mod settings;
 
 #[cfg(feature = "simulation")]
 mod simulation;
+
+use platform::{Platform, PlatformCapabilities, HardwareStatus};
+use power::PowerManager;
+use settings::LEGAL_DISCLAIMER;
 
 use anyhow::Result;
 use tracing::{info, warn, Level};
@@ -42,6 +49,22 @@ async fn main() -> Result<()> {
 
     info!("SIGINT-Pi starting up...");
 
+    // Show legal disclaimer on first run or when requested
+    if std::env::var("SIGINT_SHOW_DISCLAIMER").is_ok() || 
+       !std::path::Path::new("/data/.disclaimer_accepted").exists() {
+        eprintln!("{}", LEGAL_DISCLAIMER);
+        if !std::env::var("SIGINT_ACCEPT_DISCLAIMER").is_ok() {
+            eprintln!("Set SIGINT_ACCEPT_DISCLAIMER=1 to accept and continue.");
+            std::process::exit(1);
+        }
+        // Create marker file
+        let _ = std::fs::write("/data/.disclaimer_accepted", "accepted");
+    }
+
+    // Platform detection and logging
+    platform::log_platform_info();
+    let platform_caps = PlatformCapabilities::detect();
+
     let config = Config::load()?;
     info!("Configuration loaded");
 
@@ -57,6 +80,17 @@ async fn main() -> Result<()> {
 
     // Check for simulation mode
     let simulation_mode = std::env::var("SIGINT_SIMULATION").is_ok();
+
+    // Perform hardware capability checks
+    let hw_status = platform::HardwareStatus::check_all(&config.wifi.interface);
+    info!("Hardware status: {}", hw_status.summary());
+    
+    for warning in &hw_status.warnings {
+        warn!("{}", warning);
+    }
+    for error in &hw_status.errors {
+        error!("{}", error);
+    }
     
     #[cfg(feature = "simulation")]
     if simulation_mode {

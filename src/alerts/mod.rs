@@ -2,6 +2,9 @@ mod telegram;
 mod twilio;
 mod email;
 mod mqtt;
+pub mod sound;
+pub mod signal;
+pub mod webhook;
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -21,6 +24,9 @@ pub use telegram::TelegramAlert;
 pub use twilio::TwilioAlert;
 pub use email::EmailAlert;
 pub use mqtt::MqttAlert;
+pub use sound::{SoundPlayer, SoundEffect, SoundConfig};
+pub use signal::{SignalClient, SignalConfig};
+pub use webhook::{WebhookClient, WebhookConfig, OpenClawConfig, AlertData};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Alert {
