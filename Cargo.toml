@@ -82,6 +82,10 @@ geo = "0.28"
 # Config directory
 dirs = "5.0"
 
+# Lazy static for global data
+lazy_static = "1.4"
+once_cell = "1.19"
+
 [features]
 default = []
 simulation = ["rand"]

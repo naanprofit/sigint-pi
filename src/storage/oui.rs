@@ -401,6 +401,51 @@ impl OuiLookup {
             ("F8:16:54", "Intel"),
             ("F8:94:C2", "Intel"),
             ("FC:F8:AE", "Intel"),
+            // IoT / Smart Home Devices
+            ("C8:0F:10", "MELK/ELK-BLEDOM (BLE LED Strip)"),
+            // Other common BLE LED controllers
+            ("BE:FF:20", "ELK-BLEDOM (BLE LED Strip)"),
+            ("BE:FF:E0", "ELK-BLEDOM (BLE LED Strip)"),
+            // Tuya/Smart Life IoT
+            ("D8:1F:12", "Tuya Smart"),
+            ("DC:23:4D", "Tuya Smart"),
+            ("84:0D:8E", "Tuya Smart"),
+            ("A4:CF:12", "Tuya Smart"),
+            // Govee LED
+            ("A4:C1:38", "Govee (Smart LED)"),
+            // Philips Hue
+            ("00:17:88", "Philips Hue"),
+            // LIFX
+            ("D0:73:D5", "LIFX"),
+            // Wyze
+            ("2C:AA:8E", "Wyze"),
+            ("7C:78:B2", "Wyze"),
+            // Ring
+            ("5C:47:5E", "Ring"),
+            ("34:3E:A4", "Ring"),
+            // Sonos
+            ("00:0E:58", "Sonos"),
+            ("5C:AA:FD", "Sonos"),
+            ("78:28:CA", "Sonos"),
+            ("94:9F:3E", "Sonos"),
+            ("B8:E9:37", "Sonos"),
+            // Nest/Google Home
+            ("18:D6:C7", "Google Nest"),
+            ("1C:F2:9A", "Google Nest"),
+            ("54:60:09", "Google Nest"),
+            ("F4:F5:D8", "Google Nest"),
+            // Amazon Echo/Alexa
+            ("00:FC:8B", "Amazon Echo"),
+            ("0C:47:C9", "Amazon Echo"),
+            ("34:D2:70", "Amazon Echo"),
+            ("38:2F:E4", "Amazon Echo"),
+            ("44:65:0D", "Amazon Echo"),
+            ("50:DC:E7", "Amazon Echo"),
+            ("68:37:E9", "Amazon Echo"),
+            ("74:C2:46", "Amazon Echo"),
+            ("84:D6:D0", "Amazon Echo"),
+            ("A4:08:EA", "Amazon Echo"),
+            ("FC:65:DE", "Amazon Echo"),
         ];
 
         for (oui, vendor) in entries {

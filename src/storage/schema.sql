@@ -141,3 +141,64 @@ CREATE TABLE IF NOT EXISTS device_profiles (
 );
 
 CREATE INDEX IF NOT EXISTS idx_profiles_mac ON device_profiles(mac_address);
+
+-- OUI Vendor Database (local cache)
+CREATE TABLE IF NOT EXISTS oui_vendors (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    oui_prefix TEXT UNIQUE NOT NULL,  -- First 3 octets (e.g., "00:00:8F")
+    vendor_name TEXT NOT NULL,
+    vendor_full TEXT,
+    country TEXT,
+    is_threat BOOLEAN DEFAULT FALSE,
+    threat_category TEXT,  -- 'us_defense', 'chinese', 'surveillance', etc.
+    threat_description TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_oui_prefix ON oui_vendors(oui_prefix);
+CREATE INDEX IF NOT EXISTS idx_oui_threat ON oui_vendors(is_threat);
+
+-- AI Device Descriptions (local cache of LLM explanations)
+CREATE TABLE IF NOT EXISTS device_descriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mac_address TEXT UNIQUE NOT NULL,
+    device_name TEXT,
+    device_type TEXT,  -- 'wifi_ap', 'wifi_client', 'ble', 'tracker'
+    ai_description TEXT,  -- LLM-generated explanation
+    ai_threat_assessment TEXT,  -- LLM threat analysis
+    ai_model TEXT,  -- Which model generated this
+    vendor_name TEXT,  -- From OUI lookup
+    vendor_oui TEXT,
+    is_threat BOOLEAN DEFAULT FALSE,
+    threat_level TEXT,  -- 'critical', 'high', 'medium', 'low', 'none'
+    tags TEXT,  -- JSON array of tags
+    user_notes TEXT,  -- User-added notes
+    last_seen DATETIME,
+    first_seen DATETIME,
+    times_seen INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_desc_mac ON device_descriptions(mac_address);
+CREATE INDEX IF NOT EXISTS idx_desc_threat ON device_descriptions(is_threat);
+CREATE INDEX IF NOT EXISTS idx_desc_type ON device_descriptions(device_type);
+CREATE INDEX IF NOT EXISTS idx_desc_vendor ON device_descriptions(vendor_name);
+
+-- SSID Database (track known networks)
+CREATE TABLE IF NOT EXISTS ssid_database (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ssid TEXT UNIQUE NOT NULL,
+    ai_description TEXT,
+    is_suspicious BOOLEAN DEFAULT FALSE,
+    suspicious_reason TEXT,
+    times_seen INTEGER DEFAULT 1,
+    first_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    associated_macs TEXT,  -- JSON array of MACs that broadcast this SSID
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_ssid_name ON ssid_database(ssid);
+CREATE INDEX IF NOT EXISTS idx_ssid_suspicious ON ssid_database(is_suspicious);

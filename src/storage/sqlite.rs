@@ -318,3 +318,134 @@ pub struct DeviceCounts {
     pub ble_total: u64,
     pub ble_baseline: u64,
 }
+
+// ===== Device Intelligence Methods =====
+
+impl Database {
+    /// Get cached device description from database
+    pub async fn get_device_description(&self, mac: &str) -> Result<Option<crate::intelligence::DeviceIntelligence>> {
+        let row = sqlx::query(r#"
+            SELECT mac_address, device_name, device_type, vendor_name, ai_description,
+                   threat_level, threat_level as threat_reason, tags, updated_at
+            FROM device_descriptions
+            WHERE mac_address = ?
+        "#)
+            .bind(mac)
+            .fetch_optional(&self.pool)
+            .await?;
+        
+        match row {
+            Some(row) => {
+                let threat_str: Option<String> = row.get("threat_level");
+                let threat_level = match threat_str.as_deref() {
+                    Some("critical") => crate::intelligence::ThreatLevel::Critical,
+                    Some("high") => crate::intelligence::ThreatLevel::High,
+                    Some("medium") => crate::intelligence::ThreatLevel::Medium,
+                    Some("low") => crate::intelligence::ThreatLevel::Low,
+                    Some("none") => crate::intelligence::ThreatLevel::None,
+                    _ => crate::intelligence::ThreatLevel::Unknown,
+                };
+                
+                Ok(Some(crate::intelligence::DeviceIntelligence {
+                    mac_address: row.get("mac_address"),
+                    device_name: row.get("device_name"),
+                    device_type: row.get::<String, _>("device_type"),
+                    vendor_name: row.get("vendor_name"),
+                    ai_description: row.get("ai_description"),
+                    threat_level,
+                    threat_reason: row.get("threat_reason"),
+                    category: None,
+                    from_cache: true,
+                    analyzed_at: None,
+                }))
+            }
+            None => Ok(None),
+        }
+    }
+    
+    /// Save device description to database
+    pub async fn save_device_description(&self, intel: &crate::intelligence::DeviceIntelligence) -> Result<()> {
+        let threat_str = match intel.threat_level {
+            crate::intelligence::ThreatLevel::Critical => "critical",
+            crate::intelligence::ThreatLevel::High => "high",
+            crate::intelligence::ThreatLevel::Medium => "medium",
+            crate::intelligence::ThreatLevel::Low => "low",
+            crate::intelligence::ThreatLevel::None => "none",
+            crate::intelligence::ThreatLevel::Unknown => "unknown",
+        };
+        
+        let is_threat = matches!(
+            intel.threat_level,
+            crate::intelligence::ThreatLevel::Critical | 
+            crate::intelligence::ThreatLevel::High |
+            crate::intelligence::ThreatLevel::Medium
+        );
+        
+        sqlx::query(r#"
+            INSERT INTO device_descriptions 
+                (mac_address, device_name, device_type, vendor_name, ai_description, 
+                 threat_level, is_threat, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(mac_address) DO UPDATE SET
+                device_name = COALESCE(excluded.device_name, device_descriptions.device_name),
+                ai_description = COALESCE(excluded.ai_description, device_descriptions.ai_description),
+                threat_level = excluded.threat_level,
+                is_threat = excluded.is_threat,
+                times_seen = device_descriptions.times_seen + 1,
+                last_seen = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+        "#)
+            .bind(&intel.mac_address)
+            .bind(&intel.device_name)
+            .bind(&intel.device_type)
+            .bind(&intel.vendor_name)
+            .bind(&intel.ai_description)
+            .bind(threat_str)
+            .bind(is_threat)
+            .execute(&self.pool)
+            .await?;
+        
+        Ok(())
+    }
+    
+    /// Get all devices with AI descriptions (for export/review)
+    pub async fn get_all_device_descriptions(&self) -> Result<Vec<crate::intelligence::DeviceIntelligence>> {
+        let rows = sqlx::query(r#"
+            SELECT mac_address, device_name, device_type, vendor_name, ai_description,
+                   threat_level, times_seen, updated_at
+            FROM device_descriptions
+            ORDER BY updated_at DESC
+            LIMIT 500
+        "#)
+            .fetch_all(&self.pool)
+            .await?;
+        
+        let mut results = Vec::new();
+        for row in rows {
+            let threat_str: Option<String> = row.get("threat_level");
+            let threat_level = match threat_str.as_deref() {
+                Some("critical") => crate::intelligence::ThreatLevel::Critical,
+                Some("high") => crate::intelligence::ThreatLevel::High,
+                Some("medium") => crate::intelligence::ThreatLevel::Medium,
+                Some("low") => crate::intelligence::ThreatLevel::Low,
+                Some("none") => crate::intelligence::ThreatLevel::None,
+                _ => crate::intelligence::ThreatLevel::Unknown,
+            };
+            
+            results.push(crate::intelligence::DeviceIntelligence {
+                mac_address: row.get("mac_address"),
+                device_name: row.get("device_name"),
+                device_type: row.get::<String, _>("device_type"),
+                vendor_name: row.get("vendor_name"),
+                ai_description: row.get("ai_description"),
+                threat_level,
+                threat_reason: None,
+                category: None,
+                from_cache: true,
+                analyzed_at: None,
+            });
+        }
+        
+        Ok(results)
+    }
+}

@@ -266,6 +266,7 @@ impl SimulationEngine {
                                 vendor: None,
                                 first_seen: Utc::now(),
                                 last_seen: Utc::now(),
+                                tracker_info: None,
                             };
                             
                             let _ = tx.send(ScanEvent::BleDevice(ble_device));

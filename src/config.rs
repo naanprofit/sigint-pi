@@ -14,6 +14,47 @@ pub struct Config {
     pub learning: LearningConfig,
     pub power: PowerConfig,
     pub influxdb: InfluxConfig,
+    #[serde(default)]
+    pub llm: Option<LlmConfig>,
+}
+
+/// LLM/AI Provider Configuration
+/// Supports OpenAI-compatible APIs (OpenAI, llama.cpp, Ollama, LMStudio, etc.)
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct LlmConfig {
+    pub enabled: bool,
+    /// Provider type: "openai", "llamacpp", "ollama", "lmstudio", "custom"
+    pub provider: String,
+    /// API endpoint URL (e.g., "https://api.openai.com/v1" or "http://192.168.1.100:8080")
+    pub endpoint: String,
+    /// API key (loaded from config, never hardcoded)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+    /// Model name (e.g., "gpt-4", "llama3", "mistral")
+    pub model: String,
+    /// Max tokens for response
+    #[serde(default = "default_max_tokens")]
+    pub max_tokens: u32,
+    /// Request timeout in seconds
+    #[serde(default = "default_timeout")]
+    pub timeout_secs: u64,
+}
+
+fn default_max_tokens() -> u32 { 200 }
+fn default_timeout() -> u64 { 30 }
+
+impl Default for LlmConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            provider: "llamacpp".to_string(),
+            endpoint: "http://localhost:8080".to_string(),
+            api_key: None,
+            model: "default".to_string(),
+            max_tokens: 200,
+            timeout_secs: 30,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -243,6 +284,7 @@ impl Config {
                 org: "sigint".to_string(),
                 bucket: "sigint".to_string(),
             },
+            llm: Some(LlmConfig::default()),
         }
     }
 }

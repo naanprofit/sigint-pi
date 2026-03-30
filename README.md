@@ -15,8 +15,22 @@ Portable signals intelligence and security monitoring device for Raspberry Pi Ze
 
 - **Bluetooth/BLE Monitoring**
   - BLE advertisement scanning
-  - AirTag/Tile tracker detection
-  - Device type classification
+  - AirTag/Tile/SmartTag tracker detection with extended data parsing
+  - Device type classification (Phone, Wearable, Headphones, etc.)
+  - Lost mode and separated device detection
+
+- **Tracker Intelligence** (AirTag, Tile, SmartTag)
+  - Detects Find My network devices (Apple AirTags)
+  - Extracts status byte, counter, and privacy-preserving key hints
+  - Identifies lost mode and separated-from-owner states
+  - NFC data retrieval (if physically accessible)
+
+- **AI/LLM Integration** (Optional)
+  - Device analysis via local or cloud LLM
+  - Support for llama.cpp, Ollama, LMStudio, OpenAI
+  - On-demand analysis (user-triggered, not automatic)
+  - Local caching for offline operation
+  - Threat intelligence with 100+ surveillance equipment OUIs
 
 - **Device Intelligence**
   - OUI vendor lookup
@@ -598,6 +612,145 @@ curl -X POST https://api.openclaw.io/v1/alerts \
   -H "Content-Type: application/json" \
   -d '{"device_id":"test","alert_type":"test","title":"Test","message":"Test message","timestamp":0}'
 ```
+
+---
+
+## Tracker Detection & AirTag Data
+
+SIGINT-Pi provides advanced detection and analysis of Bluetooth tracking devices.
+
+### Supported Trackers
+
+| Tracker | Detection | Extended Data |
+|---------|-----------|---------------|
+| Apple AirTag | ✅ | Status, Lost Mode, Counter, Key Hint |
+| Apple Find My (3rd party) | ✅ | Status, Counter |
+| Tile | ✅ | Basic |
+| Samsung SmartTag | ✅ | Basic |
+
+### What Data Can Be Extracted
+
+**From BLE Advertisements (Passive Scanning):**
+
+| Data | Available | Notes |
+|------|-----------|-------|
+| Detect as tracker | ✅ | Payload type 0x12 = Find My |
+| Signal strength (RSSI) | ✅ | Estimate proximity |
+| Status byte | ✅ | Indicates device state |
+| Lost mode flag | ✅ | Partial - from status byte |
+| Separated from owner | ✅ | From status byte (>3 days away) |
+| Counter/nonce | ✅ | Changes every 15 minutes |
+| Key hint (fingerprint) | ✅ | Privacy-preserving, for session correlation |
+| Owner identity | ❌ | Encrypted, only Apple can decrypt |
+| Serial number | ❌ | Not in BLE broadcasts |
+| Device name | ❌ | Not in BLE broadcasts |
+| Location history | ❌ | Stored on Apple servers only |
+
+**From NFC Tap (Physical Access Required):**
+
+| Data | Available | Notes |
+|------|-----------|-------|
+| Found URL | ✅ | Links to found.apple.com |
+| Owner contact info | ✅ | Only if Lost Mode enabled by owner |
+| Serial number | ❌ | Not exposed via NFC |
+
+### Privacy by Design
+
+Apple AirTags are designed with strong privacy protections:
+
+1. **Rotating Public Key** - The EC P-224 public key rotates daily, preventing long-term tracking
+2. **Rotating MAC Address** - BLE address changes with the key
+3. **End-to-End Encryption** - Location data encrypted with owner's iCloud keys
+4. **No Owner Identification** - Cannot determine who owns an AirTag from BLE alone
+
+### Dashboard Display
+
+The dashboard shows tracker-specific information:
+
+- **Type Badge**: AirTag, Tile, SmartTag
+- **LOST MODE**: Red badge when tracker appears to be in lost mode
+- **SEPARATED**: Yellow badge when tracker is separated from owner (>3 days)
+- **Key Hint**: Privacy-preserving fingerprint for session correlation (e.g., `ab12..ff`)
+- **Status**: Raw status byte in hex
+- **Counter**: Nonce value (changes every 15 minutes)
+
+### Use Cases
+
+1. **Detect Unwanted Tracking** - Alert when unknown trackers follow you
+2. **Stalker Detection** - Identify persistent trackers across sessions
+3. **Security Awareness** - Know what BLE trackers are in your environment
+4. **Lost Item Recovery** - NFC tap reveals owner contact if Lost Mode enabled
+
+### Ethical Considerations
+
+- SIGINT-Pi cannot identify AirTag owners from BLE data alone
+- Designed for defensive use (detecting trackers following you)
+- Does not enable stalking or privacy invasion
+- Key hints are session-only and not stored long-term
+
+---
+
+## AI/LLM Device Analysis
+
+SIGINT-Pi can optionally use AI to analyze detected devices and provide threat assessments.
+
+### Supported Providers
+
+| Provider | Type | Configuration |
+|----------|------|---------------|
+| llama.cpp | Local | `http://localhost:8080/v1` |
+| Ollama | Local | `http://localhost:11434/v1` |
+| LMStudio | Local | `http://localhost:1234/v1` |
+| OpenAI | Cloud | `https://api.openai.com/v1` |
+| Custom | Any | OpenAI-compatible API endpoint |
+
+### Configuration
+
+```toml
+[llm]
+enabled = true
+provider = "llamacpp"  # llamacpp, ollama, lmstudio, openai, custom
+endpoint = "http://192.168.1.100:8080/v1"
+model = "llama-3.2-3b"
+api_key = ""  # Required for OpenAI, optional for local
+timeout_secs = 30
+max_tokens = 500
+temperature = 0.3
+```
+
+### Features
+
+- **On-Demand Analysis**: User-triggered, not automatic (saves resources)
+- **Threat Assessment**: Identifies surveillance equipment, suspicious patterns
+- **Device Classification**: Enhanced device type identification
+- **Local Caching**: Stores descriptions for offline access
+- **Privacy-Preserving**: Only analyzes OUI/vendor data, not personal info
+
+### Threat Intelligence Database
+
+SIGINT-Pi includes a built-in database of 100+ surveillance equipment OUIs:
+
+| Category | Examples |
+|----------|----------|
+| US Defense | Harris (Stingray), L3Harris, Raytheon, Lockheed Martin |
+| Law Enforcement | Cellebrite, Digital Intelligence, MSAB |
+| Chinese State-Linked | Huawei, ZTE, Hikvision, Dahua |
+| Israeli | NSO Group, Elbit Systems, Rafael |
+| European | Thales, BAE Systems, Airbus Defence |
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/ai/status` | GET | Check AI availability |
+| `/api/ai/analyze` | POST | Analyze device(s) |
+| `/api/settings/llm` | GET/POST | Configure LLM settings |
+
+### Dashboard Integration
+
+- **AI Status Indicator**: Shows if AI is available
+- **Analyze Button**: Trigger analysis for selected devices
+- **Threat Badges**: Visual indicators for suspicious devices
 
 ---
 

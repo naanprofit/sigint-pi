@@ -109,6 +109,9 @@ impl DeviceLearnerState {
             ScanEvent::Attack(_) => {
                 // Attacks are handled by alert manager
             }
+            ScanEvent::Alert { .. } => {
+                // Alerts are handled by alert manager
+            }
         }
     }
 

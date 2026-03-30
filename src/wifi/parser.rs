@@ -98,22 +98,141 @@ pub fn parse_wifi_frame(data: &[u8]) -> Option<WifiDevice> {
 }
 
 fn extract_rssi(data: &[u8], radiotap_len: usize) -> i32 {
-    // Simplified RSSI extraction
-    // Real implementation would parse radiotap fields properly
-    if radiotap_len > 14 && data.len() > 14 {
-        // Try common RSSI offset
-        let rssi_byte = data[14] as i8;
-        rssi_byte as i32
-    } else {
-        -50 // Default fallback
+    // Parse radiotap header to find signal strength field
+    // Radiotap header format:
+    // - Bytes 0-1: Version (0) and pad (0)
+    // - Bytes 2-3: Header length (little-endian)
+    // - Bytes 4-7: Present flags (little-endian)
+    
+    if data.len() < 8 || radiotap_len < 8 {
+        return -80; // Default fallback
     }
+    
+    let present_flags = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
+    
+    // Radiotap present flags bits:
+    // Bit 5 (0x20): DBM Antenna Signal (i8)
+    // Bit 10 (0x400): DBM Antenna Noise (i8)  
+    // Bit 14 (0x4000): dB Antenna Signal (u8)
+    
+    let has_dbm_signal = (present_flags & 0x20) != 0;
+    let has_tsft = (present_flags & 0x01) != 0;
+    let has_flags = (present_flags & 0x02) != 0;
+    let has_rate = (present_flags & 0x04) != 0;
+    let has_channel = (present_flags & 0x08) != 0;
+    let has_fhss = (present_flags & 0x10) != 0;
+    
+    if !has_dbm_signal {
+        // Try alternate methods
+        // Many adapters put signal at predictable offsets
+        for offset in [14usize, 18, 22, 26, 30] {
+            if offset < radiotap_len && offset < data.len() {
+                let val = data[offset] as i8;
+                // Valid RSSI is typically -20 to -100 dBm
+                if val < 0 && val > -110 {
+                    return val as i32;
+                }
+            }
+        }
+        return -80;
+    }
+    
+    // Calculate offset to signal field based on present flags
+    let mut offset = 8usize; // After fixed header
+    
+    // Check for extended present flags
+    let mut check_ext = (present_flags & 0x80000000) != 0;
+    while check_ext && offset + 4 <= data.len() {
+        let ext_flags = u32::from_le_bytes([data[offset], data[offset+1], data[offset+2], data[offset+3]]);
+        offset += 4;
+        check_ext = (ext_flags & 0x80000000) != 0;
+    }
+    
+    // TSFT (8 bytes, 8-byte aligned)
+    if has_tsft {
+        offset = (offset + 7) & !7; // 8-byte alignment
+        offset += 8;
+    }
+    
+    // Flags (1 byte)
+    if has_flags {
+        offset += 1;
+    }
+    
+    // Rate (1 byte)
+    if has_rate {
+        offset += 1;
+    }
+    
+    // Channel (4 bytes, 2-byte aligned)
+    if has_channel {
+        offset = (offset + 1) & !1; // 2-byte alignment
+        offset += 4;
+    }
+    
+    // FHSS (2 bytes)
+    if has_fhss {
+        offset += 2;
+    }
+    
+    // DBM Antenna Signal (1 byte, signed)
+    if offset < data.len() && offset < radiotap_len {
+        let rssi = data[offset] as i8;
+        return rssi as i32;
+    }
+    
+    -80 // Default fallback
 }
 
 fn extract_channel(data: &[u8], radiotap_len: usize) -> Option<u8> {
-    // Simplified channel extraction
-    // Real implementation would parse radiotap channel field
-    if radiotap_len > 18 && data.len() > 18 {
-        let freq = u16::from_le_bytes([data[16], data[17]]);
+    // Parse radiotap to find channel field
+    if data.len() < 8 || radiotap_len < 8 {
+        return None;
+    }
+    
+    let present_flags = u32::from_le_bytes([data[4], data[5], data[6], data[7]]);
+    
+    let has_channel = (present_flags & 0x08) != 0;
+    let has_tsft = (present_flags & 0x01) != 0;
+    let has_flags = (present_flags & 0x02) != 0;
+    let has_rate = (present_flags & 0x04) != 0;
+    
+    if !has_channel {
+        return None;
+    }
+    
+    // Calculate offset to channel field
+    let mut offset = 8usize;
+    
+    // Check for extended present flags
+    let mut check_ext = (present_flags & 0x80000000) != 0;
+    while check_ext && offset + 4 <= data.len() {
+        let ext_flags = u32::from_le_bytes([data[offset], data[offset+1], data[offset+2], data[offset+3]]);
+        offset += 4;
+        check_ext = (ext_flags & 0x80000000) != 0;
+    }
+    
+    // TSFT (8 bytes, 8-byte aligned)
+    if has_tsft {
+        offset = (offset + 7) & !7;
+        offset += 8;
+    }
+    
+    // Flags (1 byte)
+    if has_flags {
+        offset += 1;
+    }
+    
+    // Rate (1 byte)
+    if has_rate {
+        offset += 1;
+    }
+    
+    // Channel (2-byte aligned): 2 bytes frequency + 2 bytes flags
+    offset = (offset + 1) & !1; // 2-byte alignment
+    
+    if offset + 2 <= data.len() && offset + 2 <= radiotap_len {
+        let freq = u16::from_le_bytes([data[offset], data[offset + 1]]);
         Some(freq_to_channel(freq))
     } else {
         None

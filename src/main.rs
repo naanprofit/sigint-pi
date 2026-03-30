@@ -10,6 +10,8 @@ mod cloud;
 mod platform;
 mod power;
 mod settings;
+mod intelligence;
+mod threat_intel;
 
 #[cfg(feature = "simulation")]
 mod simulation;
@@ -37,6 +39,11 @@ pub enum ScanEvent {
     BleDevice(bluetooth::BleDevice),
     GpsUpdate(gps::GpsPosition),
     Attack(wifi::AttackEvent),
+    Alert {
+        priority: alerts::AlertPriority,
+        message: String,
+        device_mac: Option<String>,
+    },
 }
 
 #[tokio::main]
@@ -188,9 +195,24 @@ async fn main() -> Result<()> {
         let web_config = config.clone();
         let port = config.web.port;
         
+        // Create shared application state
+        let app_state = Arc::new(web::AppState::new());
+        
+        // Initialize hardware status
+        {
+            let mut hw = app_state.hw_status.write().await;
+            hw.wifi = hw_status.wifi_ready;
+            hw.ble = hw_status.ble_ready;
+            hw.gps = config.gps.enabled && hw_status.gps_ready;
+            hw.platform = platform_caps.platform.name().to_string();
+            hw.wifi_interface = hw_status.wifi_interface.clone();
+            hw.monitor_mode = hw_status.monitor_mode_supported;
+            hw.battery = hw_status.battery_percent;
+        }
+        
         // Spawn web server task
         tokio::spawn(async move {
-            if let Err(e) = web::start_server(web_db, web_config, web_rx).await {
+            if let Err(e) = web::start_server(web_db, web_config, app_state, web_rx).await {
                 warn!("Web server error: {}", e);
             }
         });
