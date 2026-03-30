@@ -18,7 +18,7 @@ use platform::PlatformCapabilities;
 use settings::LEGAL_DISCLAIMER;
 
 use anyhow::Result;
-use tracing::{info, warn, Level};
+use tracing::{info, warn, error, Level};
 use tracing_subscriber::FmtSubscriber;
 use tokio::sync::broadcast;
 use std::sync::Arc;
