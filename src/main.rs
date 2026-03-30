@@ -12,6 +12,7 @@ mod power;
 mod settings;
 mod intelligence;
 mod threat_intel;
+mod tui;
 
 #[cfg(feature = "simulation")]
 mod simulation;
@@ -46,12 +47,40 @@ pub enum ScanEvent {
     },
 }
 
+fn parse_args() -> (bool, bool) {
+    let args: Vec<String> = std::env::args().collect();
+    let tui_mode = args.contains(&"--tui".to_string()) || args.contains(&"-t".to_string());
+    let help = args.contains(&"--help".to_string()) || args.contains(&"-h".to_string());
+    (tui_mode, help)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
-        .compact()
-        .init();
+    let (tui_mode, help) = parse_args();
+    
+    if help {
+        println!("SIGINT-Pi - Signals Intelligence Security Scanner");
+        println!();
+        println!("Usage: sigint-pi [OPTIONS]");
+        println!();
+        println!("Options:");
+        println!("  --tui, -t     Run in terminal UI mode");
+        println!("  --help, -h    Show this help");
+        println!();
+        println!("Environment:");
+        println!("  SIGINT_ACCEPT_DISCLAIMER=1  Accept legal disclaimer");
+        println!("  SIGINT_SIMULATION=1         Run in simulation mode");
+        println!("  RUST_LOG=debug              Enable debug logging");
+        return Ok(());
+    }
+    
+    // For TUI mode, don't use the subscriber that writes to stdout
+    if !tui_mode {
+        let subscriber = FmtSubscriber::builder()
+            .with_max_level(Level::INFO)
+            .compact()
+            .init();
+    }
 
     info!("SIGINT-Pi starting up...");
 
@@ -219,10 +248,24 @@ async fn main() -> Result<()> {
         info!("Web server started on port {}", port);
     }
 
-    info!("All systems operational. Press Ctrl+C to stop.");
+    // Run in TUI mode or wait for Ctrl+C
+    if tui_mode {
+        info!("Starting TUI mode...");
+        let tui_rx = event_tx.subscribe();
+        
+        // Run TUI (blocks until quit)
+        if let Err(e) = tui::run_tui(tui_rx).await {
+            error!("TUI error: {}", e);
+        }
+        
+        info!("TUI exited, shutting down...");
+    } else {
+        info!("All systems operational. Press Ctrl+C to stop.");
+        info!("Tip: Run with --tui for terminal interface");
 
-    tokio::signal::ctrl_c().await?;
-    info!("Shutdown signal received, cleaning up...");
+        tokio::signal::ctrl_c().await?;
+        info!("Shutdown signal received, cleaning up...");
+    }
 
     for handle in handles {
         handle.abort();
