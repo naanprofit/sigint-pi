@@ -219,3 +219,87 @@ url = "http://localhost:8086"  # Or your InfluxDB Cloud URL
 token = "YOUR_INFLUXDB_TOKEN"
 org = "your-org"
 bucket = "sigint"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OpenClaw Mesh Networking - Share threats with other nodes
+# ═══════════════════════════════════════════════════════════════════════════════
+[openclaw]
+enabled = false
+webhook_url = "https://your-openclaw-server.com/api/alerts"
+# api_key = "your-api-key"
+
+# Relay Mode - Share threats with other OpenClaw nodes
+relay_enabled = false
+relay_min_level = "high"        # low, medium, high, critical
+relay_listen_port = 8081        # Port to receive relayed threats
+peers = [                       # Other OpenClaw nodes to sync with
+    # "http://192.168.1.100:8081",
+    # "http://192.168.1.101:8081",
+]
+include_location = false        # Include GPS coords in relayed messages
+relay_categories = []           # Empty = all categories; or ["surveillance", "tracker"]
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Meshtastic LoRa Mesh Integration
+# Share threat alerts over LoRa mesh network for off-grid operation
+# ═══════════════════════════════════════════════════════════════════════════════
+[meshtastic]
+enabled = false
+# Connection type: "mqtt" (recommended), "serial", "tcp"
+connection_type = "mqtt"
+
+# MQTT Bridge (easiest setup - works with public Meshtastic MQTT)
+mqtt_broker = "mqtt.meshtastic.org"
+mqtt_topic = "msh/US/2/json"
+
+# Serial connection (direct USB to Meshtastic device)
+# serial_port = "/dev/ttyUSB0"
+
+# TCP connection (Meshtastic device with WiFi)
+# tcp_host = "192.168.1.50"
+# tcp_port = 4403
+
+min_threat_level = "high"       # Only send high/critical threats
+compact_messages = true         # Short messages for LoRa bandwidth
+channel = 0                     # Meshtastic channel (0-7)
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EFF RayHunter - IMSI Catcher / Stingray Detection
+# Requires rooted Pixel phone running RayHunter connected via USB
+# https://github.com/EFForg/rayhunter
+# ═══════════════════════════════════════════════════════════════════════════════
+[rayhunter]
+enabled = false
+api_url = "http://localhost:8080"   # RayHunter API (via ADB forward)
+poll_interval_secs = 5              # How often to check for threats
+alert_on_suspicious = true          # Alert on any suspicious activity
+relay_to_openclaw = true            # Forward alerts to OpenClaw
+relay_to_meshtastic = false         # Forward alerts to Meshtastic
+# alert_template = "🚨 IMSI CATCHER: {confidence}% confidence, Cell: {cid}"
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SDR (Software Defined Radio) - RF Spectrum Monitoring
+# Supports RTL-SDR, HackRF, LimeSDR
+# ═══════════════════════════════════════════════════════════════════════════════
+[sdr]
+enabled = false
+device_type = "rtlsdr"          # rtlsdr, hackrf, limesdr
+device_index = 0
+sample_rate = 2400000           # 2.4 MHz
+gain = 0                        # 0 = auto
+
+# Frequencies to monitor (Hz)
+monitor_frequencies = [
+    462562500,    # FRS/GMRS Channel 1
+    462587500,    # FRS/GMRS Channel 2
+    467562500,    # FRS Channel 8
+    154570000,    # Police common
+    155475000,    # Police common
+    460000000,    # Public safety
+]
+
+# Auto-scan mode (sweep frequency range)
+auto_scan = false
+# scan_range = [400000000, 470000000, 25000]  # start, end, step (Hz)
+
+signal_threshold_db = -50.0     # Alert on signals above this level
