@@ -2,6 +2,58 @@
 
 Portable signals intelligence and security monitoring device for Raspberry Pi Zero 2 W and Steam Deck.
 
+---
+
+## ⚠️ LEGAL DISCLAIMER AND TERMS OF USE
+
+> **IMPORTANT: BY DOWNLOADING, INSTALLING, OR USING THIS SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS:**
+
+### Regulatory Compliance Notice
+
+This software interacts with radio frequency spectrum and wireless communications. Its use is subject to strict regulation by:
+
+- **United States**: FCC regulations (47 CFR), Electronic Communications Privacy Act (18 U.S.C. § 2511), Computer Fraud and Abuse Act (18 U.S.C. § 1030)
+- **International**: Equivalent regulatory bodies and laws in your jurisdiction
+
+### Authorized Use Only
+
+This software is provided **exclusively** for:
+- ✅ Authorized security research and penetration testing
+- ✅ Educational purposes in controlled environments  
+- ✅ Network administration on networks you own or are authorized to monitor
+- ✅ Personal security awareness and counter-surveillance of your own property
+- ✅ Licensed amateur radio operations
+- ✅ TSCM operations by licensed professionals
+
+### Prohibited Uses
+
+You **SHALL NOT** use this software to:
+- ❌ Intercept communications without proper legal authorization
+- ❌ Track or surveil individuals without their explicit consent
+- ❌ Interfere with, jam, or disrupt any radio communications
+- ❌ Transmit on frequencies without proper licensing
+- ❌ Violate any person's reasonable expectation of privacy
+- ❌ Conduct stalking, harassment, or illegal surveillance
+- ❌ Intercept cellular, cordless, or similar protected communications
+
+### Liability Waiver
+
+**THE AUTHORS AND CONTRIBUTORS OF THIS SOFTWARE SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OF THIS SOFTWARE.**
+
+You agree to **indemnify and hold harmless** the authors from any claims arising from your use of this software. You accept **full responsibility** for ensuring your use complies with all applicable laws in your jurisdiction.
+
+### Acceptance
+
+**By downloading, installing, or using this software, you certify that:**
+1. You have read and understood the full [LEGAL.md](LEGAL.md) document
+2. You will use this software only for lawful purposes
+3. You have obtained all necessary legal authorizations for your intended use
+4. You accept all risks and liabilities associated with your use
+
+**If you do not agree to these terms, do not download, install, or use this software.**
+
+---
+
 ## Screenshots
 
 ![Dashboard - WiFi](docs/images/dashboard-wifi.png)
@@ -12,8 +64,6 @@ Portable signals intelligence and security monitoring device for Raspberry Pi Ze
 
 ![Settings](docs/images/dashboard-settings.png)
 *Settings panel with AI/LLM integration and quick toggles*
-
-> ⚠️ **LEGAL DISCLAIMER**: This tool is for authorized security research and educational purposes only. Monitoring wireless communications without authorization may be illegal in your jurisdiction. You are solely responsible for ensuring your use complies with all applicable laws. See the [Legal Notice](#legal-notice) section for full details.
 
 ## Features
 
