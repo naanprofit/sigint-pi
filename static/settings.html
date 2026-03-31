@@ -1129,7 +1129,7 @@
                     <div class="info-box main-title">
                         <h1>SIGINT-Deck</h1>
                         <p>Portable Signals Intelligence Platform</p>
-                        <p class="version" id="aboutVersionMain">v0.2.1 | by sigkill</p>
+                        <p class="version" id="aboutVersionMain">v0.2.2 | by sigkill</p>
                     </div>
 
                     <div class="info-box system-info">
@@ -1137,7 +1137,7 @@
                         <div class="info-grid">
                             <div class="info-item">
                                 <span class="info-label">App Version</span>
-                                <span class="info-value" id="aboutVersion">0.2.1</span>
+                                <span class="info-value" id="aboutVersion">0.2.2</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Platform</span>
@@ -1586,8 +1586,8 @@
             try {
                 const response = await fetch('/api/system/info');
                 const info = await response.json();
-                document.getElementById('aboutVersion').textContent = info.version || '0.2.1';
-                document.getElementById('aboutVersionMain').textContent = `v${info.version || '0.2.1'} | by sigkill`;
+                document.getElementById('aboutVersion').textContent = info.version || '0.2.2';
+                document.getElementById('aboutVersionMain').textContent = `v${info.version || '0.2.2'} | by sigkill`;
                 document.getElementById('aboutPlatform').textContent = info.platform || 'Unknown';
                 document.getElementById('aboutUptime').textContent = formatUptime(info.uptime_secs || 0);
             } catch (e) {
