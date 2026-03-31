@@ -71,6 +71,21 @@ Portable signals intelligence and security monitoring device for Raspberry Pi Ze
 | MicroSD Card | 64GB+ high-endurance | Storage |
 | Battery | PiSugar 2 Pro (5000mAh) | ~8-10 hours runtime |
 
+### Optional SDR Hardware
+
+| SDR Device | USB ID | Frequency Range | Notes |
+|------------|--------|-----------------|-------|
+| RTL-SDR (RTL2832U) | 0bda:2838 | 24-1766 MHz | Budget option, RX only |
+| HackRF One | 1d50:6089 | 1-6000 MHz | TX/RX capable |
+| LimeSDR Mini | 0403:601f | 10-3500 MHz | Full duplex |
+
+### Optional IMSI Catcher Detection
+
+| Component | Recommendation | Notes |
+|-----------|---------------|-------|
+| RayHunter Device | Pixel 3a/4a with RayHunter | EFF's IMSI catcher detector |
+| USB Cable | Data-capable USB-C | Connect phone to Pi |
+
 ## Quick Start
 
 ### 1. Prepare the Pi
@@ -790,6 +805,94 @@ geofence_sounds = true
 - Keyboard shortcut in dashboard: Press `N`
 - All sounds are immediately silenced
 - Useful when you need silent monitoring
+
+---
+
+## SDR Support (Optional)
+
+SIGINT-Pi supports Software Defined Radios for spectrum monitoring.
+
+### Install SDR Tools (Raspberry Pi)
+
+```bash
+# Install from apt
+sudo apt-get install -y rtl-sdr hackrf libhackrf-dev limesuite
+
+# Or use the install script
+./scripts/install-sdr.sh
+```
+
+### Install SDR Tools (Steam Deck)
+
+Steam Deck has a read-only root filesystem, so tools are installed to `~/bin`:
+
+```bash
+# Run the SDR setup script
+~/sigint-deck/scripts/install-sdr.sh
+```
+
+### SDR Tools Reference
+
+| Tool | Purpose | Example |
+|------|---------|---------|
+| `rtl_sdr` | Raw I/Q capture | `rtl_sdr -f 433.92M -s 2.4M capture.bin` |
+| `rtl_fm` | FM demodulation | `rtl_fm -f 99.5M -M wbfm -s 200k - \| aplay -r 48k` |
+| `rtl_power` | Spectrum scanning | `rtl_power -f 400M:500M:100k scan.csv` |
+| `hackrf_info` | HackRF device info | `hackrf_info` |
+| `hackrf_sweep` | Wideband sweep | `hackrf_sweep -f 2400:2500` |
+| `LimeUtil` | LimeSDR info | `LimeUtil --find` |
+
+---
+
+## RayHunter IMSI Catcher Detection (Optional)
+
+SIGINT-Pi integrates with EFF's RayHunter for detecting IMSI catchers (Stingrays).
+
+### Requirements
+
+- Pixel 3a, 3a XL, 4a, or 4a 5G with RayHunter installed
+- USB data cable
+
+### Setup (Raspberry Pi)
+
+```bash
+# Install ADB
+sudo apt-get install -y android-tools-adb
+
+# Connect phone and enable USB debugging
+adb devices  # Should show your device
+
+# Create polling script
+./scripts/install-rayhunter.sh
+
+# Enable the service
+sudo systemctl enable --now rayhunter-adb
+```
+
+### Setup (Steam Deck)
+
+```bash
+# Install ADB and RayHunter integration
+~/sigint-deck/scripts/install-adb.sh
+
+# Enable the service
+systemctl --user enable --now rayhunter-adb
+```
+
+### How It Works
+
+1. RayHunter runs on the Pixel phone, monitoring cellular baseband
+2. SIGINT-Pi/Deck polls RayHunter via ADB every 5 seconds
+3. If IMSI catcher activity detected, a distinct siren alert plays
+4. The "🐳 IMSI" tab shows real-time status
+
+### RayHunter Analyzers
+
+| Analyzer | Detection |
+|----------|-----------|
+| IMSI Identity Request | Cell tower requesting your IMSI |
+| 2G Downgrade | Forced downgrade to insecure 2G |
+| LTE SIB 6/7 Downgrade | Suspicious broadcast of 2G/3G priorities |
 
 ---
 
