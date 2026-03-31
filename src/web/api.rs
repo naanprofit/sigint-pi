@@ -1831,7 +1831,26 @@ async fn get_recent_notes(
 // ============================================
 
 async fn get_voice_status() -> impl Responder {
-    // Check if faster-whisper or whisper is available
+    // Check if whisper server is running (preferred method)
+    let whisper_url = std::env::var("WHISPER_URL").unwrap_or_else(|_| "http://127.0.0.1:5000".to_string());
+    let whisper_server = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_secs(2))
+        .build()
+        .ok()
+        .and_then(|client| {
+            // Use blocking since this is a quick health check
+            std::thread::spawn(move || {
+                tokio::runtime::Runtime::new().ok().and_then(|rt| {
+                    rt.block_on(async {
+                        client.get(format!("{}/health", whisper_url)).send().await.ok()
+                            .filter(|r| r.status().is_success())
+                    })
+                })
+            }).join().ok().flatten()
+        })
+        .is_some();
+    
+    // Fallback: check if faster-whisper is available via CLI or Python
     let whisper_local = std::process::Command::new("which")
         .arg("faster-whisper")
         .output()
@@ -1843,6 +1862,8 @@ async fn get_voice_status() -> impl Responder {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
+    
+    let whisper_available = whisper_server || whisper_local || whisper_py;
     
     // Check for Piper TTS
     let piper_available = std::process::Command::new("which")
@@ -1859,15 +1880,16 @@ async fn get_voice_status() -> impl Responder {
     
     HttpResponse::Ok().json(serde_json::json!({
         "whisper": {
-            "local_available": whisper_local || whisper_py,
+            "local_available": whisper_available,
+            "server_running": whisper_server,
             "api_configured": false,
-            "model": "base.en"
+            "model": "tiny"
         },
         "piper": {
             "available": piper_available || piper_py,
             "model": "en_US-lessac-medium"
         },
-        "recommended_stt": if whisper_local || whisper_py { "local" } else { "api" },
+        "recommended_stt": if whisper_available { "local" } else { "api" },
         "recommended_tts": if piper_available || piper_py { "piper" } else { "browser" }
     }))
 }
@@ -1912,46 +1934,73 @@ async fn transcribe_audio(
         }));
     };
     
-    // Try faster-whisper first
-    let script = format!(r#"
-import sys
-try:
-    from faster_whisper import WhisperModel
-    model = WhisperModel("base.en", device="cpu", compute_type="int8")
-    segments, _ = model.transcribe("{}", beam_size=5)
-    text = " ".join([s.text for s in segments])
-    print(text.strip())
-except Exception as e:
-    print(f"ERROR: {{e}}", file=sys.stderr)
-    sys.exit(1)
-"#, audio_path.replace("\"", "\\\""));
+    // Try whisper server first (running on port 5000)
+    let whisper_url = std::env::var("WHISPER_URL").unwrap_or_else(|_| "http://127.0.0.1:5000".to_string());
     
-    let output = std::process::Command::new("python3")
-        .args(["-c", &script])
-        .output();
-    
-    match output {
-        Ok(out) if out.status.success() => {
-            let text = String::from_utf8_lossy(&out.stdout).trim().to_string();
-            HttpResponse::Ok().json(serde_json::json!({
-                "success": true,
-                "transcription": text,
-                "model": "faster-whisper-base.en",
-                "source": "local"
-            }))
+    // Read the audio file and encode as base64
+    let audio_data = match std::fs::read(&audio_path) {
+        Ok(data) => data,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "success": false,
+                "error": format!("Failed to read audio file: {}", e)
+            }));
         }
-        Ok(out) => {
-            let err = String::from_utf8_lossy(&out.stderr);
+    };
+    let audio_b64 = base64::Engine::encode(&base64::engine::general_purpose::STANDARD, &audio_data);
+    
+    // Try the whisper server
+    let client = match reqwest::Client::builder().timeout(std::time::Duration::from_secs(30)).build() {
+        Ok(c) => c,
+        Err(e) => {
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "success": false,
+                "error": format!("Failed to create HTTP client: {}", e)
+            }));
+        }
+    };
+    
+    let response = client
+        .post(format!("{}/transcribe", whisper_url))
+        .json(&serde_json::json!({ "audio": audio_b64 }))
+        .send()
+        .await;
+    
+    match response {
+        Ok(resp) if resp.status().is_success() => {
+            match resp.json::<serde_json::Value>().await {
+                Ok(json) => {
+                    let text = json.get("text").and_then(|v| v.as_str()).unwrap_or("").to_string();
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "success": true,
+                        "transcription": text,
+                        "model": "faster-whisper",
+                        "source": "local-server"
+                    }))
+                }
+                Err(e) => {
+                    HttpResponse::InternalServerError().json(serde_json::json!({
+                        "success": false,
+                        "error": format!("Failed to parse whisper response: {}", e)
+                    }))
+                }
+            }
+        }
+        Ok(resp) => {
+            let status = resp.status();
+            let body = resp.text().await.unwrap_or_default();
             HttpResponse::Ok().json(serde_json::json!({
                 "success": false,
-                "error": format!("Transcription failed: {}", err),
-                "hint": "Install faster-whisper: pip install faster-whisper"
+                "error": format!("Whisper server error ({}): {}", status, body),
+                "hint": "Start whisper server: systemctl --user start whisper-server"
             }))
         }
         Err(e) => {
-            HttpResponse::InternalServerError().json(serde_json::json!({
+            // Whisper server not running - return helpful message
+            HttpResponse::Ok().json(serde_json::json!({
                 "success": false,
-                "error": format!("Failed to run whisper: {}", e)
+                "error": format!("Whisper server not available: {}", e),
+                "hint": "Start whisper server: systemctl --user start whisper-server"
             }))
         }
     }
