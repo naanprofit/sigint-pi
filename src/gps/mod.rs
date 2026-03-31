@@ -19,7 +19,8 @@ pub struct GpsPosition {
     pub heading: Option<f64>,
     pub accuracy: Option<f64>,
     pub fix_type: GpsFixType,
-    pub satellites: u8,
+    pub satellites: u8,        // Satellites being used for fix
+    pub satellites_seen: u8,   // Total satellites visible
     pub timestamp: DateTime<Utc>,
 }
 
@@ -120,33 +121,73 @@ fn parse_gpsd_json(line: &str) -> Option<GpsPosition> {
     // Parse gpsd TPV (Time-Position-Velocity) message
     let json: serde_json::Value = serde_json::from_str(line).ok()?;
     
-    if json.get("class")?.as_str()? != "TPV" {
-        return None;
+    let class = json.get("class")?.as_str()?;
+    
+    // Handle TPV (position) messages
+    if class == "TPV" {
+        let mode = json.get("mode").and_then(|v| v.as_i64()).unwrap_or(0) as u8;
+        
+        // Get coordinates if available (mode >= 2 means we have a fix)
+        let (lat, lon) = if mode >= 2 {
+            let lat = json.get("lat").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            let lon = json.get("lon").and_then(|v| v.as_f64()).unwrap_or(0.0);
+            (lat, lon)
+        } else {
+            (0.0, 0.0) // No fix yet, but still report status
+        };
+
+        return Some(GpsPosition {
+            latitude: lat,
+            longitude: lon,
+            altitude: json.get("alt").and_then(|v| v.as_f64()),
+            speed: json.get("speed").and_then(|v| v.as_f64()),
+            heading: json.get("track").and_then(|v| v.as_f64()),
+            accuracy: json.get("epx").and_then(|v| v.as_f64()),
+            fix_type: match mode {
+                0 => GpsFixType::NoFix,
+                1 => GpsFixType::NoFix, // Searching
+                2 => GpsFixType::Fix2D,
+                3 => GpsFixType::Fix3D,
+                _ => GpsFixType::NoFix,
+            },
+            satellites: 0, // Will be updated from SKY message
+            satellites_seen: 0,
+            timestamp: Utc::now(),
+        });
     }
-
-    let mode = json.get("mode")?.as_i64()? as u8;
-    if mode < 2 {
-        return None; // No fix
+    
+    // Handle SKY (satellite) messages to get satellite count
+    if class == "SKY" {
+        let sats_seen = json.get("nSat")
+            .and_then(|v| v.as_u64())
+            .unwrap_or_else(|| {
+                // Fallback: count satellites array
+                json.get("satellites")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| arr.len() as u64)
+                    .unwrap_or(0)
+            }) as u8;
+        
+        let sats_used = json.get("uSat")
+            .and_then(|v| v.as_u64())
+            .unwrap_or(0) as u8;
+        
+        // Return a no-fix position with satellite info
+        return Some(GpsPosition {
+            latitude: 0.0,
+            longitude: 0.0,
+            altitude: None,
+            speed: None,
+            heading: None,
+            accuracy: None,
+            fix_type: GpsFixType::NoFix,
+            satellites: sats_used,
+            satellites_seen: sats_seen,
+            timestamp: Utc::now(),
+        });
     }
-
-    let lat = json.get("lat")?.as_f64()?;
-    let lon = json.get("lon")?.as_f64()?;
-
-    Some(GpsPosition {
-        latitude: lat,
-        longitude: lon,
-        altitude: json.get("alt").and_then(|v| v.as_f64()),
-        speed: json.get("speed").and_then(|v| v.as_f64()),
-        heading: json.get("track").and_then(|v| v.as_f64()),
-        accuracy: json.get("epx").and_then(|v| v.as_f64()),
-        fix_type: match mode {
-            2 => GpsFixType::Fix2D,
-            3 => GpsFixType::Fix3D,
-            _ => GpsFixType::NoFix,
-        },
-        satellites: json.get("satellites").and_then(|v| v.as_u64()).unwrap_or(0) as u8,
-        timestamp: Utc::now(),
-    })
+    
+    None
 }
 
 impl GpsPosition {
@@ -187,6 +228,7 @@ mod tests {
             accuracy: None,
             fix_type: GpsFixType::Fix3D,
             satellites: 8,
+            satellites_seen: 12,
             timestamp: Utc::now(),
         };
 
@@ -199,6 +241,7 @@ mod tests {
             accuracy: None,
             fix_type: GpsFixType::Fix3D,
             satellites: 8,
+            satellites_seen: 12,
             timestamp: Utc::now(),
         };
 

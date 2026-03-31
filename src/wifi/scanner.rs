@@ -175,15 +175,45 @@ pub fn enable_monitor_mode(interface: &str) -> Result<()> {
 /// Hop between WiFi channels for comprehensive scanning
 pub async fn channel_hopper(interface: &str, channels: Vec<u8>) -> Result<()> {
     use std::process::Command;
-
+    use tracing::{info, warn};
+    
+    info!("Channel hopper starting on {} with {} channels", interface, channels.len());
+    
+    // Small delay to let scanner initialize
+    tokio::time::sleep(Duration::from_secs(2)).await;
+    
+    // Always use sudo -n (non-interactive) for iw commands
+    let mut hop_count = 0u64;
+    
     loop {
         for channel in &channels {
-            Command::new("iw")
-                .args([interface, "set", "channel", &channel.to_string()])
-                .status()
-                .ok();
+            let result = Command::new("sudo")
+                .args(["-n", "iw", "dev", interface, "set", "channel", &channel.to_string()])
+                .output();
             
-            tokio::time::sleep(Duration::from_millis(200)).await;
+            match result {
+                Ok(output) => {
+                    if output.status.success() {
+                        hop_count += 1;
+                        if hop_count % 20 == 1 {
+                            info!("Channel hop #{}: now on ch{}", hop_count, channel);
+                        }
+                    } else {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        if hop_count == 0 {
+                            warn!("Channel hop failed: {}", stderr.trim());
+                        }
+                    }
+                }
+                Err(e) => {
+                    if hop_count == 0 {
+                        warn!("Channel hop command error: {}", e);
+                    }
+                }
+            }
+            
+            // 500ms per channel
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
 }

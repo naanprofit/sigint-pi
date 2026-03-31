@@ -1,16 +1,67 @@
 mod api;
 
-pub use api::{AppState, WifiDeviceInfo, BleDeviceInfo, AlertInfo, AttackInfo, HardwareStatusInfo, TrackerInfoApi};
+pub use api::{AppState, WifiDeviceInfo, BleDeviceInfo, AlertInfo, AttackInfo, HardwareStatusInfo, TrackerInfoApi, GpsStatusInfo};
 
 use actix_web::{web, App, HttpServer, middleware};
 use std::sync::Arc;
+use std::path::PathBuf;
 use tokio::sync::broadcast;
 use anyhow::Result;
 use chrono::Utc;
+use tracing::{info, warn};
 
 use crate::config::Config;
 use crate::storage::Database;
 use crate::ScanEvent;
+
+/// Find the static files directory
+/// Tries multiple locations to support different deployment scenarios
+fn find_static_dir() -> Option<PathBuf> {
+    // Get current working directory
+    let cwd = std::env::current_dir().ok();
+    
+    // Get executable directory
+    let exe_dir = std::env::current_exe()
+        .ok()
+        .and_then(|p| p.parent().map(|p| p.to_path_buf()));
+    
+    // Locations to try, in order of preference
+    let candidates = [
+        // 1. ./static (relative to cwd)
+        cwd.as_ref().map(|d| d.join("static")),
+        // 2. Next to executable
+        exe_dir.as_ref().map(|d| d.join("static")),
+        // 3. /app/static (container)
+        Some(PathBuf::from("/app/static")),
+        // 4. ~/sigint-deck/static (user install)
+        dirs::home_dir().map(|h| h.join("sigint-deck").join("static")),
+    ];
+    
+    for candidate in candidates.into_iter().flatten() {
+        if candidate.exists() && candidate.is_dir() {
+            // Verify index.html exists
+            if candidate.join("index.html").exists() {
+                info!("Found static directory at: {:?}", candidate);
+                return Some(candidate);
+            }
+        }
+    }
+    
+    warn!("Static files directory not found! Web dashboard will not be available.");
+    warn!("Searched locations:");
+    if let Some(ref d) = cwd {
+        warn!("  - {:?}/static", d);
+    }
+    if let Some(ref d) = exe_dir {
+        warn!("  - {:?}/static", d);
+    }
+    warn!("  - /app/static");
+    if let Some(h) = dirs::home_dir() {
+        warn!("  - {:?}/sigint-deck/static", h);
+    }
+    
+    None
+}
 
 pub async fn start_server(
     db: Arc<Database>,
@@ -141,21 +192,68 @@ pub async fn start_server(
                         alerts.pop();
                     }
                 }
+                ScanEvent::GpsUpdate(position) => {
+                    let mut gps = state_clone.gps_status.write().await;
+                    let now = Utc::now().timestamp();
+                    let has_fix = matches!(position.fix_type, 
+                        crate::gps::GpsFixType::Fix2D | 
+                        crate::gps::GpsFixType::Fix3D |
+                        crate::gps::GpsFixType::DGPS
+                    );
+                    gps.has_fix = has_fix;
+                    gps.fix_type = format!("{:?}", position.fix_type);
+                    // Only update coordinates if we have a fix
+                    if has_fix {
+                        gps.latitude = Some(position.latitude);
+                        gps.longitude = Some(position.longitude);
+                        gps.altitude = position.altitude;
+                        gps.speed = position.speed;
+                        gps.heading = position.heading;
+                        gps.accuracy = position.accuracy;
+                    } else {
+                        // Clear stale coordinates when no fix
+                        gps.latitude = None;
+                        gps.longitude = None;
+                        gps.altitude = None;
+                        gps.speed = None;
+                        gps.heading = None;
+                        gps.accuracy = None;
+                    }
+                    gps.satellites = position.satellites;
+                    gps.last_update = now;
+                }
                 _ => {}
             }
         }
     });
     
+    // Determine static files directory
+    // Try multiple locations: ./static, ../static, or relative to executable
+    let static_dir = find_static_dir();
+    info!("Static files directory: {:?}", static_dir);
+    
     // Run actix in its own system
     let server = HttpServer::new(move || {
-        App::new()
+        let mut app = App::new()
             .app_data(db_data.clone())
             .app_data(config_data.clone())
             .app_data(state_data.clone())
             .wrap(middleware::Logger::default())
             .wrap(middleware::Compress::default())
-            .configure(api::configure)
-            .service(actix_files::Files::new("/", "./static").index_file("index.html"))
+            .configure(api::configure);
+        
+        // Only add static file service if directory exists
+        if let Some(ref dir) = static_dir {
+            if dir.exists() {
+                app = app.service(
+                    actix_files::Files::new("/", dir.clone())
+                        .index_file("index.html")
+                        .prefer_utf8(true)
+                );
+            }
+        }
+        
+        app
     })
     .bind(&bind_addr)?
     .run();

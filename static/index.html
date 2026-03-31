@@ -682,6 +682,268 @@
             border-radius: 3px;
             margin: 0 0.2rem;
         }
+        
+        /* Note Button - larger touch target */
+        .note-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 8px 12px;
+            font-size: 1.1rem;
+            cursor: pointer;
+            min-width: 44px;
+            min-height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+        
+        .note-btn:hover, .note-btn:focus {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            transform: scale(1.05);
+        }
+        
+        /* Note Modal */
+        .note-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .note-modal.active {
+            display: flex;
+        }
+        
+        .note-modal-content {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        
+        .note-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .note-modal-header h2 {
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .note-modal-close {
+            background: var(--bg-tertiary);
+            border: none;
+            color: var(--text-primary);
+            font-size: 1.5rem;
+            width: 44px;
+            height: 44px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        
+        .device-info-box {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .device-info-box .mac {
+            font-family: monospace;
+            font-size: 1rem;
+            color: var(--accent-blue);
+        }
+        
+        .device-info-box .details {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-top: 0.25rem;
+        }
+        
+        .note-input-area {
+            margin-bottom: 1rem;
+        }
+        
+        .note-input-area label {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        
+        .note-input-area textarea {
+            width: 100%;
+            min-height: 100px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            color: var(--text-primary);
+            font-size: 1rem;
+            resize: vertical;
+        }
+        
+        .note-input-area textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .voice-controls {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .voice-btn {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            padding: 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .voice-btn:hover, .voice-btn:focus {
+            background: var(--accent-purple);
+            border-color: var(--accent-purple);
+        }
+        
+        .voice-btn.recording {
+            background: var(--accent-red);
+            border-color: var(--accent-red);
+            animation: pulse 1s infinite;
+        }
+        
+        .voice-btn.playing {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+        }
+        
+        .voice-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .note-actions {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .note-actions button {
+            flex: 1;
+            padding: 1rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .note-save-btn {
+            background: var(--accent-green);
+            border: none;
+            color: white;
+            font-weight: 600;
+        }
+        
+        .note-save-btn:hover {
+            opacity: 0.9;
+        }
+        
+        .note-cancel-btn {
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+        }
+        
+        .existing-notes {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .existing-notes h3 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .note-item {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 0.75rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .note-item .note-text {
+            margin-bottom: 0.5rem;
+        }
+        
+        .note-item .note-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .note-item .note-delete {
+            background: transparent;
+            border: none;
+            color: var(--accent-red);
+            cursor: pointer;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+        }
+        
+        .note-item .note-delete:hover {
+            background: var(--accent-red);
+            color: white;
+        }
+        
+        .voice-status {
+            text-align: center;
+            padding: 0.5rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 1rem;
+        }
+        
+        .voice-status.available {
+            color: var(--accent-green);
+        }
+        
+        .voice-status.unavailable {
+            color: var(--accent-yellow);
+        }
     </style>
 </head>
 <body>
@@ -872,7 +1134,7 @@
                 </div>
                 <div class="setting-item" style="grid-column: span 2;">
                     <label>Endpoint</label>
-                    <input type="text" id="llmEndpoint" placeholder="http://localhost:8080/v1" style="width: 100%;">
+                    <input type="text" id="llmEndpoint" placeholder="http://localhost:11434" style="width: 100%;">
                 </div>
             </div>
             <button id="testLlm" class="action-btn" style="margin-top: 0.5rem;">Test Connection</button>
@@ -917,6 +1179,49 @@
 
     <div class="shortcut-hint">
         <kbd>P</kbd> Power Mode &nbsp; <kbd>1-5</kbd> Switch Tabs
+    </div>
+
+    <!-- Note Modal -->
+    <div class="note-modal" id="noteModal">
+        <div class="note-modal-content">
+            <div class="note-modal-header">
+                <h2>📝 Device Notes</h2>
+                <button class="note-modal-close" onclick="closeNoteModal()">✕</button>
+            </div>
+            
+            <div class="device-info-box">
+                <div class="mac" id="noteDeviceMac">XX:XX:XX:XX:XX:XX</div>
+                <div class="details" id="noteDeviceDetails">Vendor • Type</div>
+            </div>
+            
+            <div class="voice-status" id="voiceStatus">
+                Checking voice capabilities...
+            </div>
+            
+            <div class="voice-controls">
+                <button class="voice-btn" id="voiceRecordBtn" onclick="toggleVoiceRecording()">
+                    🎤 <span id="voiceRecordLabel">Record Voice</span>
+                </button>
+                <button class="voice-btn" id="voicePlayBtn" onclick="playLastRecording()" disabled>
+                    🔊 Play Back
+                </button>
+            </div>
+            
+            <div class="note-input-area">
+                <label for="noteText">Note (text or transcribed voice):</label>
+                <textarea id="noteText" placeholder="Type your note here, or use voice recording above..."></textarea>
+            </div>
+            
+            <div class="note-actions">
+                <button class="note-cancel-btn" onclick="closeNoteModal()">Cancel</button>
+                <button class="note-save-btn" onclick="saveNote()">💾 Save Note</button>
+            </div>
+            
+            <div class="existing-notes" id="existingNotes">
+                <h3>Previous Notes</h3>
+                <div id="notesList">Loading...</div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1117,7 +1422,7 @@
             }
 
             list.innerHTML = devices.map(d => `
-                <li class="device-item" tabindex="0">
+                <li class="device-item" tabindex="0" data-mac="${d.mac}" data-type="wifi">
                     <div class="device-info">
                         <span class="device-mac">${d.mac}</span>
                         <span class="device-vendor">${d.vendor || 'Unknown'}${d.ssid ? ' • ' + d.ssid : ''}</span>
@@ -1127,6 +1432,7 @@
                         ${d.is_ap ? '<span class="badge ap">AP</span>' : ''}
                         <span class="channel-badge">CH${d.channel || '?'}</span>
                         <span class="rssi ${getRssiClass(d.rssi)}">${d.rssi} dBm</span>
+                        <button class="note-btn" onclick="openNoteModal('${d.mac}', 'wifi', '${d.vendor || ''}', '${d.ssid || ''}', '')" title="Add note">📝</button>
                     </div>
                 </li>
             `).join('');
@@ -1159,10 +1465,10 @@
             }
 
             list.innerHTML = devices.map(d => `
-                <li class="device-item ${d.is_tracker ? 'tracker-item' : ''}" tabindex="0" data-mac="${d.mac}">
+                <li class="device-item ${d.is_tracker ? 'tracker-item' : ''}" tabindex="0" data-mac="${d.mac}" data-type="ble">
                     <div class="device-info">
                         <span class="device-mac">${d.name || d.mac}</span>
-                        <span class="device-vendor">${d.device_type || 'Unknown'}</span>
+                        <span class="device-vendor">${d.vendor ? d.vendor + ' • ' : ''}${d.device_type || 'Unknown'}</span>
                         ${d.tracker_info ? renderTrackerInfo(d.tracker_info) : ''}
                     </div>
                     <div class="device-meta">
@@ -1171,6 +1477,7 @@
                         ${d.tracker_info?.is_lost_mode ? '<span class="badge lost">LOST MODE</span>' : ''}
                         ${d.tracker_info?.is_separated ? '<span class="badge separated">SEPARATED</span>' : ''}
                         <span class="rssi ${getRssiClass(d.rssi)}">${d.rssi} dBm</span>
+                        <button class="note-btn" onclick="openNoteModal('${d.mac}', 'ble', '${d.vendor || ''}', '', '${(d.name || '').replace(/'/g, "\\'")}')" title="Add note">📝</button>
                     </div>
                 </li>
             `).join('');
@@ -1281,7 +1588,7 @@
             const noFixEl = document.getElementById('gpsNoFix');
             const statusEl = document.getElementById('gpsStatus');
             
-            if (!state.gps || !state.gps.latitude) {
+            if (!state.gps || !state.gps.has_fix) {
                 // No fix yet
                 document.getElementById('gpsLat').textContent = '--';
                 document.getElementById('gpsLon').textContent = '--';
@@ -1289,7 +1596,13 @@
                 document.getElementById('gpsSpeed').textContent = '--';
                 document.getElementById('gpsSats').textContent = state.gps?.satellites || '--';
                 document.getElementById('gpsTime').textContent = '--';
-                statusEl.textContent = 'Searching for satellites...';
+                
+                // Show different status based on whether we have any GPS data
+                if (state.gps && state.gps.last_update > 0) {
+                    statusEl.textContent = `${state.gps.fix_type || 'NoFix'} - Searching...`;
+                } else {
+                    statusEl.textContent = 'Waiting for GPS data...';
+                }
                 statusEl.style.color = 'var(--accent-yellow)';
                 noFixEl.style.display = 'block';
                 return;
@@ -1297,7 +1610,9 @@
             
             // Have fix
             noFixEl.style.display = 'none';
-            statusEl.textContent = state.gps.fix_type === 'Fix3D' ? '3D Fix' : '2D Fix';
+            statusEl.textContent = state.gps.fix_type === 'Fix3D' ? '3D Fix' : 
+                                   state.gps.fix_type === 'Fix2D' ? '2D Fix' : 
+                                   state.gps.fix_type || 'Fix';
             statusEl.style.color = 'var(--accent-green)';
             
             document.getElementById('gpsLat').textContent = state.gps.latitude?.toFixed(6) || '--';
@@ -1305,7 +1620,22 @@
             document.getElementById('gpsAlt').textContent = state.gps.altitude ? `${state.gps.altitude.toFixed(1)}m` : '--';
             document.getElementById('gpsSpeed').textContent = state.gps.speed ? `${(state.gps.speed * 3.6).toFixed(1)} km/h` : '--';
             document.getElementById('gpsSats').textContent = state.gps.satellites || '--';
-            document.getElementById('gpsTime').textContent = state.gps.timestamp ? formatTime(state.gps.timestamp) : '--';
+            
+            // Format last update time
+            if (state.gps.last_update) {
+                const updateTime = new Date(state.gps.last_update * 1000);
+                const now = new Date();
+                const diffSec = Math.floor((now - updateTime) / 1000);
+                if (diffSec < 5) {
+                    document.getElementById('gpsTime').textContent = 'Just now';
+                } else if (diffSec < 60) {
+                    document.getElementById('gpsTime').textContent = `${diffSec}s ago`;
+                } else {
+                    document.getElementById('gpsTime').textContent = updateTime.toLocaleTimeString();
+                }
+            } else {
+                document.getElementById('gpsTime').textContent = '--';
+            }
         }
 
         function renderHwStatus() {
@@ -1407,6 +1737,17 @@
             }
         }
 
+        async function fetchGps() {
+            try {
+                const response = await fetch('/api/gps/status');
+                const data = await response.json();
+                state.gps = data;
+                renderGps();
+            } catch (e) {
+                // Silently fail
+            }
+        }
+
         // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
             // Tab navigation
@@ -1474,12 +1815,14 @@
             fetchHwStatus();
             fetchDevices();
             fetchAlerts();
+            fetchGps();
             initSettings();
             
             setInterval(fetchStats, 10000);
             setInterval(fetchHwStatus, 10000);
             setInterval(fetchDevices, 5000);
             setInterval(fetchAlerts, 10000);
+            setInterval(fetchGps, 2000); // Poll GPS more frequently
             
             // Cleanup old devices
             setInterval(() => {
@@ -1581,7 +1924,7 @@
                         llm: {
                             enabled: document.getElementById('aiToggle')?.classList.contains('active') || false,
                             provider: document.getElementById('llmProvider')?.value || 'llamacpp',
-                            endpoint: document.getElementById('llmEndpoint')?.value || 'http://localhost:8080/v1'
+                            endpoint: document.getElementById('llmEndpoint')?.value || 'http://localhost:11434'
                         }
                     };
                     
@@ -1637,6 +1980,310 @@
                 statusEl.className = 'llm-status disconnected';
             }
         }
+        
+        // ========================================
+        // DEVICE NOTES & VOICE
+        // ========================================
+        
+        let currentNoteMac = null;
+        let currentNoteType = null;
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let lastRecordedBlob = null;
+        let voiceCapabilities = { whisper: false, piper: false, browserStt: false, browserTts: false };
+        
+        async function checkVoiceCapabilities() {
+            const statusEl = document.getElementById('voiceStatus');
+            
+            // Check browser capabilities
+            voiceCapabilities.browserStt = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+            voiceCapabilities.browserTts = 'speechSynthesis' in window;
+            
+            // Check server capabilities
+            try {
+                const response = await fetch('/api/voice/status');
+                if (response.ok) {
+                    const data = await response.json();
+                    voiceCapabilities.whisper = data.whisper?.local_available || data.whisper?.api_configured;
+                    voiceCapabilities.piper = data.piper?.available;
+                }
+            } catch (e) {
+                console.log('Voice API not available');
+            }
+            
+            // Update status display
+            if (voiceCapabilities.whisper || voiceCapabilities.browserStt) {
+                statusEl.textContent = voiceCapabilities.whisper 
+                    ? '🎤 Whisper STT available - auto transcription' 
+                    : '🎤 Browser speech recognition available';
+                statusEl.className = 'voice-status available';
+            } else {
+                // Check if MediaRecorder is available (most browsers support it)
+                const hasMediaRecorder = typeof MediaRecorder !== 'undefined';
+                if (hasMediaRecorder) {
+                    statusEl.textContent = '🎤 Record audio, then type note manually (install Whisper for auto-transcription)';
+                    statusEl.className = 'voice-status';
+                } else {
+                    statusEl.textContent = '⚠️ Voice not supported - type notes manually';
+                    statusEl.className = 'voice-status unavailable';
+                }
+            }
+        }
+        
+        function openNoteModal(mac, type, vendor, ssid, name) {
+            currentNoteMac = mac;
+            currentNoteType = type;
+            
+            document.getElementById('noteDeviceMac').textContent = mac;
+            
+            let details = vendor || 'Unknown vendor';
+            if (type === 'wifi' && ssid) details += ' • ' + ssid;
+            if (type === 'ble' && name) details += ' • ' + name;
+            details += ' • ' + type.toUpperCase();
+            document.getElementById('noteDeviceDetails').textContent = details;
+            
+            document.getElementById('noteText').value = '';
+            document.getElementById('noteModal').classList.add('active');
+            
+            checkVoiceCapabilities();
+            loadExistingNotes(mac);
+        }
+        
+        function closeNoteModal() {
+            document.getElementById('noteModal').classList.remove('active');
+            currentNoteMac = null;
+            currentNoteType = null;
+            stopRecording();
+        }
+        
+        async function loadExistingNotes(mac) {
+            const listEl = document.getElementById('notesList');
+            listEl.innerHTML = '<div style="color: var(--text-secondary)">Loading...</div>';
+            
+            try {
+                const response = await fetch(`/api/devices/${encodeURIComponent(mac)}/notes`);
+                if (!response.ok) throw new Error('Failed to load notes');
+                
+                const data = await response.json();
+                const notes = data.notes || [];
+                
+                if (notes.length === 0) {
+                    listEl.innerHTML = '<div style="color: var(--text-secondary); font-style: italic;">No notes yet</div>';
+                    return;
+                }
+                
+                listEl.innerHTML = notes.map(note => `
+                    <div class="note-item">
+                        <div class="note-text">${escapeHtml(note.content)}</div>
+                        <div class="note-meta">
+                            <span>${new Date(note.created_at).toLocaleString()}</span>
+                            <button class="note-delete" onclick="deleteNote('${mac}', ${note.id})">🗑️ Delete</button>
+                        </div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                listEl.innerHTML = '<div style="color: var(--accent-red);">Could not load notes</div>';
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function saveNote() {
+            const noteText = document.getElementById('noteText').value.trim();
+            if (!noteText) {
+                alert('Please enter a note or record voice first');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/devices/${encodeURIComponent(currentNoteMac)}/notes`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        content: noteText,
+                        device_type: currentNoteType,
+                        source: lastRecordedBlob ? 'voice' : 'text'
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Failed to save note');
+                
+                document.getElementById('noteText').value = '';
+                lastRecordedBlob = null;
+                loadExistingNotes(currentNoteMac);
+                
+                // Flash success
+                const btn = document.querySelector('.note-save-btn');
+                btn.textContent = '✓ Saved!';
+                btn.style.background = 'var(--accent-green)';
+                setTimeout(() => {
+                    btn.textContent = '💾 Save Note';
+                }, 1500);
+            } catch (e) {
+                alert('Failed to save note: ' + e.message);
+            }
+        }
+        
+        async function deleteNote(mac, noteId) {
+            if (!confirm('Delete this note?')) return;
+            
+            try {
+                await fetch(`/api/devices/${encodeURIComponent(mac)}/notes/${noteId}`, {
+                    method: 'DELETE'
+                });
+                loadExistingNotes(mac);
+            } catch (e) {
+                alert('Failed to delete note');
+            }
+        }
+        
+        // Voice Recording
+        let recognition = null;
+        let isRecording = false;
+        
+        function toggleVoiceRecording() {
+            if (isRecording) {
+                stopRecording();
+            } else {
+                startRecording();
+            }
+        }
+        
+        async function startRecording() {
+            const btn = document.getElementById('voiceRecordBtn');
+            const label = document.getElementById('voiceRecordLabel');
+            
+            // Try browser speech recognition first (instant transcription)
+            if (voiceCapabilities.browserStt) {
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                
+                recognition.onresult = (event) => {
+                    let transcript = '';
+                    for (let i = 0; i < event.results.length; i++) {
+                        transcript += event.results[i][0].transcript;
+                    }
+                    document.getElementById('noteText').value = transcript;
+                };
+                
+                recognition.onerror = (event) => {
+                    console.error('Speech recognition error:', event.error);
+                    stopRecording();
+                };
+                
+                recognition.onend = () => {
+                    if (isRecording) {
+                        // Restart if still supposed to be recording
+                        recognition.start();
+                    }
+                };
+                
+                try {
+                    recognition.start();
+                    isRecording = true;
+                    btn.classList.add('recording');
+                    label.textContent = 'Stop Recording';
+                } catch (e) {
+                    alert('Could not start voice recognition: ' + e.message);
+                }
+                return;
+            }
+            
+            // Fallback: record audio using MediaRecorder
+            // Works even without Whisper - user can playback and type manually
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                mediaRecorder = new MediaRecorder(stream);
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    audioChunks.push(event.data);
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    lastRecordedBlob = audioBlob;
+                    document.getElementById('voicePlayBtn').disabled = false;
+                    
+                    // If Whisper is available, send for transcription
+                    if (voiceCapabilities.whisper) {
+                        label.textContent = 'Transcribing...';
+                        try {
+                            const formData = new FormData();
+                            formData.append('audio', audioBlob, 'recording.webm');
+                            
+                            const response = await fetch('/api/voice/transcribe', {
+                                method: 'POST',
+                                body: formData
+                            });
+                            
+                            if (response.ok) {
+                                const data = await response.json();
+                                document.getElementById('noteText').value = data.text || '';
+                            }
+                        } catch (e) {
+                            console.error('Transcription failed:', e);
+                        }
+                        label.textContent = 'Record Voice';
+                    } else {
+                        // No Whisper - just notify user to type manually
+                        label.textContent = 'Record Voice';
+                        document.getElementById('noteText').placeholder = 
+                            'Recording saved! Play it back and type your note. Install Whisper for auto-transcription.';
+                    }
+                };
+                
+                mediaRecorder.start();
+                isRecording = true;
+                btn.classList.add('recording');
+                label.textContent = 'Stop Recording';
+            } catch (e) {
+                alert('Microphone access denied: ' + e.message);
+            }
+        }
+        
+        function stopRecording() {
+            const btn = document.getElementById('voiceRecordBtn');
+            const label = document.getElementById('voiceRecordLabel');
+            
+            isRecording = false;
+            btn.classList.remove('recording');
+            label.textContent = 'Record Voice';
+            
+            if (recognition) {
+                recognition.stop();
+                recognition = null;
+            }
+            
+            if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+                mediaRecorder.stream.getTracks().forEach(track => track.stop());
+            }
+        }
+        
+        function playLastRecording() {
+            if (!lastRecordedBlob) return;
+            
+            const audio = new Audio(URL.createObjectURL(lastRecordedBlob));
+            const btn = document.getElementById('voicePlayBtn');
+            
+            btn.classList.add('playing');
+            audio.onended = () => btn.classList.remove('playing');
+            audio.play();
+        }
+        
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && document.getElementById('noteModal').classList.contains('active')) {
+                closeNoteModal();
+            }
+        });
     </script>
 </body>
 </html>

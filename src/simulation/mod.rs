@@ -177,6 +177,7 @@ impl SimulationEngine {
             accuracy: Some(5.0),
             fix_type: GpsFixType::Fix3D,
             satellites: 8,
+            satellites_seen: 12,
             timestamp: Utc::now(),
         };
 
@@ -288,6 +289,7 @@ impl SimulationEngine {
                         accuracy: Some(self.rng.gen_range(3.0..10.0)),
                         fix_type: GpsFixType::Fix3D,
                         satellites: self.rng.gen_range(6..12),
+                        satellites_seen: self.rng.gen_range(8..16),
                         timestamp: Utc::now(),
                     };
                     

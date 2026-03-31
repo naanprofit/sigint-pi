@@ -13,6 +13,9 @@ mod settings;
 mod intelligence;
 mod threat_intel;
 mod tui;
+mod rayhunter;
+mod openclaw;
+mod meshtastic;
 
 #[cfg(feature = "simulation")]
 mod simulation;
@@ -45,6 +48,9 @@ pub enum ScanEvent {
         message: String,
         device_mac: Option<String>,
     },
+    RayHunterUpdate(rayhunter::RayHunterAnalysis),
+    RayHunterAlert(rayhunter::RayHunterAlert),
+    OpenClawReceived(openclaw::ReceivedThreat),
 }
 
 fn parse_args() -> (bool, bool) {
@@ -59,9 +65,9 @@ async fn main() -> Result<()> {
     let (tui_mode, help) = parse_args();
     
     if help {
-        println!("SIGINT-Pi - Signals Intelligence Security Scanner");
+        println!("SIGINT-Deck - Signals Intelligence Security Scanner");
         println!();
-        println!("Usage: sigint-pi [OPTIONS]");
+        println!("Usage: sigint-deck [OPTIONS]");
         println!();
         println!("Options:");
         println!("  --tui, -t     Run in terminal UI mode");
@@ -82,7 +88,7 @@ async fn main() -> Result<()> {
             .init();
     }
 
-    info!("SIGINT-Pi starting up...");
+    info!("SIGINT-Deck starting up...");
 
     // Show legal disclaimer on first run or when requested
     if std::env::var("SIGINT_SHOW_DISCLAIMER").is_ok() || 
@@ -146,6 +152,8 @@ async fn main() -> Result<()> {
     if config.wifi.enabled && !skip_wifi {
         let wifi_tx = event_tx.clone();
         let wifi_config = config.wifi.clone();
+        let interface = config.wifi.interface.clone();
+        
         handles.push(tokio::spawn(async move {
             let scanner = WifiScanner::new(wifi_config);
             if let Err(e) = scanner.run(wifi_tx).await {
@@ -153,6 +161,15 @@ async fn main() -> Result<()> {
             }
         }));
         info!("WiFi scanner started");
+        
+        // Start channel hopper for comprehensive scanning
+        let channels = vec![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 36, 40, 44, 48, 149, 153, 157, 161, 165];
+        handles.push(tokio::spawn(async move {
+            if let Err(e) = crate::wifi::channel_hopper(&interface, channels).await {
+                warn!("Channel hopper error: {}", e);
+            }
+        }));
+        info!("Channel hopper started");
     }
 
     // BLE Scanner (skip in simulation mode)

@@ -448,4 +448,147 @@ impl Database {
         
         Ok(results)
     }
+
+    // ===== Device Notes =====
+
+    pub async fn get_device_notes(&self, mac: &str) -> Result<Vec<serde_json::Value>> {
+        let rows = sqlx::query(r#"
+            SELECT id, mac_address, device_type, note_text, note_source,
+                   device_vendor, device_ssid, device_name, latitude, longitude,
+                   created_at
+            FROM device_notes
+            WHERE mac_address = ?
+            ORDER BY created_at DESC
+        "#)
+            .bind(mac)
+            .fetch_all(&self.pool)
+            .await?;
+        
+        let mut notes = Vec::new();
+        for row in rows {
+            notes.push(serde_json::json!({
+                "id": row.get::<i64, _>("id"),
+                "mac_address": row.get::<String, _>("mac_address"),
+                "device_type": row.get::<String, _>("device_type"),
+                "note_text": row.get::<String, _>("note_text"),
+                "note_source": row.get::<String, _>("note_source"),
+                "device_vendor": row.get::<Option<String>, _>("device_vendor"),
+                "device_ssid": row.get::<Option<String>, _>("device_ssid"),
+                "device_name": row.get::<Option<String>, _>("device_name"),
+                "latitude": row.get::<Option<f64>, _>("latitude"),
+                "longitude": row.get::<Option<f64>, _>("longitude"),
+                "created_at": row.get::<String, _>("created_at"),
+            }));
+        }
+        Ok(notes)
+    }
+
+    pub async fn add_device_note(
+        &self,
+        mac: &str,
+        device_type: &str,
+        note_text: &str,
+        note_source: &str,
+        device_vendor: Option<&str>,
+        device_ssid: Option<&str>,
+        device_name: Option<&str>,
+        latitude: Option<f64>,
+        longitude: Option<f64>,
+    ) -> Result<i64> {
+        let result = sqlx::query(r#"
+            INSERT INTO device_notes 
+            (mac_address, device_type, note_text, note_source, device_vendor, device_ssid, device_name, latitude, longitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            RETURNING id
+        "#)
+            .bind(mac)
+            .bind(device_type)
+            .bind(note_text)
+            .bind(note_source)
+            .bind(device_vendor)
+            .bind(device_ssid)
+            .bind(device_name)
+            .bind(latitude)
+            .bind(longitude)
+            .fetch_one(&self.pool)
+            .await?;
+        
+        Ok(result.get::<i64, _>("id"))
+    }
+
+    pub async fn delete_device_note(&self, note_id: i64) -> Result<()> {
+        sqlx::query("DELETE FROM device_notes WHERE id = ?")
+            .bind(note_id)
+            .execute(&self.pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn get_recent_notes(&self, limit: i64) -> Result<Vec<serde_json::Value>> {
+        let rows = sqlx::query(r#"
+            SELECT id, mac_address, device_type, note_text, note_source,
+                   device_vendor, device_ssid, device_name, latitude, longitude,
+                   created_at
+            FROM device_notes
+            ORDER BY created_at DESC
+            LIMIT ?
+        "#)
+            .bind(limit)
+            .fetch_all(&self.pool)
+            .await?;
+        
+        let mut notes = Vec::new();
+        for row in rows {
+            notes.push(serde_json::json!({
+                "id": row.get::<i64, _>("id"),
+                "mac_address": row.get::<String, _>("mac_address"),
+                "device_type": row.get::<String, _>("device_type"),
+                "note_text": row.get::<String, _>("note_text"),
+                "note_source": row.get::<String, _>("note_source"),
+                "device_vendor": row.get::<Option<String>, _>("device_vendor"),
+                "device_ssid": row.get::<Option<String>, _>("device_ssid"),
+                "device_name": row.get::<Option<String>, _>("device_name"),
+                "latitude": row.get::<Option<f64>, _>("latitude"),
+                "longitude": row.get::<Option<f64>, _>("longitude"),
+                "created_at": row.get::<String, _>("created_at"),
+            }));
+        }
+        Ok(notes)
+    }
+
+    // ===== Device Discovery (auto-tag with location) =====
+
+    pub async fn record_device_discovery(
+        &self,
+        mac: &str,
+        device_type: &str,
+        vendor: Option<&str>,
+        ssid: Option<&str>,
+        device_name: Option<&str>,
+        rssi: i32,
+        position: Option<&GpsPosition>,
+    ) -> Result<()> {
+        let (lat, lon, alt) = position.map(|p| (Some(p.latitude), Some(p.longitude), p.altitude))
+            .unwrap_or((None, None, None));
+        
+        sqlx::query(r#"
+            INSERT INTO device_discoveries 
+            (mac_address, device_type, vendor, ssid, device_name, rssi, latitude, longitude, altitude)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(mac_address, device_type) DO NOTHING
+        "#)
+            .bind(mac)
+            .bind(device_type)
+            .bind(vendor)
+            .bind(ssid)
+            .bind(device_name)
+            .bind(rssi)
+            .bind(lat)
+            .bind(lon)
+            .bind(alt)
+            .execute(&self.pool)
+            .await?;
+        
+        Ok(())
+    }
 }

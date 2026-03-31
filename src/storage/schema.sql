@@ -202,3 +202,45 @@ CREATE TABLE IF NOT EXISTS ssid_database (
 
 CREATE INDEX IF NOT EXISTS idx_ssid_name ON ssid_database(ssid);
 CREATE INDEX IF NOT EXISTS idx_ssid_suspicious ON ssid_database(is_suspicious);
+
+-- Device Notes (timestamped notes with voice transcription support)
+CREATE TABLE IF NOT EXISTS device_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mac_address TEXT NOT NULL,
+    device_type TEXT NOT NULL CHECK(device_type IN ('wifi', 'ble')),
+    note_text TEXT NOT NULL,
+    note_source TEXT DEFAULT 'typed' CHECK(note_source IN ('typed', 'voice', 'llm')),
+    audio_file_path TEXT,  -- Path to original audio recording if voice note
+    transcription_model TEXT,  -- 'whisper-local', 'whisper-api', etc.
+    latitude REAL,  -- GPS coordinates when note was made
+    longitude REAL,
+    device_vendor TEXT,  -- Cached vendor name
+    device_ssid TEXT,  -- SSID if WiFi AP
+    device_name TEXT,  -- BLE name if available
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_notes_mac ON device_notes(mac_address);
+CREATE INDEX IF NOT EXISTS idx_notes_type ON device_notes(device_type);
+CREATE INDEX IF NOT EXISTS idx_notes_time ON device_notes(created_at);
+
+-- Device Discovery Log (auto-tag with location on first seen)
+CREATE TABLE IF NOT EXISTS device_discoveries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mac_address TEXT NOT NULL,
+    device_type TEXT NOT NULL CHECK(device_type IN ('wifi', 'ble')),
+    vendor TEXT,
+    ssid TEXT,
+    device_name TEXT,
+    rssi INTEGER,
+    latitude REAL,
+    longitude REAL,
+    altitude REAL,
+    discovered_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(mac_address, device_type)
+);
+
+CREATE INDEX IF NOT EXISTS idx_discovery_mac ON device_discoveries(mac_address);
+CREATE INDEX IF NOT EXISTS idx_discovery_time ON device_discoveries(discovered_at);
+CREATE INDEX IF NOT EXISTS idx_discovery_location ON device_discoveries(latitude, longitude);

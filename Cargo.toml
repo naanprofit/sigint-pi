@@ -1,10 +1,11 @@
 [package]
 name = "sigint-pi"
-version = "0.1.0"
+version = "0.2.1"
 edition = "2021"
-authors = ["sigkill"]
-description = "Portable SIGINT security device for Raspberry Pi Zero 2 W"
+authors = ["naanprofit"]
+description = "Portable SIGINT security device for Steam Deck"
 license = "MIT"
+repository = "https://github.com/naanprofit/sigint-pi"
 
 [dependencies]
 # Async runtime
@@ -81,6 +82,9 @@ geo = "0.28"
 
 # Config directory
 dirs = "5.0"
+
+# Base64 encoding (for audio data)
+base64 = "0.22"
 
 # Lazy static for global data
 lazy_static = "1.4"

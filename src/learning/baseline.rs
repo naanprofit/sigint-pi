@@ -112,6 +112,9 @@ impl DeviceLearnerState {
             ScanEvent::Alert { .. } => {
                 // Alerts are handled by alert manager
             }
+            ScanEvent::RayHunterUpdate(_) | ScanEvent::RayHunterAlert(_) | ScanEvent::OpenClawReceived(_) => {
+                // Handled by other modules
+            }
         }
     }
 

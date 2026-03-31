@@ -254,6 +254,62 @@
             color: #fff;
         }
 
+        .btn-primary {
+            background: var(--accent-blue);
+            color: #000;
+        }
+
+        .update-result, .lookup-result {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+        }
+
+        .update-result.success, .lookup-result.success {
+            background: rgba(0, 255, 0, 0.1);
+            border: 1px solid var(--accent-green);
+            color: var(--accent-green);
+        }
+
+        .update-result.error, .lookup-result.error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid var(--accent-red);
+            color: var(--accent-red);
+        }
+
+        .update-result.info, .lookup-result.info {
+            background: rgba(0, 150, 255, 0.1);
+            border: 1px solid var(--accent-blue);
+            color: var(--accent-blue);
+        }
+
+        .update-result.warning, .lookup-result.warning {
+            background: rgba(255, 200, 0, 0.1);
+            border: 1px solid var(--accent-yellow);
+            color: var(--accent-yellow);
+        }
+
+        .threat-critical { color: #ff0000; font-weight: bold; }
+        .threat-high { color: #ff6600; font-weight: bold; }
+        .threat-medium { color: #ffcc00; }
+        .threat-low { color: #00cc00; }
+
+        .input-group {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .input-group .form-control {
+            flex: 1;
+        }
+
+        .database-status {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 1rem 0;
+        }
+
         .ninja-mode-banner {
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
             border: 2px solid var(--accent-purple);
@@ -566,6 +622,7 @@
             <button class="tab-btn" data-tab="alerts">Alerts</button>
             <button class="tab-btn" data-tab="integrations">Integrations</button>
             <button class="tab-btn" data-tab="power">Power</button>
+            <button class="tab-btn" data-tab="database">Database</button>
             <button class="tab-btn" data-tab="about">About</button>
         </div>
 
@@ -638,6 +695,15 @@
                         <div class="description">Network interface for monitoring</div>
                     </label>
                     <input type="text" class="text-input" id="wifiInterface" value="wlan1">
+                </div>
+                <div class="setting-item">
+                    <label>
+                        <div>Monitor Mode</div>
+                        <div class="description" id="wifiModeStatus">Loading...</div>
+                    </label>
+                    <button class="action-btn" id="wifiModeToggle" onclick="toggleWifiMode()">
+                        Toggle Mode
+                    </button>
                 </div>
                 <div class="setting-item">
                     <label>
@@ -953,6 +1019,102 @@
                     <input type="number" class="text-input" id="autoLowPower" value="20" min="0" max="100">
                 </div>
             </div>
+
+            <div class="setting-group">
+                <h3>Sleep Prevention</h3>
+                <div class="setting-item">
+                    <label>
+                        <div>Prevent System Suspend</div>
+                        <div class="description" id="sleepInhibitStatus">Loading...</div>
+                    </label>
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="sleepInhibit" onchange="toggleSleepInhibit()">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <p class="description" style="margin-top: 0.5rem; padding: 0 1rem;">
+                    When enabled, prevents the system from suspending/sleeping while scanning is active.
+                    The screen can still turn off to save power, but WiFi, Bluetooth, and GPS will remain active.
+                    Useful for extended monitoring sessions or when GPS needs to maintain a fix.
+                </p>
+            </div>
+        </div>
+
+        <!-- Database -->
+        <div class="settings-section" id="tab-database">
+            <h2 class="section-title">Database Management</h2>
+
+            <div class="setting-group">
+                <h3>OUI/Manufacturer Database</h3>
+                <p class="setting-description">
+                    MAC address vendor lookup database from IEEE. Used to identify device manufacturers.
+                </p>
+                
+                <div class="database-status" id="ouiStatus">
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <span class="info-label">Status</span>
+                            <span class="info-value" id="ouiInstalled">Checking...</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Entries</span>
+                            <span class="info-value" id="ouiEntries">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Embedded Entries</span>
+                            <span class="info-value" id="ouiEmbedded">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Version</span>
+                            <span class="info-value" id="ouiVersion">--</span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">Last Updated</span>
+                            <span class="info-value" id="ouiLastUpdated">--</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="button" class="btn btn-primary" id="btnUpdateOui" onclick="updateOuiDatabase()">
+                        Update Database
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="checkOuiStatus()">
+                        Check Status
+                    </button>
+                </div>
+
+                <div id="ouiUpdateResult" class="update-result" style="display: none;"></div>
+            </div>
+
+            <div class="setting-group">
+                <h3>Threat Intelligence</h3>
+                <p class="setting-description">
+                    Categorized vendors including US Defense, Law Enforcement, Surveillance, and more.
+                </p>
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">Threat Categories</span>
+                        <span class="info-value">9 categories</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">Flagged Vendors</span>
+                        <span class="info-value" id="ouiThreats">--</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="setting-group">
+                <h3>MAC Address Lookup</h3>
+                <p class="setting-description">
+                    Test the OUI database by looking up a MAC address.
+                </p>
+                <div class="input-group">
+                    <input type="text" id="ouiLookupMac" placeholder="AA:BB:CC:DD:EE:FF" class="form-control">
+                    <button type="button" class="btn btn-secondary" onclick="lookupMac()">Lookup</button>
+                </div>
+                <div id="ouiLookupResult" class="lookup-result" style="display: none; margin-top: 10px;"></div>
+            </div>
         </div>
 
         <!-- About -->
@@ -965,17 +1127,17 @@
                 
                 <div class="about-content-overlay">
                     <div class="info-box main-title">
-                        <h1>SIGINT-Pi</h1>
+                        <h1>SIGINT-Deck</h1>
                         <p>Portable Signals Intelligence Platform</p>
-                        <p class="version">v0.1.0 | by sigkill</p>
+                        <p class="version" id="aboutVersionMain">v0.2.1 | by sigkill</p>
                     </div>
 
                     <div class="info-box system-info">
                         <h2>System Information</h2>
                         <div class="info-grid">
                             <div class="info-item">
-                                <span class="info-label">Version</span>
-                                <span class="info-value" id="aboutVersion">0.1.0</span>
+                                <span class="info-label">App Version</span>
+                                <span class="info-value" id="aboutVersion">0.2.1</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Platform</span>
@@ -988,6 +1150,50 @@
                             <div class="info-item">
                                 <span class="info-label">Uptime</span>
                                 <span class="info-value" id="aboutUptime">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-box system-info">
+                        <h2>Database Information</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">OUI Database</span>
+                                <span class="info-value" id="aboutOuiVersion">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">OUI Entries</span>
+                                <span class="info-value" id="aboutOuiEntries">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Threat Intel</span>
+                                <span class="info-value" id="aboutThreatEntries">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Last Updated</span>
+                                <span class="info-value" id="aboutOuiUpdated">--</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="info-box system-info">
+                        <h2>Voice Capabilities</h2>
+                        <div class="info-grid">
+                            <div class="info-item">
+                                <span class="info-label">Whisper STT</span>
+                                <span class="status-badge" id="aboutWhisper">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Piper TTS</span>
+                                <span class="status-badge" id="aboutPiper">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Browser STT</span>
+                                <span class="status-badge" id="aboutBrowserStt">--</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Browser TTS</span>
+                                <span class="status-badge" id="aboutBrowserTts">--</span>
                             </div>
                         </div>
                     </div>
@@ -1100,6 +1306,109 @@
                 document.getElementById(`tab-${btn.dataset.tab}`).classList.add('active');
             });
         });
+
+        // WiFi mode functions
+        async function loadWifiMode() {
+            try {
+                const response = await fetch('/api/wifi/mode');
+                const data = await response.json();
+                const statusEl = document.getElementById('wifiModeStatus');
+                const btnEl = document.getElementById('wifiModeToggle');
+                
+                if (data.mode === 'monitor') {
+                    statusEl.textContent = `Interface ${data.interface} is in Monitor mode`;
+                    statusEl.style.color = 'var(--accent-green)';
+                    btnEl.textContent = 'Switch to Managed';
+                    btnEl.dataset.currentMode = 'monitor';
+                } else if (data.mode === 'managed') {
+                    statusEl.textContent = `Interface ${data.interface} is in Managed mode`;
+                    statusEl.style.color = 'var(--accent-yellow)';
+                    btnEl.textContent = 'Switch to Monitor';
+                    btnEl.dataset.currentMode = 'managed';
+                } else {
+                    statusEl.textContent = `Interface ${data.interface}: ${data.mode}`;
+                    statusEl.style.color = 'var(--accent-red)';
+                }
+            } catch (e) {
+                document.getElementById('wifiModeStatus').textContent = 'Failed to get mode';
+            }
+        }
+
+        async function toggleWifiMode() {
+            const btn = document.getElementById('wifiModeToggle');
+            const currentMode = btn.dataset.currentMode || 'managed';
+            const newMode = currentMode === 'monitor' ? 'managed' : 'monitor';
+            
+            btn.disabled = true;
+            btn.textContent = 'Switching...';
+            
+            try {
+                const response = await fetch('/api/wifi/mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mode: newMode })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(`Switched to ${newMode} mode`, 'success');
+                    // Reload mode status
+                    await loadWifiMode();
+                } else {
+                    showNotification(`Failed: ${data.error}`, 'error');
+                }
+            } catch (e) {
+                showNotification('Failed to toggle mode', 'error');
+            }
+            
+            btn.disabled = false;
+        }
+
+        // Sleep inhibit functions
+        async function loadSleepInhibit() {
+            try {
+                const response = await fetch('/api/power/sleep-inhibit');
+                const data = await response.json();
+                const checkbox = document.getElementById('sleepInhibit');
+                const status = document.getElementById('sleepInhibitStatus');
+                
+                checkbox.checked = data.inhibited;
+                if (data.inhibited) {
+                    status.textContent = 'System suspend is blocked - scanning will continue';
+                    status.style.color = 'var(--accent-green)';
+                } else {
+                    status.textContent = 'Normal power management - system may suspend';
+                    status.style.color = 'var(--text-secondary)';
+                }
+            } catch (e) {
+                document.getElementById('sleepInhibitStatus').textContent = 'Failed to get status';
+            }
+        }
+
+        async function toggleSleepInhibit() {
+            const checkbox = document.getElementById('sleepInhibit');
+            const inhibit = checkbox.checked;
+            
+            try {
+                const response = await fetch('/api/power/sleep-inhibit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ inhibit: inhibit })
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    showNotification(data.message, 'success');
+                    await loadSleepInhibit();
+                } else {
+                    showNotification(`Failed: ${data.error}`, 'error');
+                    checkbox.checked = !inhibit; // Revert
+                }
+            } catch (e) {
+                showNotification('Failed to toggle sleep inhibit', 'error');
+                checkbox.checked = !inhibit; // Revert
+            }
+        }
 
         // Load settings
         async function loadSettings() {
@@ -1277,11 +1586,56 @@
             try {
                 const response = await fetch('/api/system/info');
                 const info = await response.json();
-                document.getElementById('aboutVersion').textContent = info.version || '0.1.0';
+                document.getElementById('aboutVersion').textContent = info.version || '0.2.1';
+                document.getElementById('aboutVersionMain').textContent = `v${info.version || '0.2.1'} | by sigkill`;
                 document.getElementById('aboutPlatform').textContent = info.platform || 'Unknown';
                 document.getElementById('aboutUptime').textContent = formatUptime(info.uptime_secs || 0);
             } catch (e) {
                 console.error('Failed to load system info:', e);
+            }
+            
+            // Load OUI database info for About page
+            try {
+                const ouiRes = await fetch('/api/oui/status');
+                const oui = await ouiRes.json();
+                document.getElementById('aboutOuiVersion').textContent = oui.version || '1.0.0';
+                document.getElementById('aboutOuiEntries').textContent = oui.entries?.toLocaleString() || '--';
+                
+                // Count threat entries (approximate based on categories)
+                const threatCount = oui.entries > 30000 ? '4,235+' : '--';
+                document.getElementById('aboutThreatEntries').textContent = threatCount;
+                
+                if (oui.last_updated > 0) {
+                    const date = new Date(oui.last_updated * 1000);
+                    document.getElementById('aboutOuiUpdated').textContent = date.toLocaleDateString();
+                }
+            } catch (e) {
+                console.error('Failed to load OUI info:', e);
+            }
+            
+            // Load voice capabilities for About page
+            try {
+                const voiceRes = await fetch('/api/voice/status');
+                const voice = await voiceRes.json();
+                
+                const setVoiceStatus = (id, available) => {
+                    const el = document.getElementById(id);
+                    if (el) {
+                        el.textContent = available ? 'Available' : 'Not Installed';
+                        el.className = 'status-badge ' + (available ? 'enabled' : 'disabled');
+                    }
+                };
+                
+                setVoiceStatus('aboutWhisper', voice.whisper?.local_available || voice.whisper?.api_configured);
+                setVoiceStatus('aboutPiper', voice.piper?.available);
+                
+                // Check browser capabilities
+                const hasBrowserStt = 'webkitSpeechRecognition' in window || 'SpeechRecognition' in window;
+                const hasBrowserTts = 'speechSynthesis' in window;
+                setVoiceStatus('aboutBrowserStt', hasBrowserStt);
+                setVoiceStatus('aboutBrowserTts', hasBrowserTts);
+            } catch (e) {
+                console.error('Failed to load voice info:', e);
             }
         }
 
@@ -1291,9 +1645,107 @@
             return `${hours}h ${mins}m`;
         }
 
+        // ============================================
+        // OUI Database Functions
+        // ============================================
+
+        async function checkOuiStatus() {
+            try {
+                const res = await fetch('/api/oui/status');
+                const data = await res.json();
+                
+                document.getElementById('ouiInstalled').textContent = data.installed ? 'Installed' : 'Not Installed';
+                document.getElementById('ouiInstalled').className = data.installed ? 'info-value success' : 'info-value warning';
+                document.getElementById('ouiEntries').textContent = data.entries.toLocaleString();
+                document.getElementById('ouiEmbedded').textContent = data.embedded_entries.toLocaleString();
+                document.getElementById('ouiVersion').textContent = data.version;
+                
+                if (data.last_updated > 0) {
+                    const date = new Date(data.last_updated * 1000);
+                    document.getElementById('ouiLastUpdated').textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+                } else {
+                    document.getElementById('ouiLastUpdated').textContent = 'Never';
+                }
+            } catch (e) {
+                console.error('Failed to check OUI status:', e);
+                document.getElementById('ouiInstalled').textContent = 'Error';
+            }
+        }
+
+        async function updateOuiDatabase() {
+            const btn = document.getElementById('btnUpdateOui');
+            const resultDiv = document.getElementById('ouiUpdateResult');
+            
+            btn.disabled = true;
+            btn.textContent = 'Updating...';
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'update-result info';
+            resultDiv.textContent = 'Downloading database from GitHub...';
+            
+            try {
+                const res = await fetch('/api/oui/update', { method: 'POST' });
+                const data = await res.json();
+                
+                if (data.success) {
+                    resultDiv.className = 'update-result success';
+                    resultDiv.innerHTML = `<strong>Success!</strong> ${data.message}`;
+                    checkOuiStatus(); // Refresh status
+                } else {
+                    resultDiv.className = 'update-result error';
+                    resultDiv.innerHTML = `<strong>Error:</strong> ${data.error}`;
+                }
+            } catch (e) {
+                resultDiv.className = 'update-result error';
+                resultDiv.innerHTML = `<strong>Error:</strong> ${e.message}`;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Update Database';
+            }
+        }
+
+        async function lookupMac() {
+            const mac = document.getElementById('ouiLookupMac').value.trim();
+            const resultDiv = document.getElementById('ouiLookupResult');
+            
+            if (!mac) {
+                resultDiv.style.display = 'block';
+                resultDiv.className = 'lookup-result warning';
+                resultDiv.textContent = 'Please enter a MAC address';
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/oui/lookup/${encodeURIComponent(mac)}`);
+                const data = await res.json();
+                
+                resultDiv.style.display = 'block';
+                
+                if (data.found) {
+                    let html = `<strong>Vendor:</strong> ${data.vendor}<br>`;
+                    html += `<strong>Source:</strong> ${data.source}<br>`;
+                    if (data.country) html += `<strong>Country:</strong> ${data.country}<br>`;
+                    if (data.threat_category) {
+                        html += `<strong>Threat Category:</strong> <span class="threat-${data.threat_level}">${data.threat_category}</span><br>`;
+                        html += `<strong>Threat Level:</strong> <span class="threat-${data.threat_level}">${data.threat_level}</span>`;
+                    }
+                    resultDiv.className = data.threat_category ? 'lookup-result warning' : 'lookup-result success';
+                    resultDiv.innerHTML = html;
+                } else {
+                    resultDiv.className = 'lookup-result info';
+                    resultDiv.textContent = 'No vendor found for this MAC address (may be randomized/local)';
+                }
+            } catch (e) {
+                resultDiv.className = 'lookup-result error';
+                resultDiv.textContent = `Error: ${e.message}`;
+            }
+        }
+
         // Initialize
         loadSettings();
         loadSystemInfo();
+        loadWifiMode();
+        loadSleepInhibit();
+        checkOuiStatus();
     </script>
 </body>
 </html>

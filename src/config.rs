@@ -16,6 +16,210 @@ pub struct Config {
     pub influxdb: InfluxConfig,
     #[serde(default)]
     pub llm: Option<LlmConfig>,
+    #[serde(default)]
+    pub openclaw: Option<OpenClawConfig>,
+    #[serde(default)]
+    pub meshtastic: Option<MeshtasticConfig>,
+    #[serde(default)]
+    pub rayhunter: Option<RayHunterConfig>,
+    #[serde(default)]
+    pub sdr: Option<SdrConfig>,
+}
+
+/// OpenClaw mesh networking for threat sharing
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct OpenClawConfig {
+    pub enabled: bool,
+    /// Webhook URL for sending alerts
+    pub webhook_url: String,
+    /// API key for authentication
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub api_key: Option<String>,
+    /// Enable relay mode - share threats with other nodes
+    #[serde(default)]
+    pub relay_enabled: bool,
+    /// Minimum threat level to relay: "low", "medium", "high", "critical"
+    #[serde(default = "default_relay_level")]
+    pub relay_min_level: String,
+    /// Relay endpoint for receiving threats from other nodes
+    #[serde(default)]
+    pub relay_listen_port: Option<u16>,
+    /// List of peer nodes to sync with
+    #[serde(default)]
+    pub peers: Vec<String>,
+    /// Include GPS coordinates in relayed messages
+    #[serde(default)]
+    pub include_location: bool,
+    /// Device categories to relay (empty = all)
+    #[serde(default)]
+    pub relay_categories: Vec<String>,
+}
+
+fn default_relay_level() -> String { "high".to_string() }
+
+impl Default for OpenClawConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            webhook_url: String::new(),
+            api_key: None,
+            relay_enabled: false,
+            relay_min_level: "high".to_string(),
+            relay_listen_port: Some(8081),
+            peers: Vec::new(),
+            include_location: false,
+            relay_categories: Vec::new(),
+        }
+    }
+}
+
+/// Meshtastic LoRa mesh network integration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct MeshtasticConfig {
+    pub enabled: bool,
+    /// Connection type: "serial", "tcp", "mqtt"
+    pub connection_type: String,
+    /// Serial port for USB connection (e.g., "/dev/ttyUSB0")
+    #[serde(default)]
+    pub serial_port: Option<String>,
+    /// TCP host for network connection
+    #[serde(default)]
+    pub tcp_host: Option<String>,
+    /// TCP port (default 4403)
+    #[serde(default = "default_meshtastic_port")]
+    pub tcp_port: u16,
+    /// MQTT broker for Meshtastic MQTT mode
+    #[serde(default)]
+    pub mqtt_broker: Option<String>,
+    /// MQTT topic prefix
+    #[serde(default = "default_meshtastic_topic")]
+    pub mqtt_topic: String,
+    /// Minimum threat level to send over mesh
+    #[serde(default = "default_relay_level")]
+    pub min_threat_level: String,
+    /// Use compact message format (saves bandwidth)
+    #[serde(default = "default_true")]
+    pub compact_messages: bool,
+    /// Channel to send on (0-7)
+    #[serde(default)]
+    pub channel: u8,
+}
+
+fn default_meshtastic_port() -> u16 { 4403 }
+fn default_meshtastic_topic() -> String { "msh/US/sigint".to_string() }
+fn default_true() -> bool { true }
+
+impl Default for MeshtasticConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            connection_type: "mqtt".to_string(),
+            serial_port: None,
+            tcp_host: None,
+            tcp_port: 4403,
+            mqtt_broker: Some("mqtt.meshtastic.org".to_string()),
+            mqtt_topic: "msh/US/sigint".to_string(),
+            min_threat_level: "high".to_string(),
+            compact_messages: true,
+            channel: 0,
+        }
+    }
+}
+
+/// EFF RayHunter IMSI catcher detection
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct RayHunterConfig {
+    pub enabled: bool,
+    /// RayHunter API endpoint (usually via ADB forward)
+    #[serde(default = "default_rayhunter_url")]
+    pub api_url: String,
+    /// Poll interval in seconds
+    #[serde(default = "default_rayhunter_interval")]
+    pub poll_interval_secs: u64,
+    /// Alert on any suspicious activity
+    #[serde(default = "default_true")]
+    pub alert_on_suspicious: bool,
+    /// Relay RayHunter alerts to OpenClaw
+    #[serde(default = "default_true")]
+    pub relay_to_openclaw: bool,
+    /// Relay RayHunter alerts to Meshtastic
+    #[serde(default)]
+    pub relay_to_meshtastic: bool,
+    /// Custom alert message template
+    #[serde(default)]
+    pub alert_template: Option<String>,
+}
+
+fn default_rayhunter_url() -> String { "http://localhost:8080".to_string() }
+fn default_rayhunter_interval() -> u64 { 5 }
+
+impl Default for RayHunterConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            api_url: "http://localhost:8080".to_string(),
+            poll_interval_secs: 5,
+            alert_on_suspicious: true,
+            relay_to_openclaw: true,
+            relay_to_meshtastic: false,
+            alert_template: None,
+        }
+    }
+}
+
+/// SDR (Software Defined Radio) configuration
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct SdrConfig {
+    pub enabled: bool,
+    /// SDR device type: "rtlsdr", "hackrf", "limesdr"
+    pub device_type: String,
+    /// Device index or serial number
+    #[serde(default)]
+    pub device_index: u32,
+    /// Frequencies to monitor (Hz)
+    #[serde(default)]
+    pub monitor_frequencies: Vec<u64>,
+    /// Enable automatic frequency scanning
+    #[serde(default)]
+    pub auto_scan: bool,
+    /// Frequency range for auto scan (start_hz, end_hz, step_hz)
+    #[serde(default)]
+    pub scan_range: Option<(u64, u64, u64)>,
+    /// Signal threshold for detection (dB)
+    #[serde(default = "default_sdr_threshold")]
+    pub signal_threshold_db: f64,
+    /// Sample rate
+    #[serde(default = "default_sample_rate")]
+    pub sample_rate: u32,
+    /// Gain (0 = auto)
+    #[serde(default)]
+    pub gain: u32,
+}
+
+fn default_sdr_threshold() -> f64 { -50.0 }
+fn default_sample_rate() -> u32 { 2_400_000 }
+
+impl Default for SdrConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            device_type: "rtlsdr".to_string(),
+            device_index: 0,
+            monitor_frequencies: vec![
+                462_562_500,  // FRS/GMRS Ch 1
+                462_587_500,  // FRS/GMRS Ch 2
+                467_562_500,  // FRS Ch 8
+                154_570_000,  // Police common
+                155_475_000,  // Police common
+                460_000_000,  // Public safety
+            ],
+            auto_scan: false,
+            scan_range: None,
+            signal_threshold_db: -50.0,
+            sample_rate: 2_400_000,
+            gain: 0,
+        }
+    }
 }
 
 /// LLM/AI Provider Configuration
@@ -48,7 +252,7 @@ impl Default for LlmConfig {
         Self {
             enabled: false,
             provider: "llamacpp".to_string(),
-            endpoint: "http://localhost:8080".to_string(),
+            endpoint: "http://localhost:11434".to_string(),
             api_key: None,
             model: "default".to_string(),
             max_tokens: 200,
@@ -285,6 +489,10 @@ impl Config {
                 bucket: "sigint".to_string(),
             },
             llm: Some(LlmConfig::default()),
+            openclaw: Some(OpenClawConfig::default()),
+            meshtastic: Some(MeshtasticConfig::default()),
+            rayhunter: Some(RayHunterConfig::default()),
+            sdr: Some(SdrConfig::default()),
         }
     }
 }
