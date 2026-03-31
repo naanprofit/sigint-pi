@@ -291,6 +291,47 @@
             display: block;
         }
 
+        /* Sort Bar */
+        .sort-bar {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 0.75rem;
+            background: var(--bg-tertiary);
+            border-bottom: 1px solid var(--border-color);
+            overflow-x: auto;
+            flex-wrap: nowrap;
+        }
+        
+        .sort-label {
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            white-space: nowrap;
+        }
+        
+        .sort-btn {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            cursor: pointer;
+            white-space: nowrap;
+            transition: all 0.2s;
+        }
+        
+        .sort-btn:hover {
+            border-color: var(--accent-blue);
+            color: var(--text-primary);
+        }
+        
+        .sort-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: white;
+        }
+
         /* Device List - Large touch targets */
         .device-list {
             list-style: none;
@@ -1030,12 +1071,28 @@
     </nav>
 
     <div class="tab-content active" id="tab-wifi">
+        <div class="sort-bar">
+            <span class="sort-label">Sort by:</span>
+            <button class="sort-btn active" data-sort="rssi" data-list="wifi" onclick="setSortOrder('wifi', 'rssi')">Signal ▼</button>
+            <button class="sort-btn" data-sort="channel" data-list="wifi" onclick="setSortOrder('wifi', 'channel')">Channel</button>
+            <button class="sort-btn" data-sort="mac" data-list="wifi" onclick="setSortOrder('wifi', 'mac')">MAC</button>
+            <button class="sort-btn" data-sort="vendor" data-list="wifi" onclick="setSortOrder('wifi', 'vendor')">Vendor</button>
+            <button class="sort-btn" data-sort="new" data-list="wifi" onclick="setSortOrder('wifi', 'new')">New First</button>
+        </div>
         <ul class="device-list" id="wifiList">
             <li class="empty-state">Waiting for devices...</li>
         </ul>
     </div>
 
     <div class="tab-content" id="tab-ble">
+        <div class="sort-bar">
+            <span class="sort-label">Sort by:</span>
+            <button class="sort-btn active" data-sort="rssi" data-list="ble" onclick="setSortOrder('ble', 'rssi')">Signal ▼</button>
+            <button class="sort-btn" data-sort="tracker" data-list="ble" onclick="setSortOrder('ble', 'tracker')">Trackers</button>
+            <button class="sort-btn" data-sort="mac" data-list="ble" onclick="setSortOrder('ble', 'mac')">MAC</button>
+            <button class="sort-btn" data-sort="vendor" data-list="ble" onclick="setSortOrder('ble', 'vendor')">Vendor</button>
+            <button class="sort-btn" data-sort="new" data-list="ble" onclick="setSortOrder('ble', 'new')">New First</button>
+        </div>
         <ul class="device-list" id="bleList">
             <li class="empty-state">Waiting for devices...</li>
         </ul>
@@ -1240,8 +1297,68 @@
                 gps: false,
                 battery: null,
                 platform: 'Unknown'
+            },
+            sortOrder: {
+                wifi: { field: 'rssi', desc: true },
+                ble: { field: 'rssi', desc: true }
             }
         };
+        
+        // Sorting functions
+        function setSortOrder(listType, field) {
+            const current = state.sortOrder[listType];
+            if (current.field === field) {
+                current.desc = !current.desc;
+            } else {
+                current.field = field;
+                current.desc = (field === 'rssi' || field === 'new' || field === 'tracker');
+            }
+            
+            // Update button states
+            document.querySelectorAll(`.sort-btn[data-list="${listType}"]`).forEach(btn => {
+                const isActive = btn.dataset.sort === field;
+                btn.classList.toggle('active', isActive);
+                if (isActive) {
+                    btn.textContent = btn.textContent.replace(/[▲▼]/g, '').trim() + (current.desc ? ' ▼' : ' ▲');
+                } else {
+                    btn.textContent = btn.textContent.replace(/[▲▼]/g, '').trim();
+                }
+            });
+            
+            // Re-render
+            if (listType === 'wifi') renderWifiDevices();
+            else if (listType === 'ble') renderBleDevices();
+        }
+        
+        function sortDevices(devices, sortConfig) {
+            const { field, desc } = sortConfig;
+            return devices.sort((a, b) => {
+                let cmp = 0;
+                switch (field) {
+                    case 'rssi':
+                        cmp = (a.rssi || -100) - (b.rssi || -100);
+                        break;
+                    case 'channel':
+                        cmp = (a.channel || 0) - (b.channel || 0);
+                        break;
+                    case 'mac':
+                        cmp = (a.mac || '').localeCompare(b.mac || '');
+                        break;
+                    case 'vendor':
+                        cmp = (a.vendor || 'zzz').localeCompare(b.vendor || 'zzz');
+                        break;
+                    case 'new':
+                        cmp = (b.is_new ? 1 : 0) - (a.is_new ? 1 : 0);
+                        break;
+                    case 'tracker':
+                        cmp = (b.is_tracker ? 1 : 0) - (a.is_tracker ? 1 : 0);
+                        break;
+                    default:
+                        cmp = (b.rssi || -100) - (a.rssi || -100);
+                }
+                return desc ? -cmp : cmp;
+            });
+        }
 
         // Tab switching
         function switchTab(tabName) {
@@ -1410,9 +1527,10 @@
 
         function renderWifiDevices() {
             const list = document.getElementById('wifiList');
-            const devices = Array.from(state.wifiDevices.values())
-                .sort((a, b) => b.rssi - a.rssi)
-                .slice(0, 50);
+            const devices = sortDevices(
+                Array.from(state.wifiDevices.values()),
+                state.sortOrder.wifi
+            ).slice(0, 50);
 
             document.getElementById('wifiCount').textContent = state.wifiDevices.size;
 
@@ -1440,22 +1558,11 @@
 
         function renderBleDevices() {
             const list = document.getElementById('bleList');
-            // Sort: NEW trackers first, then trackers, then NEW devices, then by signal strength
-            const devices = Array.from(state.bleDevices.values())
-                .sort((a, b) => {
-                    // NEW trackers at very top
-                    if (a.is_tracker && a.is_new && !(b.is_tracker && b.is_new)) return -1;
-                    if (b.is_tracker && b.is_new && !(a.is_tracker && a.is_new)) return 1;
-                    // Then trackers
-                    if (a.is_tracker && !b.is_tracker) return -1;
-                    if (b.is_tracker && !a.is_tracker) return 1;
-                    // Then NEW devices
-                    if (a.is_new && !b.is_new) return -1;
-                    if (b.is_new && !a.is_new) return 1;
-                    // Then by signal strength (higher/less negative = stronger)
-                    return b.rssi - a.rssi;
-                })
-                .slice(0, 50);
+            // Use configurable sort order
+            const devices = sortDevices(
+                Array.from(state.bleDevices.values()),
+                state.sortOrder.ble
+            ).slice(0, 50);
 
             document.getElementById('bleCount').textContent = state.bleDevices.size;
 
@@ -2215,22 +2322,34 @@
                     if (voiceCapabilities.whisper) {
                         label.textContent = 'Transcribing...';
                         try {
-                            const formData = new FormData();
-                            formData.append('audio', audioBlob, 'recording.webm');
-                            
-                            const response = await fetch('/api/voice/transcribe', {
-                                method: 'POST',
-                                body: formData
-                            });
-                            
-                            if (response.ok) {
-                                const data = await response.json();
-                                document.getElementById('noteText').value = data.text || '';
-                            }
+                            // Convert blob to base64 for the API
+                            const reader = new FileReader();
+                            reader.onloadend = async () => {
+                                const base64Audio = reader.result.split(',')[1];
+                                
+                                const response = await fetch('/api/voice/transcribe', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ audio_base64: base64Audio })
+                                });
+                                
+                                if (response.ok) {
+                                    const data = await response.json();
+                                    if (data.success && data.transcription) {
+                                        document.getElementById('noteText').value = data.transcription;
+                                    } else if (data.error) {
+                                        console.error('Transcription error:', data.error);
+                                        document.getElementById('noteText').placeholder = 
+                                            'Transcription failed. Play back and type manually.';
+                                    }
+                                }
+                                label.textContent = 'Record Voice';
+                            };
+                            reader.readAsDataURL(audioBlob);
                         } catch (e) {
                             console.error('Transcription failed:', e);
+                            label.textContent = 'Record Voice';
                         }
-                        label.textContent = 'Record Voice';
                     } else {
                         // No Whisper - just notify user to type manually
                         label.textContent = 'Record Voice';
