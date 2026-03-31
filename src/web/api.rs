@@ -178,6 +178,16 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/oui/lookup/{mac}", web::get().to(lookup_oui))
             // RayHunter IMSI Catcher Detection
             .route("/rayhunter/status", web::get().to(get_rayhunter_status))
+            // SDR (Software Defined Radio)
+            .route("/sdr/status", web::get().to(get_sdr_status))
+            .route("/sdr/rtl433/devices", web::get().to(get_rtl433_devices))
+            .route("/sdr/rtl433/start", web::post().to(start_rtl433))
+            .route("/sdr/rtl433/stop", web::post().to(stop_rtl433))
+            .route("/sdr/spectrum/scan", web::post().to(scan_spectrum))
+            .route("/sdr/cellular/towers", web::get().to(get_cell_towers))
+            .route("/sdr/cellular/scan", web::post().to(scan_cell_towers))
+            .route("/sdr/drone/signals", web::get().to(get_drone_signals))
+            .route("/sdr/drone/scan", web::post().to(scan_drones))
             // LLM Analysis
             .route("/llm/analyze-device", web::post().to(llm_analyze_device))
             .route("/llm/system-prompt", web::get().to(get_llm_system_prompt))
@@ -2334,6 +2344,407 @@ async fn get_rayhunter_status() -> impl Responder {
                 "error": format!("Failed to execute poll script: {}", e)
             }))
         }
+    }
+}
+
+// ============================================
+// SDR (Software Defined Radio) Endpoints
+// ============================================
+
+use crate::sdr::{SdrCapabilities, SdrEvent};
+use crate::sdr::rtl433::{RfDevice, Rtl433Config};
+use crate::sdr::spectrum::{SpectrumConfig, FrequencyBand};
+use crate::sdr::cellular::{CellularConfig, CellTower};
+use crate::sdr::drone::{DroneDetectorConfig, DroneSignal};
+
+async fn get_sdr_status() -> impl Responder {
+    let caps = SdrCapabilities::detect();
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "available": caps.any_available(),
+        "capabilities": {
+            "rtl_sdr": caps.rtl_sdr,
+            "rtl_433": caps.rtl_433,
+            "rtl_power": caps.rtl_power,
+            "hackrf": caps.hackrf,
+            "limesdr": caps.limesdr,
+            "kalibrate": caps.kalibrate
+        },
+        "devices": caps.devices
+    }))
+}
+
+// Global state for rtl_433 (in production, use proper state management)
+use std::sync::Mutex;
+use once_cell::sync::Lazy;
+
+static RTL433_DEVICES: Lazy<Mutex<Vec<RfDevice>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static RTL433_RUNNING: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+
+async fn get_rtl433_devices() -> impl Responder {
+    let devices = RTL433_DEVICES.lock().unwrap();
+    HttpResponse::Ok().json(&*devices)
+}
+
+async fn start_rtl433() -> impl Responder {
+    let caps = SdrCapabilities::detect();
+    
+    if !caps.rtl_433 {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "rtl_433 not installed",
+            "hint": "Run scripts/install-sdr.sh to install SDR tools"
+        }));
+    }
+    
+    let mut running = RTL433_RUNNING.lock().unwrap();
+    if *running {
+        return HttpResponse::Ok().json(serde_json::json!({
+            "status": "already_running"
+        }));
+    }
+    
+    *running = true;
+    
+    // Start rtl_433 in background
+    tokio::spawn(async move {
+        let output = tokio::process::Command::new("rtl_433")
+            .args(&[
+                "-F", "json",
+                "-M", "time:utc",
+                "-M", "level",
+                "-f", "433.92M",
+                "-f", "315M",
+                "-H", "30",
+            ])
+            .stdout(std::process::Stdio::piped())
+            .spawn();
+        
+        if let Ok(mut child) = output {
+            if let Some(stdout) = child.stdout.take() {
+                use tokio::io::{BufReader, AsyncBufReadExt};
+                let reader = BufReader::new(stdout);
+                let mut lines = reader.lines();
+                
+                while let Ok(Some(line)) = lines.next_line().await {
+                    if let Ok(json) = serde_json::from_str::<serde_json::Value>(&line) {
+                        if let Some(device) = RfDevice::from_json(&json) {
+                            let mut devices = RTL433_DEVICES.lock().unwrap();
+                            // Update or add device
+                            if let Some(existing) = devices.iter_mut().find(|d| d.id == device.id) {
+                                existing.last_seen = device.last_seen;
+                                existing.count += 1;
+                                existing.rssi = device.rssi;
+                            } else {
+                                devices.push(device);
+                            }
+                            // Keep only last 100 devices
+                            if devices.len() > 100 {
+                                devices.remove(0);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        let mut running = RTL433_RUNNING.lock().unwrap();
+        *running = false;
+    });
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "started",
+        "frequencies": ["433.92 MHz", "315 MHz"]
+    }))
+}
+
+async fn stop_rtl433() -> impl Responder {
+    // Kill rtl_433 process
+    let _ = std::process::Command::new("pkill")
+        .args(&["-f", "rtl_433"])
+        .output();
+    
+    let mut running = RTL433_RUNNING.lock().unwrap();
+    *running = false;
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "stopped"
+    }))
+}
+
+#[derive(Deserialize)]
+struct SpectrumScanRequest {
+    start_mhz: Option<u32>,
+    end_mhz: Option<u32>,
+    band: Option<String>,
+}
+
+async fn scan_spectrum(body: web::Json<SpectrumScanRequest>) -> impl Responder {
+    let caps = SdrCapabilities::detect();
+    
+    if !caps.rtl_power && !caps.hackrf {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "No spectrum scanning tool available",
+            "hint": "Install rtl-sdr or hackrf"
+        }));
+    }
+    
+    let (start_mhz, end_mhz) = if let Some(band_name) = &body.band {
+        // Look up predefined band
+        let bands = FrequencyBand::common_bands();
+        if let Some(band) = bands.iter().find(|b| b.name.to_lowercase().contains(&band_name.to_lowercase())) {
+            ((band.start_hz / 1_000_000) as u32, (band.end_hz / 1_000_000) as u32)
+        } else {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Unknown band",
+                "available_bands": bands.iter().map(|b| &b.name).collect::<Vec<_>>()
+            }));
+        }
+    } else {
+        (body.start_mhz.unwrap_or(400), body.end_mhz.unwrap_or(500))
+    };
+    
+    // Use hackrf_sweep if available (faster), otherwise rtl_power
+    let output = if caps.hackrf {
+        tokio::process::Command::new("hackrf_sweep")
+            .args(&[
+                "-f", &format!("{}:{}", start_mhz, end_mhz),
+                "-w", "100000",
+                "-1",
+            ])
+            .output()
+            .await
+    } else {
+        tokio::process::Command::new("rtl_power")
+            .args(&[
+                "-f", &format!("{}M:{}M:100k", start_mhz, end_mhz),
+                "-i", "1",
+                "-1",
+            ])
+            .output()
+            .await
+    };
+    
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            // Parse and return spectrum data
+            let points: Vec<serde_json::Value> = stdout.lines()
+                .filter_map(|line| {
+                    let parts: Vec<&str> = line.split(',').collect();
+                    if parts.len() >= 7 {
+                        let hz_low: u64 = parts[2].trim().parse().ok()?;
+                        let hz_step: u64 = parts[4].trim().parse().ok()?;
+                        let powers: Vec<f64> = parts[6..].iter()
+                            .filter_map(|p| p.trim().parse().ok())
+                            .collect();
+                        Some(serde_json::json!({
+                            "start_hz": hz_low,
+                            "step_hz": hz_step,
+                            "powers": powers
+                        }))
+                    } else {
+                        None
+                    }
+                })
+                .collect();
+            
+            HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "start_mhz": start_mhz,
+                "end_mhz": end_mhz,
+                "data": points
+            }))
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Scan failed: {}", stderr)
+            }))
+        }
+        Err(e) => {
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": format!("Failed to execute scan: {}", e)
+            }))
+        }
+    }
+}
+
+static CELL_TOWERS: Lazy<Mutex<Vec<CellTower>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+async fn get_cell_towers() -> impl Responder {
+    let towers = CELL_TOWERS.lock().unwrap();
+    HttpResponse::Ok().json(&*towers)
+}
+
+async fn scan_cell_towers() -> impl Responder {
+    let caps = SdrCapabilities::detect();
+    
+    if !caps.kalibrate {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "kalibrate-rtl not installed",
+            "hint": "Install kalibrate-rtl for cellular tower scanning"
+        }));
+    }
+    
+    // Scan GSM bands
+    let bands = vec![("GSM850", "850"), ("PCS", "1900")];
+    let mut found_towers = Vec::new();
+    
+    for (band_arg, band_name) in bands {
+        let output = tokio::process::Command::new("kal")
+            .args(&["-s", band_arg])
+            .output()
+            .await
+            .or_else(|_| {
+                std::process::Command::new("kalibrate-rtl")
+                    .args(&["-s", band_arg])
+                    .output()
+            });
+        
+        if let Ok(out) = output {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            for line in stdout.lines() {
+                if line.contains("chan:") && line.contains("power:") {
+                    // Parse: "chan: 128 (869.2MHz + 45Hz) power: 123456.78"
+                    if let Some(tower) = parse_kal_line(line, band_name) {
+                        found_towers.push(tower);
+                    }
+                }
+            }
+        }
+    }
+    
+    // Update global state
+    let mut towers = CELL_TOWERS.lock().unwrap();
+    *towers = found_towers.clone();
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "towers_found": found_towers.len(),
+        "towers": found_towers
+    }))
+}
+
+fn parse_kal_line(line: &str, band: &str) -> Option<serde_json::Value> {
+    // Parse: "chan: 128 (869.2MHz + 45Hz) power: 123456.78"
+    let parts: Vec<&str> = line.split_whitespace().collect();
+    if parts.len() < 6 {
+        return None;
+    }
+    
+    let arfcn: u32 = parts.get(1)?.parse().ok()?;
+    let freq_str = line.split('(').nth(1)?.split("MHz").next()?.trim();
+    let freq_mhz: f64 = freq_str.parse().ok()?;
+    let power_str = line.split("power:").nth(1)?.trim();
+    let power: f64 = power_str.parse().ok()?;
+    
+    Some(serde_json::json!({
+        "band": band,
+        "arfcn": arfcn,
+        "frequency_mhz": freq_mhz,
+        "power": power
+    }))
+}
+
+static DRONE_SIGNALS: Lazy<Mutex<Vec<DroneSignal>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+async fn get_drone_signals() -> impl Responder {
+    let signals = DRONE_SIGNALS.lock().unwrap();
+    HttpResponse::Ok().json(&*signals)
+}
+
+async fn scan_drones() -> impl Responder {
+    let caps = SdrCapabilities::detect();
+    
+    if !caps.hackrf {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "HackRF required for drone detection",
+            "hint": "Drone detection requires wideband scanning (2.4GHz, 5.8GHz)",
+            "alternative": "RTL-SDR can only scan up to ~1.7GHz"
+        }));
+    }
+    
+    // Scan 2.4 GHz band
+    let output_2_4 = tokio::process::Command::new("hackrf_sweep")
+        .args(&["-f", "2400:2500", "-w", "500000", "-1"])
+        .output()
+        .await;
+    
+    // Scan 5.8 GHz band
+    let output_5_8 = tokio::process::Command::new("hackrf_sweep")
+        .args(&["-f", "5650:5950", "-w", "1000000", "-1"])
+        .output()
+        .await;
+    
+    let mut found_signals = Vec::new();
+    
+    // Analyze 2.4 GHz
+    if let Ok(out) = output_2_4 {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if let Some(signal) = detect_drone_signal(&stdout, 2_400_000_000, 2_500_000_000, "2.4GHz") {
+            found_signals.push(signal);
+        }
+    }
+    
+    // Analyze 5.8 GHz
+    if let Ok(out) = output_5_8 {
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        if let Some(signal) = detect_drone_signal(&stdout, 5_650_000_000, 5_950_000_000, "5.8GHz") {
+            found_signals.push(signal);
+        }
+    }
+    
+    // Update global state
+    let mut signals = DRONE_SIGNALS.lock().unwrap();
+    *signals = found_signals.clone();
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": true,
+        "signals_found": found_signals.len(),
+        "signals": found_signals,
+        "bands_scanned": ["2.4GHz", "5.8GHz"]
+    }))
+}
+
+fn detect_drone_signal(output: &str, start_hz: u64, end_hz: u64, band: &str) -> Option<serde_json::Value> {
+    // Find strongest signal in the band
+    let mut max_power = f64::NEG_INFINITY;
+    let mut max_freq = 0u64;
+    
+    for line in output.lines() {
+        let parts: Vec<&str> = line.split(',').collect();
+        if parts.len() < 7 {
+            continue;
+        }
+        
+        if let (Ok(hz_low), Ok(hz_bin)) = (
+            parts[2].trim().parse::<u64>(),
+            parts[4].trim().parse::<u64>(),
+        ) {
+            for (i, db_str) in parts[6..].iter().enumerate() {
+                if let Ok(power_db) = db_str.trim().parse::<f64>() {
+                    let freq = hz_low + (i as u64 * hz_bin);
+                    if freq >= start_hz && freq <= end_hz && power_db > max_power {
+                        max_power = power_db;
+                        max_freq = freq;
+                    }
+                }
+            }
+        }
+    }
+    
+    // Only report if signal is strong enough (above noise floor)
+    if max_power > -60.0 {
+        Some(serde_json::json!({
+            "band": band,
+            "frequency_hz": max_freq,
+            "frequency_mhz": max_freq as f64 / 1_000_000.0,
+            "power_db": max_power,
+            "signal_type": if band == "5.8GHz" { "video" } else { "control" },
+            "threat_level": if max_power > -40.0 { "high" } else if max_power > -50.0 { "medium" } else { "low" }
+        }))
+    } else {
+        None
     }
 }
 

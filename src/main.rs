@@ -16,6 +16,7 @@ mod tui;
 mod rayhunter;
 mod openclaw;
 mod meshtastic;
+mod sdr;
 
 #[cfg(feature = "simulation")]
 mod simulation;
