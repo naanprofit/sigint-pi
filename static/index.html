@@ -579,6 +579,209 @@
             font-size: 1rem;
         }
 
+        /* RayHunter IMSI Catcher Panel */
+        .rayhunter-panel {
+            padding: 1rem;
+        }
+        
+        .rayhunter-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .rayhunter-logo {
+            font-size: 2.5rem;
+        }
+        
+        .rayhunter-title h3 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        
+        .rayhunter-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        .rayhunter-indicator {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1rem;
+            background: var(--bg-secondary);
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+        }
+        
+        .indicator-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+        
+        .rayhunter-indicator.connected .indicator-dot {
+            background: var(--accent-green);
+            box-shadow: 0 0 8px var(--accent-green);
+        }
+        
+        .rayhunter-indicator.threat .indicator-dot {
+            background: var(--accent-red);
+            box-shadow: 0 0 8px var(--accent-red);
+            animation: pulse-danger 1s infinite;
+        }
+        
+        .rayhunter-indicator.disconnected .indicator-dot {
+            background: var(--accent-yellow);
+        }
+        
+        @keyframes pulse-danger {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+        }
+        
+        .rayhunter-status-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        
+        @media (max-width: 800px) {
+            .rayhunter-status-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+        
+        .status-card {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .status-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.25rem;
+        }
+        
+        .status-value {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        
+        .rayhunter-threat-panel {
+            background: rgba(248, 81, 73, 0.15);
+            border: 2px solid var(--accent-red);
+            border-radius: 12px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            animation: threat-pulse 2s infinite;
+        }
+        
+        @keyframes threat-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(248, 81, 73, 0.4); }
+            50% { box-shadow: 0 0 20px 10px rgba(248, 81, 73, 0.2); }
+        }
+        
+        .threat-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            margin-bottom: 0.75rem;
+        }
+        
+        .threat-icon {
+            font-size: 2rem;
+        }
+        
+        .threat-title {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--accent-red);
+        }
+        
+        .threat-details {
+            background: var(--bg-primary);
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+        
+        .rayhunter-analyzers {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .rayhunter-analyzers h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .analyzer-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        
+        .analyzer-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .analyzer-status {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--text-secondary);
+        }
+        
+        .analyzer-status.active {
+            background: var(--accent-green);
+        }
+        
+        .analyzer-name {
+            font-size: 0.85rem;
+        }
+        
+        .rayhunter-info {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .rayhunter-info p {
+            margin: 0 0 0.5rem 0;
+        }
+        
+        .info-link {
+            color: var(--accent-blue);
+            text-decoration: none;
+        }
+        
+        .info-link:hover {
+            text-decoration: underline;
+        }
+        
+        .rayhunter-status.safe { color: var(--accent-green); }
+        .rayhunter-status.threat { color: var(--accent-red); }
+        .rayhunter-status.offline { color: var(--text-secondary); }
+
         /* GPS Info */
         .gps-grid {
             display: grid;
@@ -1062,6 +1265,9 @@
         <button class="tab-btn" data-tab="attacks" tabindex="0">
             ⚠️ Attacks <span class="badge-count" id="attackBadge">0</span>
         </button>
+        <button class="tab-btn" data-tab="rayhunter" tabindex="0">
+            🐳 IMSI <span class="badge-count rayhunter-status" id="rayhunterBadge">--</span>
+        </button>
         <button class="tab-btn" data-tab="gps" tabindex="0">
             🛰️ GPS
         </button>
@@ -1116,6 +1322,75 @@
     <div class="tab-content" id="tab-attacks">
         <div id="attackList">
             <div class="empty-state">No attacks detected</div>
+        </div>
+    </div>
+
+    <div class="tab-content" id="tab-rayhunter">
+        <div class="rayhunter-panel">
+            <div class="rayhunter-header">
+                <div class="rayhunter-logo">🐳</div>
+                <div class="rayhunter-title">
+                    <h3>EFF RayHunter</h3>
+                    <span class="rayhunter-subtitle">IMSI Catcher / Stingray Detection</span>
+                </div>
+                <div class="rayhunter-indicator" id="rayhunterIndicator">
+                    <span class="indicator-dot"></span>
+                    <span class="indicator-text">Checking...</span>
+                </div>
+            </div>
+            
+            <div class="rayhunter-status-grid" id="rayhunterStatusGrid">
+                <div class="status-card">
+                    <span class="status-label">Device Status</span>
+                    <span class="status-value" id="rhDeviceStatus">--</span>
+                </div>
+                <div class="status-card">
+                    <span class="status-label">Monitoring</span>
+                    <span class="status-value" id="rhMonitoring">--</span>
+                </div>
+                <div class="status-card">
+                    <span class="status-label">Last Update</span>
+                    <span class="status-value" id="rhLastUpdate">--</span>
+                </div>
+                <div class="status-card">
+                    <span class="status-label">Data Files</span>
+                    <span class="status-value" id="rhDataFiles">--</span>
+                </div>
+            </div>
+            
+            <div class="rayhunter-threat-panel" id="rayhunterThreatPanel" style="display: none;">
+                <div class="threat-header">
+                    <span class="threat-icon">🚨</span>
+                    <span class="threat-title">IMSI CATCHER DETECTED!</span>
+                </div>
+                <div class="threat-details" id="rayhunterThreatDetails">
+                    <!-- Threat details will be inserted here -->
+                </div>
+            </div>
+            
+            <div class="rayhunter-analyzers">
+                <h4>Active Analyzers</h4>
+                <div class="analyzer-list">
+                    <div class="analyzer-item">
+                        <span class="analyzer-status active"></span>
+                        <span class="analyzer-name">IMSI Identity Request</span>
+                    </div>
+                    <div class="analyzer-item">
+                        <span class="analyzer-status active"></span>
+                        <span class="analyzer-name">2G Downgrade Detection</span>
+                    </div>
+                    <div class="analyzer-item">
+                        <span class="analyzer-status active"></span>
+                        <span class="analyzer-name">LTE SIB 6/7 Downgrade</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="rayhunter-info">
+                <p>RayHunter monitors cellular communications for signs of IMSI catchers (Stingrays). 
+                   These devices can intercept phone communications and track location.</p>
+                <a href="https://github.com/EFForg/rayhunter" target="_blank" class="info-link">Learn more about RayHunter</a>
+            </div>
         </div>
     </div>
 
@@ -1855,6 +2130,130 @@
             }
         }
 
+        // RayHunter IMSI Catcher Detection
+        let rayhunterLastThreat = false;
+        let imsiAlertAudio = null;
+        
+        // Create IMSI alert sound (distinct siren pattern)
+        function createImsiAlertSound() {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const oscillator = audioCtx.createOscillator();
+            const gainNode = audioCtx.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioCtx.destination);
+            
+            oscillator.type = 'sawtooth';
+            gainNode.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            
+            // Siren pattern - alternating high/low frequencies
+            const duration = 3;
+            const steps = 6;
+            for (let i = 0; i < steps; i++) {
+                const t = audioCtx.currentTime + (i * duration / steps);
+                oscillator.frequency.setValueAtTime(i % 2 === 0 ? 880 : 440, t);
+            }
+            
+            oscillator.start();
+            gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + duration);
+            oscillator.stop(audioCtx.currentTime + duration);
+        }
+        
+        function playImsiAlert() {
+            try {
+                createImsiAlertSound();
+            } catch (e) {
+                console.error('Could not play IMSI alert sound:', e);
+            }
+        }
+        
+        async function fetchRayhunterStatus() {
+            try {
+                const response = await fetch('/api/rayhunter/status');
+                const data = await response.json();
+                
+                const indicator = document.getElementById('rayhunterIndicator');
+                const badge = document.getElementById('rayhunterBadge');
+                const threatPanel = document.getElementById('rayhunterThreatPanel');
+                const threatDetails = document.getElementById('rayhunterThreatDetails');
+                
+                if (!data.available) {
+                    indicator.className = 'rayhunter-indicator disconnected';
+                    indicator.querySelector('.indicator-text').textContent = 'Not Available';
+                    badge.textContent = '--';
+                    badge.className = 'badge-count rayhunter-status offline';
+                    document.getElementById('rhDeviceStatus').textContent = 'Not installed';
+                    document.getElementById('rhMonitoring').textContent = '--';
+                    document.getElementById('rhLastUpdate').textContent = '--';
+                    document.getElementById('rhDataFiles').textContent = '--';
+                    return;
+                }
+                
+                if (!data.connected) {
+                    indicator.className = 'rayhunter-indicator disconnected';
+                    indicator.querySelector('.indicator-text').textContent = 'Disconnected';
+                    badge.textContent = 'OFF';
+                    badge.className = 'badge-count rayhunter-status offline';
+                    document.getElementById('rhDeviceStatus').textContent = 'Disconnected';
+                    document.getElementById('rhMonitoring').textContent = '--';
+                    return;
+                }
+                
+                // Update status
+                document.getElementById('rhDeviceStatus').textContent = data.running ? 'Running' : 'Stopped';
+                document.getElementById('rhMonitoring').textContent = data.running ? 'Active' : 'Inactive';
+                document.getElementById('rhDataFiles').textContent = data.latest_file?.split('/').pop() || '--';
+                
+                // Parse timestamp
+                if (data.last_analysis?.timestamp) {
+                    const ts = new Date(data.last_analysis.timestamp);
+                    document.getElementById('rhLastUpdate').textContent = ts.toLocaleTimeString();
+                }
+                
+                // Check for threats
+                const hasThreat = data.threat_detected || 
+                    (data.last_analysis?.analysis && data.last_analysis.analysis.length > 0);
+                
+                if (hasThreat) {
+                    indicator.className = 'rayhunter-indicator threat';
+                    indicator.querySelector('.indicator-text').textContent = 'THREAT DETECTED!';
+                    badge.textContent = '⚠️';
+                    badge.className = 'badge-count rayhunter-status threat';
+                    
+                    // Show threat panel
+                    threatPanel.style.display = 'block';
+                    threatDetails.innerHTML = `<pre>${JSON.stringify(data.last_analysis.analysis, null, 2)}</pre>`;
+                    
+                    // Play alert if this is a new threat
+                    if (!rayhunterLastThreat) {
+                        playImsiAlert();
+                        // Also add to alerts
+                        state.alerts.unshift({
+                            id: Date.now(),
+                            type: 'imsi_catcher',
+                            priority: 'critical',
+                            title: 'IMSI CATCHER DETECTED!',
+                            message: 'RayHunter has detected potential cell site simulator activity.',
+                            timestamp: Math.floor(Date.now() / 1000)
+                        });
+                        renderAlerts();
+                    }
+                    rayhunterLastThreat = true;
+                } else {
+                    indicator.className = 'rayhunter-indicator connected';
+                    indicator.querySelector('.indicator-text').textContent = 'Monitoring';
+                    badge.textContent = 'OK';
+                    badge.className = 'badge-count rayhunter-status safe';
+                    threatPanel.style.display = 'none';
+                    rayhunterLastThreat = false;
+                }
+                
+            } catch (e) {
+                console.error('RayHunter status fetch failed:', e);
+                document.getElementById('rayhunterBadge').textContent = '--';
+            }
+        }
+
         // Event listeners
         document.addEventListener('DOMContentLoaded', () => {
             // Tab navigation
@@ -1930,6 +2329,10 @@
             setInterval(fetchDevices, 5000);
             setInterval(fetchAlerts, 10000);
             setInterval(fetchGps, 2000); // Poll GPS more frequently
+            
+            // RayHunter IMSI catcher polling
+            fetchRayhunterStatus();
+            setInterval(fetchRayhunterStatus, 5000);
             
             // Cleanup old devices
             setInterval(() => {

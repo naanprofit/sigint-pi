@@ -176,6 +176,8 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/oui/status", web::get().to(get_oui_status))
             .route("/oui/update", web::post().to(update_oui_database))
             .route("/oui/lookup/{mac}", web::get().to(lookup_oui))
+            // RayHunter IMSI Catcher Detection
+            .route("/rayhunter/status", web::get().to(get_rayhunter_status))
             // LLM Analysis
             .route("/llm/analyze-device", web::post().to(llm_analyze_device))
             .route("/llm/system-prompt", web::get().to(get_llm_system_prompt))
@@ -2263,6 +2265,76 @@ async fn lookup_oui(
         "mac": mac,
         "found": false
     }))
+}
+
+// ============================================
+// ============================================
+// RayHunter IMSI Catcher Detection
+// ============================================
+
+async fn get_rayhunter_status() -> impl Responder {
+    // Try to run the rayhunter-poll.sh script
+    let poll_script = dirs::home_dir()
+        .map(|h| h.join("sigint-deck").join("rayhunter-poll.sh"))
+        .unwrap_or_else(|| std::path::PathBuf::from("./rayhunter-poll.sh"));
+    
+    if !poll_script.exists() {
+        return HttpResponse::Ok().json(serde_json::json!({
+            "available": false,
+            "error": "RayHunter poll script not found",
+            "hint": "Install ADB and create rayhunter-poll.sh"
+        }));
+    }
+    
+    let output = std::process::Command::new("bash")
+        .arg(&poll_script)
+        .output();
+    
+    match output {
+        Ok(out) if out.status.success() => {
+            let stdout = String::from_utf8_lossy(&out.stdout);
+            match serde_json::from_str::<serde_json::Value>(&stdout) {
+                Ok(json) => {
+                    // Check if there are any analysis warnings
+                    let has_threat = json.get("last_analysis")
+                        .and_then(|a| a.get("analysis"))
+                        .and_then(|arr| arr.as_array())
+                        .map(|arr| !arr.is_empty())
+                        .unwrap_or(false);
+                    
+                    let mut response = json.clone();
+                    if let Some(obj) = response.as_object_mut() {
+                        obj.insert("available".to_string(), serde_json::json!(true));
+                        obj.insert("threat_detected".to_string(), serde_json::json!(has_threat));
+                    }
+                    
+                    HttpResponse::Ok().json(response)
+                }
+                Err(e) => {
+                    HttpResponse::Ok().json(serde_json::json!({
+                        "available": true,
+                        "connected": false,
+                        "error": format!("Failed to parse RayHunter output: {}", e),
+                        "raw_output": stdout.to_string()
+                    }))
+                }
+            }
+        }
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            HttpResponse::Ok().json(serde_json::json!({
+                "available": true,
+                "connected": false,
+                "error": format!("RayHunter poll failed: {}", stderr)
+            }))
+        }
+        Err(e) => {
+            HttpResponse::Ok().json(serde_json::json!({
+                "available": false,
+                "error": format!("Failed to execute poll script: {}", e)
+            }))
+        }
+    }
 }
 
 // ============================================
