@@ -52,7 +52,10 @@ sudo apt-get install -y -qq \
     python3-pip \
     curl \
     git \
-    usbutils
+    usbutils \
+    autoconf \
+    automake \
+    libtool
 
 # ============================================
 # Step 2: RTL-SDR Tools
