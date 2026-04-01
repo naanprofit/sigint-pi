@@ -151,7 +151,7 @@ location_name = "default"
 [web]
 enabled = true
 port = 8080
-host = "0.0.0.0"
+bind_address = "0.0.0.0"
 
 [wifi]
 enabled = true
@@ -249,7 +249,8 @@ echo -e "${GREEN}======================================${NC}"
 echo ""
 echo -e "Install directory: ${CYAN}$INSTALL_DIR${NC}"
 echo -e "Config file:       ${CYAN}$INSTALL_DIR/config.toml${NC}"
-echo -e "Web UI:            ${CYAN}http://$(hostname -I | awk '{print $1}'):8080${NC}"
+LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}' || ip -4 addr show | grep -oP '(?<=inet\s)(?!127\.)\d+\.\d+\.\d+\.\d+' | head -1 || echo "localhost")
+echo -e "Web UI:            ${CYAN}http://${LOCAL_IP}:8080${NC}"
 echo ""
 echo -e "${YELLOW}Next steps:${NC}"
 echo "  1. Download or build the binary (see docs/BUILD.md)"

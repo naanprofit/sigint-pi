@@ -211,7 +211,7 @@ location_name = "default"
 [web]
 enabled = true
 port = 8085
-host = "0.0.0.0"
+bind_address = "0.0.0.0"
 
 [wifi]
 enabled = true
@@ -294,7 +294,8 @@ echo -e "${GREEN}======================================${NC}"
 echo ""
 echo -e "Install directory: ${CYAN}$INSTALL_DIR${NC}"
 echo -e "Config file:       ${CYAN}$INSTALL_DIR/config.toml${NC}"
-echo -e "Web UI:            ${CYAN}http://$(hostname -I | awk '{print $1}'):8085${NC}"
+LOCAL_IP=$(ip -4 addr show | grep -oP '(?<=inet\s)(?!127\.)\d+\.\d+\.\d+\.\d+' | head -1 2>/dev/null || echo "localhost")
+echo -e "Web UI:            ${CYAN}http://${LOCAL_IP}:8085${NC}"
 echo ""
 echo -e "${YELLOW}Quick start:${NC}"
 echo "  systemctl --user start sigint-deck"
