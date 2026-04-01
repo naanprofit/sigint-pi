@@ -1074,7 +1074,7 @@ fn sanitize_llm_url(url: &str) -> String {
 fn read_llm_config_from_disk() -> Option<crate::config::LlmConfig> {
     let config_paths = [
         dirs::home_dir().map(|h| h.join("sigint-pi").join("config.toml")).unwrap_or_default(),
-        dirs::home_dir().map(|h| h.join("sigint-deck").join("config.toml")).unwrap_or_default(),
+        dirs::home_dir().map(|h| h.join("sigint-pi").join("config.toml")).unwrap_or_default(),
         std::path::PathBuf::from("./config.toml"),
     ];
     for path in &config_paths {
@@ -1195,7 +1195,7 @@ async fn get_settings() -> impl Responder {
             .map(|h| h.join("sigint-pi").join("config.toml"))
             .unwrap_or_default(),
         dirs::home_dir()
-            .map(|h| h.join("sigint-deck").join("config.toml"))
+            .map(|h| h.join("sigint-pi").join("config.toml"))
             .unwrap_or_default(),
         std::path::PathBuf::from("./config.toml"),
     ];
@@ -1377,7 +1377,7 @@ async fn save_settings(
             .map(|h| h.join("sigint-pi").join("config.toml"))
             .unwrap_or_default(),
         dirs::home_dir()
-            .map(|h| h.join("sigint-deck").join("config.toml"))
+            .map(|h| h.join("sigint-pi").join("config.toml"))
             .unwrap_or_default(),
         // Current directory
         std::path::PathBuf::from("./config.toml"),
@@ -1933,6 +1933,21 @@ async fn get_recent_notes(
 // Voice Transcription
 // ============================================
 
+fn find_venv_python() -> Option<String> {
+    let home = std::env::var("HOME").unwrap_or_default();
+    for dir in &["sigint-deck", "sigint-pi", "sigint-clockworkpi"] {
+        let venv_py = format!("{}/{}/venv/bin/python", home, dir);
+        if std::path::Path::new(&venv_py).exists() {
+            return Some(venv_py);
+        }
+    }
+    // Also check relative to current working directory
+    if std::path::Path::new("./venv/bin/python").exists() {
+        return Some("./venv/bin/python".to_string());
+    }
+    None
+}
+
 async fn get_voice_status() -> impl Responder {
     // Check if whisper server is running (preferred method)
     let whisper_url = std::env::var("WHISPER_URL").unwrap_or_else(|_| "http://127.0.0.1:5000".to_string());
@@ -1953,6 +1968,9 @@ async fn get_voice_status() -> impl Responder {
         })
         .is_some();
     
+    // Check venv paths (SteamOS and other installs use a venv)
+    let venv_python = find_venv_python();
+
     // Fallback: check if faster-whisper is available via CLI or Python
     let whisper_local = std::process::Command::new("which")
         .arg("faster-whisper")
@@ -1966,7 +1984,15 @@ async fn get_voice_status() -> impl Responder {
         .map(|o| o.status.success())
         .unwrap_or(false);
     
-    let whisper_available = whisper_server || whisper_local || whisper_py;
+    let whisper_venv = venv_python.as_ref().map(|py| {
+        std::process::Command::new(py)
+            .args(["-c", "import faster_whisper; print('ok')"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }).unwrap_or(false);
+
+    let whisper_available = whisper_server || whisper_local || whisper_py || whisper_venv;
     
     // Check for Piper TTS
     let piper_available = std::process::Command::new("which")
@@ -1980,6 +2006,14 @@ async fn get_voice_status() -> impl Responder {
         .output()
         .map(|o| o.status.success())
         .unwrap_or(false);
+
+    let piper_venv = venv_python.as_ref().map(|py| {
+        std::process::Command::new(py)
+            .args(["-c", "import piper; print('ok')"])
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false)
+    }).unwrap_or(false);
     
     HttpResponse::Ok().json(serde_json::json!({
         "whisper": {
@@ -1989,11 +2023,11 @@ async fn get_voice_status() -> impl Responder {
             "model": "tiny"
         },
         "piper": {
-            "available": piper_available || piper_py,
+            "available": piper_available || piper_py || piper_venv,
             "model": "en_US-lessac-medium"
         },
         "recommended_stt": if whisper_available { "local" } else { "api" },
-        "recommended_tts": if piper_available || piper_py { "piper" } else { "browser" }
+        "recommended_tts": if piper_available || piper_py || piper_venv { "piper" } else { "browser" }
     }))
 }
 
@@ -2121,8 +2155,20 @@ async fn speak_text(
     let voice = body.voice.as_deref().unwrap_or("en_US-lessac-medium");
     let output_path = "/tmp/sigint-speech-output.wav";
     
-    // Try piper first
-    let result = std::process::Command::new("piper")
+    // Try piper - check venv first, then system
+    let piper_cmd = find_venv_python()
+        .map(|py| {
+            let venv_dir = std::path::Path::new(&py).parent().unwrap().to_path_buf();
+            let piper_bin = venv_dir.join("piper");
+            if piper_bin.exists() {
+                piper_bin.to_string_lossy().to_string()
+            } else {
+                "piper".to_string()
+            }
+        })
+        .unwrap_or_else(|| "piper".to_string());
+
+    let result = std::process::Command::new(&piper_cmd)
         .args(["--model", voice, "--output_file", output_path])
         .stdin(std::process::Stdio::piped())
         .spawn()
