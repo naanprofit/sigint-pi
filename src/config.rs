@@ -4,15 +4,25 @@ use std::path::PathBuf;
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Config {
+    #[serde(default = "DeviceConfig::default")]
     pub device: DeviceConfig,
+    #[serde(default = "WifiConfig::default")]
     pub wifi: WifiConfig,
+    #[serde(default = "BluetoothConfig::default")]
     pub bluetooth: BluetoothConfig,
+    #[serde(default = "GpsConfig::default")]
     pub gps: GpsConfig,
+    #[serde(default = "DatabaseConfig::default")]
     pub database: DatabaseConfig,
+    #[serde(default = "AlertsConfig::default")]
     pub alerts: AlertsConfig,
+    #[serde(default = "WebConfig::default")]
     pub web: WebConfig,
+    #[serde(default = "LearningConfig::default")]
     pub learning: LearningConfig,
+    #[serde(default = "PowerConfig::default")]
     pub power: PowerConfig,
+    #[serde(default = "InfluxConfig::default")]
     pub influxdb: InfluxConfig,
     #[serde(default)]
     pub llm: Option<LlmConfig>,
@@ -56,6 +66,20 @@ pub struct OpenClawConfig {
 }
 
 fn default_relay_level() -> String { "high".to_string() }
+
+// Serde default helper functions for Config sub-structs
+fn default_wifi_interface() -> String { "wlan1".to_string() }
+fn default_wifi_scan_interval() -> u64 { 5000 }
+fn default_rssi_threshold() -> i32 { -80 }
+fn default_pcap_path() -> PathBuf { PathBuf::from("./pcap") }
+fn default_pcap_rotate() -> u64 { 100 }
+fn default_bt_scan_interval() -> u64 { 10000 }
+fn default_bt_rssi() -> i32 { -90 }
+fn default_gpsd_host() -> String { "127.0.0.1".to_string() }
+fn default_gpsd_port() -> u16 { 2947 }
+fn default_gps_interval() -> u64 { 1000 }
+fn default_db_path() -> PathBuf { PathBuf::from("./sigint.db") }
+fn default_retention() -> u32 { 30 }
 
 impl Default for OpenClawConfig {
     fn default() -> Self {
@@ -269,35 +293,53 @@ pub struct DeviceConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WifiConfig {
+    #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_wifi_interface")]
     pub interface: String,
+    #[serde(default = "default_wifi_scan_interval")]
     pub scan_interval_ms: u64,
+    #[serde(default = "default_rssi_threshold")]
     pub rssi_threshold: i32,
+    #[serde(default = "default_true")]
     pub attack_detection: bool,
+    #[serde(default = "default_true")]
     pub pcap_enabled: bool,
+    #[serde(default = "default_pcap_path")]
     pub pcap_path: PathBuf,
+    #[serde(default = "default_pcap_rotate")]
     pub pcap_rotate_mb: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct BluetoothConfig {
+    #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_bt_scan_interval")]
     pub scan_interval_ms: u64,
+    #[serde(default = "default_bt_rssi")]
     pub rssi_threshold: i32,
+    #[serde(default = "default_true")]
     pub detect_airtags: bool,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct GpsConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default = "default_gpsd_host")]
     pub gpsd_host: String,
+    #[serde(default = "default_gpsd_port")]
     pub gpsd_port: u16,
+    #[serde(default = "default_gps_interval")]
     pub update_interval_ms: u64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DatabaseConfig {
+    #[serde(default = "default_db_path")]
     pub path: PathBuf,
+    #[serde(default = "default_retention")]
     pub retention_days: u32,
 }
 
@@ -376,6 +418,75 @@ pub struct PowerConfig {
     pub low_power_mode: bool,
     pub battery_scan_interval_ms: u64,
     pub ac_scan_interval_ms: u64,
+}
+
+impl Default for DeviceConfig {
+    fn default() -> Self {
+        Self { name: "sigint-device-01".to_string(), location_name: "default".to_string() }
+    }
+}
+
+impl Default for WifiConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true, interface: "wlan1".to_string(), scan_interval_ms: 5000,
+            rssi_threshold: -80, attack_detection: true, pcap_enabled: true,
+            pcap_path: PathBuf::from("./pcap"), pcap_rotate_mb: 100,
+        }
+    }
+}
+
+impl Default for BluetoothConfig {
+    fn default() -> Self {
+        Self { enabled: true, scan_interval_ms: 10000, rssi_threshold: -90, detect_airtags: true }
+    }
+}
+
+impl Default for GpsConfig {
+    fn default() -> Self {
+        Self { enabled: false, gpsd_host: "127.0.0.1".to_string(), gpsd_port: 2947, update_interval_ms: 1000 }
+    }
+}
+
+impl Default for DatabaseConfig {
+    fn default() -> Self {
+        Self { path: PathBuf::from("./sigint.db"), retention_days: 30 }
+    }
+}
+
+impl Default for AlertsConfig {
+    fn default() -> Self {
+        Self {
+            telegram: TelegramConfig { enabled: false, bot_token: String::new(), chat_id: String::new() },
+            twilio: TwilioConfig { enabled: false, account_sid: String::new(), auth_token: String::new(), from_number: String::new(), to_number: String::new() },
+            email: EmailConfig { enabled: false, smtp_host: String::new(), smtp_port: 587, smtp_user: String::new(), smtp_password: String::new(), from_address: String::new(), to_addresses: vec![] },
+            mqtt: MqttConfig { enabled: false, broker_host: "localhost".to_string(), broker_port: 1883, client_id: "sigint".to_string(), topic_prefix: "sigint".to_string(), username: None, password: None },
+        }
+    }
+}
+
+impl Default for WebConfig {
+    fn default() -> Self {
+        Self { enabled: true, bind_address: "0.0.0.0".to_string(), port: 8080 }
+    }
+}
+
+impl Default for LearningConfig {
+    fn default() -> Self {
+        Self { enabled: true, training_hours: 24, anomaly_threshold: 0.7, geofence_radius_meters: 100.0 }
+    }
+}
+
+impl Default for PowerConfig {
+    fn default() -> Self {
+        Self { low_power_mode: false, battery_scan_interval_ms: 15000, ac_scan_interval_ms: 5000 }
+    }
+}
+
+impl Default for InfluxConfig {
+    fn default() -> Self {
+        Self { enabled: false, url: "http://localhost:8086".to_string(), token: String::new(), org: "sigint".to_string(), bucket: "sigint".to_string() }
+    }
 }
 
 impl Config {
