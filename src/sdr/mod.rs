@@ -6,12 +6,17 @@
 //! - Cellular tower mapping (kalibrate-rtl)
 //! - Drone/UAV detection (2.4/5.8 GHz)
 //! - Trunked radio monitoring (P25/DMR)
+//! - TSCM counter-surveillance sweeping
+//! - Environmental sensors (Geiger, air quality, CBRN)
+//! - ADS-B aircraft tracking
 
 pub mod rtl433;
 pub mod spectrum;
 pub mod cellular;
 pub mod drone;
 pub mod trunked;
+pub mod tscm;
+pub mod environmental;
 
 use serde::{Deserialize, Serialize};
 use std::process::Command;
