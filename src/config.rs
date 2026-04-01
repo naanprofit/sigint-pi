@@ -80,6 +80,21 @@ fn default_gpsd_port() -> u16 { 2947 }
 fn default_gps_interval() -> u64 { 1000 }
 fn default_db_path() -> PathBuf { PathBuf::from("./sigint.db") }
 fn default_retention() -> u32 { 30 }
+fn default_smtp_port() -> u16 { 587 }
+fn default_bind_addr() -> String { "0.0.0.0".to_string() }
+fn default_web_port() -> u16 { 8080 }
+fn default_influx_url() -> String { "http://localhost:8086".to_string() }
+fn default_influx_org() -> String { "sigint".to_string() }
+fn default_influx_bucket() -> String { "sigint".to_string() }
+fn default_training_hours() -> u32 { 24 }
+fn default_anomaly_threshold() -> f64 { 0.7 }
+fn default_geofence_radius() -> f64 { 100.0 }
+fn default_battery_interval() -> u64 { 15000 }
+fn default_ac_interval() -> u64 { 5000 }
+fn default_mqtt_host() -> String { "localhost".to_string() }
+fn default_mqtt_port() -> u16 { 1883 }
+fn default_mqtt_client() -> String { "sigint".to_string() }
+fn default_mqtt_topic() -> String { "sigint".to_string() }
 
 impl Default for OpenClawConfig {
     fn default() -> Self {
@@ -287,9 +302,14 @@ impl Default for LlmConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct DeviceConfig {
+    #[serde(default = "default_device_name")]
     pub name: String,
+    #[serde(default = "default_location")]
     pub location_name: String,
 }
+
+fn default_device_name() -> String { "sigint-device-01".to_string() }
+fn default_location() -> String { "default".to_string() }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WifiConfig {
@@ -345,78 +365,119 @@ pub struct DatabaseConfig {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct AlertsConfig {
+    #[serde(default = "TelegramConfig::default")]
     pub telegram: TelegramConfig,
+    #[serde(default = "TwilioConfig::default")]
     pub twilio: TwilioConfig,
+    #[serde(default = "EmailConfig::default")]
     pub email: EmailConfig,
+    #[serde(default = "MqttConfig::default")]
     pub mqtt: MqttConfig,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TelegramConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
     pub bot_token: String,
+    #[serde(default)]
     pub chat_id: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TwilioConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
     pub account_sid: String,
+    #[serde(default)]
     pub auth_token: String,
+    #[serde(default)]
     pub from_number: String,
+    #[serde(default)]
     pub to_number: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct EmailConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default)]
     pub smtp_host: String,
+    #[serde(default = "default_smtp_port")]
     pub smtp_port: u16,
+    #[serde(default)]
     pub smtp_user: String,
+    #[serde(default)]
     pub smtp_password: String,
+    #[serde(default)]
     pub from_address: String,
+    #[serde(default)]
     pub to_addresses: Vec<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MqttConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default = "default_mqtt_host")]
     pub broker_host: String,
+    #[serde(default = "default_mqtt_port")]
     pub broker_port: u16,
+    #[serde(default = "default_mqtt_client")]
     pub client_id: String,
+    #[serde(default = "default_mqtt_topic")]
     pub topic_prefix: String,
+    #[serde(default)]
     pub username: Option<String>,
+    #[serde(default)]
     pub password: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct WebConfig {
+    #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_bind_addr")]
     pub bind_address: String,
+    #[serde(default = "default_web_port")]
     pub port: u16,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct InfluxConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default = "default_influx_url")]
     pub url: String,
+    #[serde(default)]
     pub token: String,
+    #[serde(default = "default_influx_org")]
     pub org: String,
+    #[serde(default = "default_influx_bucket")]
     pub bucket: String,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct LearningConfig {
+    #[serde(default = "default_true")]
     pub enabled: bool,
+    #[serde(default = "default_training_hours")]
     pub training_hours: u32,
+    #[serde(default = "default_anomaly_threshold")]
     pub anomaly_threshold: f64,
+    #[serde(default = "default_geofence_radius")]
     pub geofence_radius_meters: f64,
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct PowerConfig {
+    #[serde(default)]
     pub low_power_mode: bool,
+    #[serde(default = "default_battery_interval")]
     pub battery_scan_interval_ms: u64,
+    #[serde(default = "default_ac_interval")]
     pub ac_scan_interval_ms: u64,
 }
 
@@ -462,6 +523,30 @@ impl Default for AlertsConfig {
             email: EmailConfig { enabled: false, smtp_host: String::new(), smtp_port: 587, smtp_user: String::new(), smtp_password: String::new(), from_address: String::new(), to_addresses: vec![] },
             mqtt: MqttConfig { enabled: false, broker_host: "localhost".to_string(), broker_port: 1883, client_id: "sigint".to_string(), topic_prefix: "sigint".to_string(), username: None, password: None },
         }
+    }
+}
+
+impl Default for TelegramConfig {
+    fn default() -> Self {
+        Self { enabled: false, bot_token: String::new(), chat_id: String::new() }
+    }
+}
+
+impl Default for TwilioConfig {
+    fn default() -> Self {
+        Self { enabled: false, account_sid: String::new(), auth_token: String::new(), from_number: String::new(), to_number: String::new() }
+    }
+}
+
+impl Default for EmailConfig {
+    fn default() -> Self {
+        Self { enabled: false, smtp_host: String::new(), smtp_port: 587, smtp_user: String::new(), smtp_password: String::new(), from_address: String::new(), to_addresses: vec![] }
+    }
+}
+
+impl Default for MqttConfig {
+    fn default() -> Self {
+        Self { enabled: false, broker_host: "localhost".to_string(), broker_port: 1883, client_id: "sigint".to_string(), topic_prefix: "sigint".to_string(), username: None, password: None }
     }
 }
 
