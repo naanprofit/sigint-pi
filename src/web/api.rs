@@ -1073,7 +1073,7 @@ fn sanitize_llm_url(url: &str) -> String {
 /// Read LLM config from saved config file (not in-memory)
 fn read_llm_config_from_disk() -> Option<crate::config::LlmConfig> {
     let config_paths = [
-        dirs::home_dir().map(|h| h.join("sigint-pi").join("config.toml")).unwrap_or_default(),
+        dirs::home_dir().map(|h| h.join("sigint-deck").join("config.toml")).unwrap_or_default(),
         dirs::home_dir().map(|h| h.join("sigint-pi").join("config.toml")).unwrap_or_default(),
         std::path::PathBuf::from("./config.toml"),
     ];
@@ -1192,7 +1192,7 @@ async fn get_settings() -> impl Responder {
     // Find existing config file
     let config_paths = [
         dirs::home_dir()
-            .map(|h| h.join("sigint-pi").join("config.toml"))
+            .map(|h| h.join("sigint-deck").join("config.toml"))
             .unwrap_or_default(),
         dirs::home_dir()
             .map(|h| h.join("sigint-pi").join("config.toml"))
@@ -1377,7 +1377,7 @@ async fn save_settings(
             .map(|h| h.join("sigint-pi").join("config.toml"))
             .unwrap_or_default(),
         dirs::home_dir()
-            .map(|h| h.join("sigint-pi").join("config.toml"))
+            .map(|h| h.join("sigint-deck").join("config.toml"))
             .unwrap_or_default(),
         // Current directory
         std::path::PathBuf::from("./config.toml"),
@@ -2152,7 +2152,7 @@ struct SpeakRequest {
 async fn speak_text(
     body: web::Json<SpeakRequest>,
 ) -> impl Responder {
-    let voice = body.voice.as_deref().unwrap_or("en_US-lessac-medium");
+    let voice_name = body.voice.as_deref().unwrap_or("en_US-lessac-medium");
     let output_path = "/tmp/sigint-speech-output.wav";
     
     // Try piper - check venv first, then system
@@ -2168,8 +2168,16 @@ async fn speak_text(
         })
         .unwrap_or_else(|| "piper".to_string());
 
+    // Resolve model path - check models/piper/ directory for .onnx files
+    let home = std::env::var("HOME").unwrap_or_default();
+    let model_path = ["sigint-deck", "sigint-pi", "sigint-clockworkpi"]
+        .iter()
+        .map(|d| format!("{}/{}/models/piper/{}.onnx", home, d, voice_name))
+        .find(|p| std::path::Path::new(p).exists())
+        .unwrap_or_else(|| voice_name.to_string());
+
     let result = std::process::Command::new(&piper_cmd)
-        .args(["--model", voice, "--output_file", output_path])
+        .args(["--model", &model_path, "--output_file", output_path])
         .stdin(std::process::Stdio::piped())
         .spawn()
         .and_then(|mut child| {
@@ -2215,12 +2223,12 @@ async fn speak_text(
 // OUI Database Management
 // ============================================
 
-const OUI_DATABASE_URL: &str = "https://raw.githubusercontent.com/naanprofit/sigint-pi/main/data/oui-database.min.json";
-const OUI_THREATS_URL: &str = "https://raw.githubusercontent.com/naanprofit/sigint-pi/main/data/oui-threats.json";
+const OUI_DATABASE_URL: &str = "https://raw.githubusercontent.com/naanprofit/sigint-deck/main/data/oui-database.min.json";
+const OUI_THREATS_URL: &str = "https://raw.githubusercontent.com/naanprofit/sigint-deck/main/data/oui-threats.json";
 
 fn get_oui_db_path() -> std::path::PathBuf {
     dirs::home_dir()
-        .map(|h| h.join("sigint-pi").join("data").join("oui-database.json"))
+        .map(|h| h.join("sigint-deck").join("data").join("oui-database.json"))
         .unwrap_or_else(|| std::path::PathBuf::from("./data/oui-database.json"))
 }
 

@@ -69,9 +69,26 @@ echo -e "${YELLOW}[3/4] Installing piper-tts (text-to-speech)...${NC}"
 echo -e "${GREEN}  piper-tts installed${NC}"
 
 # ============================================
-# Step 4: Setup whisper server systemd service
+# Step 4: Download Piper voice model
 # ============================================
-echo -e "${YELLOW}[4/4] Setting up whisper server service...${NC}"
+echo -e "${YELLOW}[4/5] Downloading Piper voice model...${NC}"
+MODELS_DIR="$INSTALL_DIR/models/piper"
+mkdir -p "$MODELS_DIR"
+VOICE_NAME="en_US-lessac-medium"
+if [ ! -f "$MODELS_DIR/${VOICE_NAME}.onnx" ]; then
+    wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/${VOICE_NAME}.onnx" \
+        -O "$MODELS_DIR/${VOICE_NAME}.onnx"
+    wget -q "https://huggingface.co/rhasspy/piper-voices/resolve/v1.0.0/en/en_US/lessac/medium/${VOICE_NAME}.onnx.json" \
+        -O "$MODELS_DIR/${VOICE_NAME}.onnx.json"
+    echo -e "${GREEN}  ${VOICE_NAME} downloaded ($(ls -lh "$MODELS_DIR/${VOICE_NAME}.onnx" | awk '{print $5}'))${NC}"
+else
+    echo -e "${GREEN}  ${VOICE_NAME} already downloaded${NC}"
+fi
+
+# ============================================
+# Step 5: Setup whisper server systemd service
+# ============================================
+echo -e "${YELLOW}[5/5] Setting up whisper server service...${NC}"
 
 # Detect if we should use system or user service
 if command -v systemctl &>/dev/null; then
