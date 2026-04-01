@@ -39,6 +39,9 @@ pcap/
 # Docker volumes
 sigint-data/
 
+# Build output
+dist/
+
 # Data directory - keep OUI database files
 !data/
 data/ieee-oui-raw.txt

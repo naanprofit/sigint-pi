@@ -9,6 +9,8 @@
 //! - TSCM counter-surveillance sweeping
 //! - Environmental sensors (Geiger, air quality, CBRN)
 //! - ADS-B aircraft tracking
+//! - Radio reception (FM, AM, SSB)
+//! - Frequency presets and station management
 
 pub mod rtl433;
 pub mod spectrum;
@@ -17,6 +19,13 @@ pub mod drone;
 pub mod trunked;
 pub mod tscm;
 pub mod environmental;
+pub mod presets;
+pub mod cots_drones;
+pub mod tradecraft;
+pub mod consumer_tactical_radios;
+pub mod advanced_threats;
+pub mod energy_weapons;
+pub mod consumer_false_positives;
 
 use serde::{Deserialize, Serialize};
 use std::process::Command;
@@ -52,37 +61,92 @@ pub struct SdrDeviceInfo {
 
 impl SdrCapabilities {
     pub fn detect() -> Self {
-        let rtl_sdr = check_command("rtl_test", &["-h"]);
-        let rtl_433 = check_command("rtl_433", &["-h"]);
-        let rtl_power = check_command("rtl_power", &["-h"]);
-        let hackrf = check_command("hackrf_info", &[]);
-        let limesdr = check_command("LimeUtil", &["--help"]);
-        let kalibrate = check_command("kal", &["-h"]) || check_command("kalibrate-rtl", &["-h"]);
-        
         let devices = detect_sdr_devices();
-        
+
+        // Hardware detection: check if actual devices are connected, not just binaries
+        let has_rtl_hw = devices.iter().any(|d| matches!(d.device_type, SdrDevice::RtlSdr));
+        let has_hackrf_hw = devices.iter().any(|d| matches!(d.device_type, SdrDevice::HackRf));
+        let has_lime_hw = devices.iter().any(|d| matches!(d.device_type, SdrDevice::LimeSdr));
+
+        // Binary detection: needed for tools that work with available hardware
+        let has_rtl_433_bin = check_command("rtl_433", &["-h"]);
+        let has_rtl_power_bin = check_command("rtl_power", &["-h"]);
+        let has_kal_bin = check_command("kal", &["-h"]) || check_command("kalibrate-rtl", &["-h"]);
+
+        // Capabilities require BOTH hardware AND binary
         Self {
-            rtl_sdr,
-            rtl_433,
-            rtl_power,
-            hackrf,
-            limesdr,
-            kalibrate,
+            rtl_sdr: has_rtl_hw,
+            rtl_433: has_rtl_hw && has_rtl_433_bin,
+            rtl_power: has_rtl_hw && has_rtl_power_bin,
+            hackrf: has_hackrf_hw,
+            limesdr: has_lime_hw,
+            kalibrate: has_rtl_hw && has_kal_bin,
             devices,
         }
     }
     
+    /// Check if hackrf_sweep actually works (not just detected)
+    pub fn hackrf_sweep_works(&self) -> bool {
+        if !self.hackrf { return false; }
+        let cmd = resolve_sdr_command("hackrf_sweep");
+        match Command::new(&cmd).args(&["-f", "100:101", "-1", "-N", "1"]).output() {
+            Ok(o) => o.status.success(),
+            Err(_) => false,
+        }
+    }
+
     pub fn any_available(&self) -> bool {
         self.rtl_sdr || self.hackrf || self.limesdr
     }
 }
 
 fn check_command(cmd: &str, args: &[&str]) -> bool {
-    Command::new(cmd)
+    // Try the command directly (uses PATH)
+    if Command::new(cmd)
         .args(args)
+        .stderr(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
         .output()
-        .map(|o| o.status.success() || o.status.code() == Some(1)) // -h often returns 1
+        .map(|o| o.status.success() || o.status.code() == Some(1))
         .unwrap_or(false)
+    {
+        return true;
+    }
+    
+    // Also check common install locations (service may not have full PATH)
+    let home = std::env::var("HOME").unwrap_or_default();
+    let extra_paths = [
+        format!("{}/bin/{}", home, cmd),
+        format!("/usr/local/bin/{}", cmd),
+        format!("/usr/bin/{}", cmd),
+    ];
+    
+    for path in &extra_paths {
+        if std::path::Path::new(path).exists() {
+            return true;
+        }
+    }
+    
+    false
+}
+
+/// Resolve full path for an SDR command, checking ~/bin and standard locations
+pub fn resolve_sdr_command(cmd: &str) -> String {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let candidates = [
+        format!("{}/bin/{}", home, cmd),
+        format!("/usr/local/bin/{}", cmd),
+        format!("/usr/bin/{}", cmd),
+        cmd.to_string(),
+    ];
+    
+    for path in &candidates {
+        if std::path::Path::new(path).exists() {
+            return path.clone();
+        }
+    }
+    
+    cmd.to_string()
 }
 
 fn detect_sdr_devices() -> Vec<SdrDeviceInfo> {

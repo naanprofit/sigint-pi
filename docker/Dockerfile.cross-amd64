@@ -1,0 +1,41 @@
+# Cross-compile for x86_64 from ARM64 host
+# This avoids QEMU emulation issues
+
+FROM debian:bookworm-slim
+
+# Install cross-compilation toolchain
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    pkg-config \
+    gcc-x86-64-linux-gnu \
+    g++-x86-64-linux-gnu \
+    libc6-dev-amd64-cross \
+    libssl-dev:amd64 \
+    curl \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Rust
+RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y
+ENV PATH="/root/.cargo/bin:${PATH}"
+
+# Add x86_64 target
+RUN rustup target add x86_64-unknown-linux-gnu
+
+# Configure cross-compilation
+ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
+ENV CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc
+ENV CXX_x86_64_unknown_linux_gnu=x86_64-linux-gnu-g++
+ENV PKG_CONFIG_ALLOW_CROSS=1
+ENV PKG_CONFIG_PATH=/usr/lib/x86_64-linux-gnu/pkgconfig
+
+WORKDIR /build
+COPY Cargo.toml Cargo.lock ./
+COPY src ./src
+COPY data ./data
+
+# Build for x86_64
+RUN cargo build --release --target x86_64-unknown-linux-gnu \
+    && x86_64-linux-gnu-strip target/x86_64-unknown-linux-gnu/release/sigint-deck
+
+CMD ["cp", "target/x86_64-unknown-linux-gnu/release/sigint-deck", "/output/"]

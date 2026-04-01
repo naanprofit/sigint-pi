@@ -1,0 +1,148 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., v0.1.0)'
+        required: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-steamdeck:
+    name: Build for Steam Deck (x86_64)
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build container
+      run: |
+        docker build -f Containerfile.steamdeck -t sigint-deck:latest .
+    
+    - name: Extract binary and assets
+      run: |
+        # Create container and copy files
+        docker create --name extract sigint-deck:latest
+        docker cp extract:/app/sigint-deck ./sigint-deck
+        docker cp extract:/app/static ./static
+        docker cp extract:/etc/sigint-deck/config.toml ./config.toml.example
+        docker rm extract
+        
+        # Make binary executable
+        chmod +x sigint-deck
+        
+        # Verify binary
+        file sigint-deck
+    
+    - name: Prepare release package
+      run: |
+        VERSION="${{ github.event.inputs.version || github.ref_name }}"
+        PACKAGE_NAME="sigint-deck-${VERSION}-steamdeck"
+        
+        mkdir -p "$PACKAGE_NAME"
+        
+        # Copy binary and static files
+        cp sigint-deck "$PACKAGE_NAME/"
+        cp -r static "$PACKAGE_NAME/"
+        cp config.toml.example "$PACKAGE_NAME/"
+        
+        # Copy steamdeck scripts
+        cp -r steamdeck "$PACKAGE_NAME/"
+        
+        # Copy installer and docs
+        cp install.sh "$PACKAGE_NAME/"
+        cp README.md "$PACKAGE_NAME/"
+        cp LICENSE "$PACKAGE_NAME/" 2>/dev/null || echo "MIT License" > "$PACKAGE_NAME/LICENSE"
+        
+        # Create tarball
+        tar czvf "${PACKAGE_NAME}.tar.gz" "$PACKAGE_NAME"
+        
+        # Create SHA256 checksum
+        sha256sum "${PACKAGE_NAME}.tar.gz" > "${PACKAGE_NAME}.tar.gz.sha256"
+        
+        echo "PACKAGE_NAME=${PACKAGE_NAME}" >> $GITHUB_ENV
+    
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: steamdeck-release
+        path: |
+          ${{ env.PACKAGE_NAME }}.tar.gz
+          ${{ env.PACKAGE_NAME }}.tar.gz.sha256
+
+  create-release:
+    name: Create GitHub Release
+    needs: build-steamdeck
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Download artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: steamdeck-release
+        path: ./release
+    
+    - name: Get version
+      id: version
+      run: |
+        VERSION="${{ github.event.inputs.version || github.ref_name }}"
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+    
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        tag_name: ${{ steps.version.outputs.version }}
+        name: SIGINT-Deck ${{ steps.version.outputs.version }}
+        draft: false
+        prerelease: false
+        body: |
+          ## SIGINT-Deck ${{ steps.version.outputs.version }}
+          
+          Signals intelligence and security monitoring for Steam Deck.
+          
+          ### Quick Install
+          
+          ```bash
+          curl -fsSL https://raw.githubusercontent.com/naanprofit/sigint-deck/main/install.sh | bash
+          ```
+          
+          ### Manual Install
+          
+          1. Download `sigint-deck-${{ steps.version.outputs.version }}-steamdeck.tar.gz`
+          2. Extract: `tar xzf sigint-deck-*.tar.gz`
+          3. Run: `cd sigint-deck-* && ./install.sh`
+          
+          ### Features
+          
+          - WiFi monitor mode scanning with channel hopping
+          - BLE/Bluetooth device detection
+          - AirTag/Tile tracker detection
+          - Device learning and anomaly detection
+          - Web dashboard (touch/controller friendly)
+          - Optional AI/LLM device analysis
+          - GPS support with geofencing
+          
+          ### Requirements
+          
+          - Steam Deck (SteamOS)
+          - External USB WiFi adapter (internal WiFi does NOT support monitor mode)
+          - Optional: USB GPS receiver
+          
+          **LEGAL NOTICE**: For authorized security research only.
+        files: |
+          ./release/*.tar.gz
+          ./release/*.sha256
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

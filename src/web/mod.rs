@@ -1,4 +1,4 @@
-mod api;
+pub(crate) mod api;
 
 pub use api::{AppState, WifiDeviceInfo, BleDeviceInfo, AlertInfo, AttackInfo, HardwareStatusInfo, TrackerInfoApi, GpsStatusInfo};
 
@@ -16,7 +16,7 @@ use crate::ScanEvent;
 
 /// Find the static files directory
 /// Tries multiple locations to support different deployment scenarios
-fn find_static_dir() -> Option<PathBuf> {
+pub(crate) fn find_static_dir() -> Option<PathBuf> {
     // Get current working directory
     let cwd = std::env::current_dir().ok();
     
@@ -34,7 +34,7 @@ fn find_static_dir() -> Option<PathBuf> {
         // 3. /app/static (container)
         Some(PathBuf::from("/app/static")),
         // 4. ~/sigint-deck/static (user install)
-        dirs::home_dir().map(|h| h.join("sigint-deck").join("static")),
+        dirs::home_dir().map(|h| h.join("sigint-pi").join("static")),
     ];
     
     for candidate in candidates.into_iter().flatten() {

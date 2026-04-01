@@ -1,0 +1,75 @@
+# Docker build ignore file
+# Prevents large/unnecessary files from being sent to build context
+
+# Build artifacts (use Docker's own target)
+target/
+**/*.rs.bk
+
+# Git
+.git/
+.github/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# macOS
+.DS_Store
+
+# Sensitive configs
+config.toml
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Log files
+*.log
+logs/
+
+# PCAP captures
+*.pcap
+*.pcapng
+pcap/
+
+# Documentation (not needed in runtime)
+docs/
+*.md
+!README.md
+
+# Test files
+tests/
+test_*.rs
+
+# Docker/container files
+docker-compose*.yml
+Dockerfile*
+Containerfile*
+!docker/
+
+# Local dev files
+sigint-data/
+dist/
+release/
+
+# Downloaded large files (keep essential data for build)
+data/ieee-oui-raw.txt
+data/oui-database.csv
+data/oui-database.json
+data/oui-database.min.json
+data/oui_embedded.rs
+oui.txt
+
+# Python virtual env
+venv/
+__pycache__/
+*.pyc

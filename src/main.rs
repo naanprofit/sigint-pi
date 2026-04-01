@@ -17,6 +17,7 @@ mod rayhunter;
 mod openclaw;
 mod meshtastic;
 mod sdr;
+mod flipper;
 
 #[cfg(feature = "simulation")]
 mod simulation;
@@ -68,7 +69,7 @@ async fn main() -> Result<()> {
     if help {
         println!("SIGINT-Deck - Signals Intelligence Security Scanner");
         println!();
-        println!("Usage: sigint-deck [OPTIONS]");
+        println!("Usage: sigint-pi [OPTIONS]");
         println!();
         println!("Options:");
         println!("  --tui, -t     Run in terminal UI mode");
@@ -87,6 +88,22 @@ async fn main() -> Result<()> {
             .with_max_level(Level::INFO)
             .compact()
             .init();
+    }
+
+    // Ensure SDR tools in ~/bin are discoverable even when run as a service
+    if let Ok(home) = std::env::var("HOME") {
+        let extra_bin = format!("{}/bin", home);
+        if std::path::Path::new(&extra_bin).exists() {
+            let current_path = std::env::var("PATH").unwrap_or_default();
+            if !current_path.contains(&extra_bin) {
+                std::env::set_var("PATH", format!("{}:/usr/local/bin:{}", extra_bin, current_path));
+            }
+            let current_ld = std::env::var("LD_LIBRARY_PATH").unwrap_or_default();
+            let lib_path = format!("{}/lib", extra_bin);
+            if !current_ld.contains(&lib_path) {
+                std::env::set_var("LD_LIBRARY_PATH", format!("{}:{}", lib_path, current_ld));
+            }
+        }
     }
 
     info!("SIGINT-Deck starting up...");

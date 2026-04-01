@@ -1,0 +1,278 @@
+# SIGINT-Pi Development Environment
+# Multi-architecture development with Docker
+#
+# Usage:
+#   Start Pi emulation:        docker compose -f docker-compose.dev.yml up pi-dev
+#   Start Steam Deck build:    docker compose -f docker-compose.dev.yml up deck-dev
+#   Start both + services:     docker compose -f docker-compose.dev.yml --profile full up
+#   Build all images:          docker compose -f docker-compose.dev.yml build
+#
+# Prerequisites:
+#   docker buildx create --use --name multiarch
+#   docker run --privileged --rm tonistiigi/binfmt --install all
+
+version: '3.8'
+
+services:
+  # ============================================
+  # Pi Zero 2 W Development (ARM64 emulated)
+  # ============================================
+  pi-dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pi
+      target: dev
+      platforms:
+        - linux/arm64
+    container_name: sigint-pi-dev
+    hostname: sigint-pi
+    ports:
+      - "8080:8080"
+    volumes:
+      - .:/app
+      - pi-cargo-cache:/root/.cargo/registry
+      - pi-target-cache:/app/target
+      - pi-data:/data
+    environment:
+      - SIGINT_SIMULATION=1
+      - RUST_LOG=debug,sigint_pi=trace
+      - SIGINT_DB_PATH=/data/sigint.db
+      - SIGINT_ACCEPT_DISCLAIMER=1
+    networks:
+      - sigint-net
+    restart: unless-stopped
+    # Limit resources to simulate Pi constraints
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '1.0'
+
+  # ============================================
+  # Pi Production Build (for testing release)
+  # ============================================
+  pi-release:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pi
+      target: runtime
+      platforms:
+        - linux/arm64
+    container_name: sigint-pi-release
+    ports:
+      - "8081:8080"
+    volumes:
+      - pi-release-data:/data
+      - ./config.toml.example:/etc/sigint-pi/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - SIGINT_ACCEPT_DISCLAIMER=1
+    networks:
+      - sigint-net
+    profiles:
+      - release
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: '1.0'
+
+  # ============================================
+  # Steam Deck Development (x86_64 native)
+  # ============================================
+  deck-dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.steamdeck
+      target: dev
+      platforms:
+        - linux/amd64
+    container_name: sigint-deck-dev
+    hostname: sigint-deck
+    ports:
+      - "8082:8080"
+    volumes:
+      - .:/app
+      - deck-cargo-cache:/root/.cargo/registry
+      - deck-target-cache:/app/target
+      - deck-data:/data
+    environment:
+      - SIGINT_SIMULATION=1
+      - RUST_LOG=debug,sigint_pi=trace
+      - SIGINT_DB_PATH=/data/sigint.db
+      - SIGINT_ACCEPT_DISCLAIMER=1
+    networks:
+      - sigint-net
+    restart: unless-stopped
+    # Steam Deck has more resources
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '4.0'
+
+  # ============================================
+  # Steam Deck Production Build
+  # ============================================
+  deck-release:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.steamdeck
+      target: runtime
+      platforms:
+        - linux/amd64
+    container_name: sigint-deck-release
+    ports:
+      - "8083:8080"
+    volumes:
+      - deck-release-data:/data
+      - ./config.toml.example:/etc/sigint-pi/config.toml:ro
+    environment:
+      - RUST_LOG=info
+      - SIGINT_ACCEPT_DISCLAIMER=1
+    networks:
+      - sigint-net
+    profiles:
+      - release
+
+  # ============================================
+  # Unit Tests (both architectures)
+  # ============================================
+  test-amd64:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.steamdeck
+      target: test
+      platforms:
+        - linux/amd64
+    container_name: sigint-test-amd64
+    volumes:
+      - .:/app:ro
+    profiles:
+      - test
+
+  test-arm64:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.pi
+      target: builder
+      platforms:
+        - linux/arm64
+    container_name: sigint-test-arm64
+    command: cargo test --all-features
+    volumes:
+      - .:/app:ro
+    profiles:
+      - test
+
+  # ============================================
+  # Supporting Services
+  # ============================================
+  
+  # Mock GPS daemon for testing
+  gpsd-mock:
+    image: debian:bookworm-slim
+    container_name: gpsd-mock
+    command: >
+      bash -c "apt-get update && apt-get install -y gpsd socat &&
+      socat pty,link=/dev/gps0,raw tcp-listen:2947,reuseaddr,fork &
+      gpsd -N -n /dev/gps0"
+    networks:
+      - sigint-net
+    profiles:
+      - full
+
+  # InfluxDB for metrics
+  influxdb:
+    image: influxdb:2.7-alpine
+    container_name: sigint-influxdb
+    ports:
+      - "8086:8086"
+    volumes:
+      - influx-data:/var/lib/influxdb2
+    environment:
+      - DOCKER_INFLUXDB_INIT_MODE=setup
+      - DOCKER_INFLUXDB_INIT_USERNAME=admin
+      - DOCKER_INFLUXDB_INIT_PASSWORD=sigintpi123
+      - DOCKER_INFLUXDB_INIT_ORG=sigint
+      - DOCKER_INFLUXDB_INIT_BUCKET=sigint
+    networks:
+      - sigint-net
+    profiles:
+      - full
+      - metrics
+
+  # Grafana dashboards
+  grafana:
+    image: grafana/grafana:latest
+    container_name: sigint-grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=sigintpi
+    depends_on:
+      - influxdb
+    networks:
+      - sigint-net
+    profiles:
+      - full
+      - metrics
+
+  # MQTT broker for mesh networking testing
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: sigint-mqtt
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - mosquitto-data:/mosquitto/data
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+    networks:
+      - sigint-net
+    profiles:
+      - full
+      - mqtt
+
+  # Local LLM for AI analysis testing (Ollama)
+  ollama:
+    image: ollama/ollama:latest
+    container_name: sigint-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama-data:/root/.ollama
+    networks:
+      - sigint-net
+    profiles:
+      - full
+      - ai
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+
+networks:
+  sigint-net:
+    driver: bridge
+
+volumes:
+  # Development caches (separate per arch to avoid conflicts)
+  pi-cargo-cache:
+  pi-target-cache:
+  pi-data:
+  pi-release-data:
+  deck-cargo-cache:
+  deck-target-cache:
+  deck-data:
+  deck-release-data:
+  # Service data
+  influx-data:
+  grafana-data:
+  mosquitto-data:
+  ollama-data:

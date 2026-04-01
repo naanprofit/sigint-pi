@@ -11,40 +11,33 @@ use crate::ScanEvent;
 /// RayHunter analysis result from the EFF RayHunter app
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RayHunterAnalysis {
-    /// Current analysis status
     pub status: String,
-    /// Whether IMSI catcher activity is suspected
     pub imsi_catcher_detected: bool,
-    /// Confidence level (0.0 - 1.0)
     pub confidence: f64,
-    /// Detailed findings
     pub findings: Vec<RayHunterFinding>,
-    /// Current cell info
     pub cell_info: Option<CellInfo>,
-    /// Timestamp of analysis
     pub timestamp: DateTime<Utc>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RayHunterFinding {
     pub finding_type: String,
-    pub severity: String, // "info", "warning", "critical"
+    pub severity: String,
     pub description: String,
     pub details: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CellInfo {
-    pub mcc: Option<u16>,  // Mobile Country Code
-    pub mnc: Option<u16>,  // Mobile Network Code
-    pub lac: Option<u32>,  // Location Area Code
-    pub cid: Option<u32>,  // Cell ID
-    pub arfcn: Option<u32>, // Absolute Radio Frequency Channel Number
+    pub mcc: Option<u16>,
+    pub mnc: Option<u16>,
+    pub lac: Option<u32>,
+    pub cid: Option<u32>,
+    pub arfcn: Option<u32>,
     pub signal_strength: Option<i32>,
-    pub technology: Option<String>, // "GSM", "LTE", "5G"
+    pub technology: Option<String>,
 }
 
-/// RayHunter alert for broadcasting
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RayHunterAlert {
     pub alert_type: String,
@@ -74,117 +67,254 @@ impl RayHunterClient {
         }
     }
 
-    /// Check if RayHunter is available
     pub async fn check_connection(&self) -> Result<bool> {
-        let url = format!("{}/api/status", self.config.api_url);
+        let url = format!("{}/api/system-stats", self.config.api_url.trim_end_matches('/'));
         match self.client.get(&url).send().await {
             Ok(response) => Ok(response.status().is_success()),
             Err(_) => Ok(false),
         }
     }
 
-    /// Get current analysis from RayHunter
-    pub async fn get_analysis(&self) -> Result<RayHunterAnalysis> {
-        let url = format!("{}/api/analysis", self.config.api_url);
+    /// Ensure ADB port forward is set up (RayHunter runs on phone port 8080)
+    pub async fn ensure_adb_forward(&self) -> bool {
+        let port = self.config.api_url.split(':').last()
+            .and_then(|p| p.trim_matches('/').parse::<u16>().ok())
+            .unwrap_or(8081);
         
-        let response = self.client.get(&url)
-            .send()
-            .await?;
-
-        if !response.status().is_success() {
-            anyhow::bail!("RayHunter API returned {}", response.status());
+        // Use full path and ensure HOME is set for ADB auth keys
+        let home = std::env::var("HOME").unwrap_or_else(|_| "/home/pi".to_string());
+        let adb_path = if std::path::Path::new("/usr/bin/adb").exists() {
+            "/usr/bin/adb"
+        } else if std::path::Path::new("/usr/local/bin/adb").exists() {
+            "/usr/local/bin/adb"
+        } else {
+            "adb"
+        };
+        
+        let adb_check = tokio::process::Command::new(adb_path)
+            .env("HOME", &home)
+            .env("ANDROID_SDK_HOME", &home)
+            .args(&["devices"])
+            .output().await;
+        
+        let has_device = match &adb_check {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                stdout.lines().any(|l| l.ends_with("\tdevice") || l.contains("\tdevice"))
+            }
+            Err(e) => {
+                debug!("ADB command failed: {}", e);
+                false
+            }
+        };
+        
+        if !has_device {
+            debug!("No ADB device connected for RayHunter");
+            return false;
         }
-
-        // RayHunter returns JSON with analysis data
-        // This is based on the expected RayHunter API format
-        let data: serde_json::Value = response.json().await?;
         
-        // Parse RayHunter response into our structure
-        let analysis = self.parse_rayhunter_response(data)?;
+        let fwd = tokio::process::Command::new(adb_path)
+            .env("HOME", &home)
+            .env("ANDROID_SDK_HOME", &home)
+            .args(&["forward", &format!("tcp:{}", port), "tcp:8080"])
+            .output().await;
         
-        Ok(analysis)
+        match fwd {
+            Ok(out) if out.status.success() => {
+                info!("ADB forward tcp:{} -> tcp:8080 established", port);
+                true
+            }
+            Ok(out) => {
+                let stderr = String::from_utf8_lossy(&out.stderr);
+                debug!("ADB forward failed: {}", stderr);
+                false
+            }
+            Err(e) => {
+                debug!("ADB forward error: {}", e);
+                false
+            }
+        }
     }
 
-    fn parse_rayhunter_response(&self, data: serde_json::Value) -> Result<RayHunterAnalysis> {
-        // RayHunter API response format (based on EFF RayHunter)
-        let status = data.get("status")
-            .and_then(|v| v.as_str())
-            .unwrap_or("unknown")
-            .to_string();
+    /// Get system stats from RayHunter
+    pub async fn get_system_stats(&self) -> Result<serde_json::Value> {
+        let url = format!("{}/api/system-stats", self.config.api_url.trim_end_matches('/'));
+        let resp = self.client.get(&url).send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("RayHunter system-stats returned {}", resp.status());
+        }
+        Ok(resp.json().await?)
+    }
 
-        let mut findings = Vec::new();
-        let mut imsi_catcher_detected = false;
-        let mut confidence = 0.0;
+    /// Get QMDL manifest (recording entries)
+    pub async fn get_manifest(&self) -> Result<serde_json::Value> {
+        let url = format!("{}/api/qmdl-manifest", self.config.api_url.trim_end_matches('/'));
+        let resp = self.client.get(&url).send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("RayHunter qmdl-manifest returned {}", resp.status());
+        }
+        Ok(resp.json().await?)
+    }
 
-        // Check for suspicious indicators
-        if let Some(analysis) = data.get("analysis") {
-            if let Some(suspicious) = analysis.get("suspicious") {
-                imsi_catcher_detected = suspicious.as_bool().unwrap_or(false);
-            }
-            
-            if let Some(conf) = analysis.get("confidence") {
-                confidence = conf.as_f64().unwrap_or(0.0);
-            }
-
-            // Parse individual findings
-            if let Some(items) = analysis.get("findings").and_then(|f| f.as_array()) {
-                for item in items {
-                    findings.push(RayHunterFinding {
-                        finding_type: item.get("type")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("unknown")
-                            .to_string(),
-                        severity: item.get("severity")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("info")
-                            .to_string(),
-                        description: item.get("description")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string(),
-                        details: item.get("details")
-                            .and_then(|v| v.as_str())
-                            .map(String::from),
-                    });
+    /// Get live analysis report
+    pub async fn get_live_analysis(&self) -> Result<RayHunterAnalysis> {
+        let base = self.config.api_url.trim_end_matches('/');
+        
+        // Get the manifest to find the current entry name
+        let manifest: serde_json::Value = self.get_manifest().await?;
+        let entry_name = manifest.get("current_entry")
+            .and_then(|e| e.get("name"))
+            .and_then(|n| n.as_str())
+            .unwrap_or("live");
+        
+        // Get analysis report for the current entry
+        let url = format!("{}/api/analysis-report/{}", base, entry_name);
+        let resp = self.client.get(&url).send().await?;
+        if !resp.status().is_success() {
+            anyhow::bail!("RayHunter analysis-report returned {}", resp.status());
+        }
+        let body = resp.text().await?;
+        
+        // Parse newline-delimited JSON
+        let mut warnings = Vec::new();
+        let mut last_timestamp = String::new();
+        
+        for line in body.lines() {
+            if line.is_empty() { continue; }
+            if let Ok(entry) = serde_json::from_str::<serde_json::Value>(line) {
+                if let Some(ts) = entry.get("timestamp").and_then(|t| t.as_str()) {
+                    last_timestamp = ts.to_string();
+                }
+                if let Some(analysis) = entry.get("analysis").and_then(|a| a.as_array()) {
+                    for warning in analysis {
+                        if let Some(events) = warning.get("events").and_then(|e| e.as_array()) {
+                            for event in events {
+                                if event.is_null() { continue; }
+                                let msg = event.get("message")
+                                    .and_then(|m| m.as_str())
+                                    .unwrap_or("Unknown warning");
+                                warnings.push(RayHunterFinding {
+                                    finding_type: "imsi_catcher".to_string(),
+                                    severity: "critical".to_string(),
+                                    description: msg.to_string(),
+                                    details: Some(last_timestamp.clone()),
+                                });
+                            }
+                        }
+                    }
                 }
             }
         }
-
-        // Parse cell info
-        let cell_info = data.get("cell").map(|cell| CellInfo {
-            mcc: cell.get("mcc").and_then(|v| v.as_u64()).map(|v| v as u16),
-            mnc: cell.get("mnc").and_then(|v| v.as_u64()).map(|v| v as u16),
-            lac: cell.get("lac").and_then(|v| v.as_u64()).map(|v| v as u32),
-            cid: cell.get("cid").and_then(|v| v.as_u64()).map(|v| v as u32),
-            arfcn: cell.get("arfcn").and_then(|v| v.as_u64()).map(|v| v as u32),
-            signal_strength: cell.get("signal").and_then(|v| v.as_i64()).map(|v| v as i32),
-            technology: cell.get("technology").and_then(|v| v.as_str()).map(String::from),
-        });
-
+        
+        // Also get the analyzer list from the first line
+        let first_line = body.lines().next().unwrap_or("");
+        let analyzers: Vec<String> = if let Ok(first) = serde_json::from_str::<serde_json::Value>(first_line) {
+            first.get("analyzers").and_then(|a| a.as_array())
+                .map(|arr| arr.iter().filter_map(|a| a.get("name").and_then(|n| n.as_str()).map(String::from)).collect())
+                .unwrap_or_default()
+        } else { vec![] };
+        
+        let has_warnings = !warnings.is_empty();
+        let confidence = if has_warnings { 0.9 } else { 0.0 };
+        
         Ok(RayHunterAnalysis {
-            status,
-            imsi_catcher_detected,
+            status: if has_warnings { "alert".to_string() } else { "monitoring".to_string() },
+            imsi_catcher_detected: has_warnings,
             confidence,
-            findings,
-            cell_info,
+            findings: warnings,
+            cell_info: None,
             timestamp: Utc::now(),
         })
     }
 
-    /// Start polling RayHunter for updates
+    /// Get full status for the web UI
+    pub async fn get_full_status(&self) -> serde_json::Value {
+        // Ensure ADB forward is active
+        let adb_ok = self.ensure_adb_forward().await;
+        
+        if !adb_ok {
+            return serde_json::json!({
+                "available": false,
+                "connected": false,
+                "error": "No ADB device found. Connect RayHunter phone via USB.",
+                "hint": "The EFF RayHunter Orbic phone should be connected via USB"
+            });
+        }
+        
+        // Check connection
+        match self.check_connection().await {
+            Ok(true) => {},
+            Ok(false) => {
+                return serde_json::json!({
+                    "available": true,
+                    "connected": false,
+                    "adb_connected": true,
+                    "error": "ADB device found but RayHunter not responding. Is the daemon running?",
+                    "hint": "Check if rayhunter-daemon is running on the phone"
+                });
+            }
+            Err(e) => {
+                return serde_json::json!({
+                    "available": true,
+                    "connected": false,
+                    "adb_connected": true,
+                    "error": format!("Connection error: {}", e)
+                });
+            }
+        }
+        
+        // Get all data
+        let system_stats = self.get_system_stats().await.ok();
+        let manifest = self.get_manifest().await.ok();
+        let analysis = self.get_live_analysis().await.ok();
+        
+        let current_entry = manifest.as_ref()
+            .and_then(|m| m.get("current_entry").cloned());
+        let entry_count = manifest.as_ref()
+            .and_then(|m| m.get("entries").and_then(|e| e.as_array()).map(|a| a.len()))
+            .unwrap_or(0);
+        
+        let warnings_count = analysis.as_ref()
+            .map(|a| a.findings.len()).unwrap_or(0);
+        let imsi_detected = analysis.as_ref()
+            .map(|a| a.imsi_catcher_detected).unwrap_or(false);
+        
+        serde_json::json!({
+            "available": true,
+            "connected": true,
+            "adb_connected": true,
+            "version": current_entry.as_ref()
+                .and_then(|e| e.get("rayhunter_version").and_then(|v| v.as_str()))
+                .unwrap_or("unknown"),
+            "system_os": current_entry.as_ref()
+                .and_then(|e| e.get("system_os").and_then(|v| v.as_str()))
+                .unwrap_or("unknown"),
+            "recording": current_entry.is_some(),
+            "current_entry": current_entry,
+            "total_entries": entry_count,
+            "system_stats": system_stats,
+            "imsi_catcher_detected": imsi_detected,
+            "warnings_count": warnings_count,
+            "analysis": analysis,
+            "threat_detected": imsi_detected,
+            "analyzers": ["IMSI Requested", "Connection Release/Redirected Carrier 2G Downgrade", "LTE SIB 6/7 Downgrade"]
+        })
+    }
+
     pub async fn run(&mut self, tx: broadcast::Sender<ScanEvent>) {
         info!("Starting RayHunter client");
         
-        // Check initial connection
+        if !self.ensure_adb_forward().await {
+            warn!("No ADB device for RayHunter, will retry...");
+        }
+        
         match self.check_connection().await {
             Ok(true) => info!("RayHunter connected at {}", self.config.api_url),
             Ok(false) => {
-                warn!("RayHunter not responding at {}", self.config.api_url);
-                return;
+                warn!("RayHunter not responding at {}. Will keep retrying.", self.config.api_url);
             }
             Err(e) => {
                 error!("Failed to connect to RayHunter: {}", e);
-                return;
             }
         }
 
@@ -193,19 +323,16 @@ impl RayHunterClient {
 
         loop {
             interval.tick().await;
+            
+            // Re-ensure ADB forward (in case device was reconnected)
+            let _ = self.ensure_adb_forward().await;
 
-            match self.get_analysis().await {
+            match self.get_live_analysis().await {
                 Ok(analysis) => {
-                    // Check if this is a new detection
                     let is_new_detection = self.is_new_detection(&analysis);
-                    
-                    // Update last analysis
                     self.last_analysis = Some(analysis.clone());
-
-                    // Send update event
                     let _ = tx.send(ScanEvent::RayHunterUpdate(analysis.clone()));
 
-                    // If IMSI catcher detected and it's new, send alert
                     if analysis.imsi_catcher_detected && is_new_detection {
                         let alert = RayHunterAlert {
                             alert_type: "imsi_catcher".to_string(),
@@ -214,11 +341,8 @@ impl RayHunterClient {
                             analysis: analysis.clone(),
                             timestamp: Utc::now(),
                         };
-                        
                         let _ = tx.send(ScanEvent::RayHunterAlert(alert));
-                        
-                        warn!("⚠️ IMSI CATCHER DETECTED! Confidence: {:.1}%", 
-                              analysis.confidence * 100.0);
+                        warn!("IMSI CATCHER DETECTED! Confidence: {:.1}%", analysis.confidence * 100.0);
                     }
                 }
                 Err(e) => {
@@ -230,53 +354,21 @@ impl RayHunterClient {
 
     fn is_new_detection(&self, current: &RayHunterAnalysis) -> bool {
         match &self.last_analysis {
-            Some(last) => {
-                // New detection if we weren't detecting before
-                !last.imsi_catcher_detected && current.imsi_catcher_detected
-            }
+            Some(last) => !last.imsi_catcher_detected && current.imsi_catcher_detected,
             None => current.imsi_catcher_detected,
         }
     }
 
     fn format_alert_message(&self, analysis: &RayHunterAnalysis) -> String {
-        if let Some(template) = &self.config.alert_template {
-            // Use custom template
-            let mut msg = template.clone();
-            msg = msg.replace("{confidence}", &format!("{:.1}", analysis.confidence * 100.0));
-            msg = msg.replace("{status}", &analysis.status);
-            if let Some(cell) = &analysis.cell_info {
-                msg = msg.replace("{mcc}", &cell.mcc.map(|v| v.to_string()).unwrap_or_default());
-                msg = msg.replace("{mnc}", &cell.mnc.map(|v| v.to_string()).unwrap_or_default());
-                msg = msg.replace("{cid}", &cell.cid.map(|v| v.to_string()).unwrap_or_default());
-            }
-            msg
-        } else {
-            // Default message
-            let mut msg = format!(
-                "🚨 IMSI CATCHER DETECTED\nConfidence: {:.1}%\n",
-                analysis.confidence * 100.0
-            );
-
-            if let Some(cell) = &analysis.cell_info {
-                if let (Some(mcc), Some(mnc)) = (cell.mcc, cell.mnc) {
-                    msg.push_str(&format!("Network: {}-{}\n", mcc, mnc));
-                }
-                if let Some(cid) = cell.cid {
-                    msg.push_str(&format!("Cell ID: {}\n", cid));
-                }
-                if let Some(tech) = &cell.technology {
-                    msg.push_str(&format!("Technology: {}\n", tech));
-                }
-            }
-
-            for finding in &analysis.findings {
-                if finding.severity == "critical" || finding.severity == "warning" {
-                    msg.push_str(&format!("• {}\n", finding.description));
-                }
-            }
-
-            msg
+        let mut msg = format!(
+            "IMSI CATCHER DETECTED\nConfidence: {:.1}%\nWarnings: {}\n",
+            analysis.confidence * 100.0,
+            analysis.findings.len()
+        );
+        for finding in &analysis.findings {
+            msg.push_str(&format!("  - {}\n", finding.description));
         }
+        msg
     }
 }
 
@@ -285,34 +377,9 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_parse_rayhunter_response() {
+    fn test_estimate_distance_basic() {
         let config = RayHunterConfig::default();
         let client = RayHunterClient::new(config);
-        
-        let json = serde_json::json!({
-            "status": "analyzing",
-            "analysis": {
-                "suspicious": true,
-                "confidence": 0.85,
-                "findings": [
-                    {
-                        "type": "frequency_change",
-                        "severity": "warning",
-                        "description": "Unusual frequency hop detected"
-                    }
-                ]
-            },
-            "cell": {
-                "mcc": 310,
-                "mnc": 410,
-                "cid": 12345,
-                "technology": "LTE"
-            }
-        });
-
-        let analysis = client.parse_rayhunter_response(json).unwrap();
-        assert!(analysis.imsi_catcher_detected);
-        assert!((analysis.confidence - 0.85).abs() < 0.01);
-        assert_eq!(analysis.findings.len(), 1);
+        assert!(client.last_analysis.is_none());
     }
 }

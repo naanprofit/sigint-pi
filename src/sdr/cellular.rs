@@ -177,17 +177,14 @@ impl CellularScanner {
                 args.push(gain.to_string());
             }
             
-            // Try both command names
-            let output = Command::new("kal")
-                .args(&args)
-                .output()
-                .await
-                .or_else(|_| {
-                    // Synchronous fallback for the alternate command name
-                    std::process::Command::new("kalibrate-rtl")
-                        .args(&args)
-                        .output()
-                })?;
+            let kal_cmd = crate::sdr::resolve_sdr_command("kal");
+            let output = match Command::new(&kal_cmd).args(&args).output().await {
+                Ok(out) => out,
+                Err(_) => {
+                    let alt_cmd = crate::sdr::resolve_sdr_command("kalibrate-rtl");
+                    Command::new(&alt_cmd).args(&args).output().await?
+                }
+            };
             
             let stdout = String::from_utf8_lossy(&output.stdout);
             
@@ -204,7 +201,7 @@ impl CellularScanner {
             .unwrap_or_default()
             .as_secs();
             
-        for mut tower in all_towers.iter_mut() {
+        for tower in all_towers.iter_mut() {
             if let Some(existing) = self.towers.get(&tower.id) {
                 tower.first_seen = existing.first_seen;
             }
@@ -212,7 +209,7 @@ impl CellularScanner {
             
             // Check for suspicious characteristics
             if self.config.rogue_detection {
-                self.check_suspicious(&mut tower);
+                self.check_suspicious(tower);
             }
             
             self.towers.insert(tower.id.clone(), tower.clone());

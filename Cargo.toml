@@ -1,10 +1,10 @@
 [package]
 name = "sigint-pi"
-version = "0.2.2"
+version = "0.2.3"
 edition = "2021"
 authors = ["naanprofit"]
-description = "Portable SIGINT security device for Steam Deck"
-license = "MIT"
+description = "Portable SIGINT security device for Raspberry Pi"
+license = "GPL-3.0-or-later"
 repository = "https://github.com/naanprofit/sigint-pi"
 
 [dependencies]
@@ -24,6 +24,7 @@ sqlx = { version = "0.7", features = ["runtime-tokio", "sqlite", "chrono"] }
 actix-web = "=4.9.0"
 actix-files = "=0.6.6"
 actix-http = "=3.9.0"
+futures = "0.3"
 
 # MQTT
 rumqttc = "0.24"
@@ -97,9 +98,14 @@ crossterm = "0.28"
 [features]
 default = []
 simulation = ["rand"]
+flipper = ["serialport"]
 
 [dependencies.rand]
 version = "0.8"
+optional = true
+
+[dependencies.serialport]
+version = "4"
 optional = true
 
 [profile.release]

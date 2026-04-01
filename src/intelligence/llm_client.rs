@@ -226,9 +226,13 @@ impl LlmClient {
             "openai" | "gpt" => LlmProvider::OpenAI,
             "anthropic" | "claude" => LlmProvider::Anthropic,
             "xai" | "grok" | "x" => LlmProvider::XAI,
+            // LMStudio uses OpenAI-compatible API
+            "lmstudio" | "lm_studio" | "lm-studio" => LlmProvider::OpenAI,
+            // Custom/generic OpenAI-compatible
+            "custom" | "openai-compatible" => LlmProvider::OpenAI,
             _ => {
-                warn!("Unknown LLM provider '{}', defaulting to Ollama", provider_str);
-                LlmProvider::Ollama
+                warn!("Unknown LLM provider '{}', treating as OpenAI-compatible", provider_str);
+                LlmProvider::OpenAI
             }
         }
     }

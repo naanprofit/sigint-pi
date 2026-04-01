@@ -295,9 +295,9 @@ volume = 70
 
 [llm]
 enabled = false
-provider = "llamacpp"
-endpoint = "http://localhost:8080/v1"
-model = "local"
+provider = "ollama"
+endpoint = "http://localhost:11434"
+model = "tinyllama"
 max_tokens = 200
 timeout_secs = 60
 EOF
@@ -416,10 +416,111 @@ RestartSec=3
 WantedBy=default.target
 EOF
 
+    # Monitor mode script (called on boot and resume from suspend)
+    cat > "$INSTALL_DIR/set-monitor-mode.sh" << 'MONITOREOF'
+#!/bin/bash
+# Set external WiFi adapter to monitor mode
+# Called by systemd on boot and resume from suspend
+# Also cleans up phantom wlan interfaces
+
+LOG_TAG="sigint-monitor"
+
+log() {
+    logger -t "$LOG_TAG" "$1"
+    echo "$1"
+}
+
+# Wait for interface to appear
+sleep 2
+
+# Clean up phantom wlan interfaces (wlan2, wlan3, wlan137, etc.)
+log "Cleaning up phantom interfaces..."
+for iface in $(ip link show 2>/dev/null | grep -oE "wlan[0-9]+" | grep -vE "^wlan[01]$"); do
+    log "Removing phantom interface: $iface"
+    ip link delete "$iface" 2>/dev/null || true
+done
+
+# If wlan1 doesn't exist but mt76 device is present, reload driver
+if ! ip link show wlan1 &>/dev/null; then
+    if lsusb | grep -qi "mediatek\|0e8d:7612"; then
+        log "External adapter present but wlan1 missing, reloading driver..."
+        modprobe -r mt76x2u 2>/dev/null
+        sleep 2
+        modprobe mt76x2u 2>/dev/null
+        sleep 3
+    fi
+fi
+
+# Find external WiFi adapter (not wlan0)
+IFACE=$(ip link show 2>/dev/null | grep -oE "wlan[0-9]+" | grep -v wlan0 | head -1)
+
+if [ -z "$IFACE" ]; then
+    log "No external WiFi adapter found"
+    exit 0
+fi
+
+# Update config if interface name changed
+CONFIG_FILE="$HOME/sigint-deck/config.toml"
+if [ -f "$CONFIG_FILE" ]; then
+    CURRENT_IFACE=$(grep 'interface = "wlan' "$CONFIG_FILE" | grep -oE 'wlan[0-9]+')
+    if [ -n "$CURRENT_IFACE" ] && [ "$CURRENT_IFACE" != "$IFACE" ]; then
+        log "Updating config from $CURRENT_IFACE to $IFACE"
+        sed -i "s/interface = \"$CURRENT_IFACE\"/interface = \"$IFACE\"/" "$CONFIG_FILE"
+    fi
+fi
+
+# Check current mode
+CURRENT_MODE=$(iwconfig "$IFACE" 2>/dev/null | grep -oE "Mode:[A-Za-z]+" | cut -d: -f2)
+
+if [ "$CURRENT_MODE" = "Monitor" ]; then
+    log "$IFACE already in Monitor mode"
+    exit 0
+fi
+
+log "Setting $IFACE to Monitor mode..."
+
+# Disconnect from any network first
+nmcli device disconnect "$IFACE" 2>/dev/null || true
+
+# Set monitor mode
+ip link set "$IFACE" down 2>/dev/null
+iw dev "$IFACE" set type monitor 2>/dev/null
+ip link set "$IFACE" up 2>/dev/null
+
+# Verify
+NEW_MODE=$(iwconfig "$IFACE" 2>/dev/null | grep -oE "Mode:[A-Za-z]+" | cut -d: -f2)
+log "$IFACE is now in $NEW_MODE mode"
+MONITOREOF
+    chmod +x "$INSTALL_DIR/set-monitor-mode.sh"
+
+    # Monitor mode service (runs on boot and resume)
+    cat > "$HOME/.config/systemd/user/sigint-monitor-mode.service" << EOF
+[Unit]
+Description=Set WiFi adapter to Monitor mode
+After=network.target
+Before=sigint-deck.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/sudo $INSTALL_DIR/set-monitor-mode.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=default.target
+EOF
+
+    # Add sudoers entry for monitor mode script
+    echo -e "${YELLOW}Adding sudoers entry for monitor mode script...${NC}"
+    SUDOERS_MONITOR="$USER ALL=(ALL) NOPASSWD: $INSTALL_DIR/set-monitor-mode.sh"
+    if ! sudo grep -qF "$SUDOERS_MONITOR" /etc/sudoers.d/sigint-deck 2>/dev/null; then
+        echo "$SUDOERS_MONITOR" | sudo tee -a /etc/sudoers.d/sigint-deck > /dev/null
+    fi
+
     # Reload and enable
     systemctl --user daemon-reload
     systemctl --user enable sigint-deck.service
     systemctl --user enable channel-hop.service
+    systemctl --user enable sigint-monitor-mode.service
     
     # Enable lingering for user services
     sudo loginctl enable-linger "$USER"
@@ -527,19 +628,140 @@ STEAMSCRIPT
     echo -e "${GREEN}✓ Steam launcher created${NC}"
 }
 
+# Setup Python venv for Steam integration
+setup_python_venv() {
+    echo -e "${BLUE}Setting up Python environment...${NC}"
+    
+    if ! command -v python3 &> /dev/null; then
+        echo -e "${YELLOW}Python3 not found, skipping Steam integration${NC}"
+        return 1
+    fi
+    
+    # Create venv
+    python3 -m venv "$INSTALL_DIR/.venv" 2>/dev/null || {
+        echo -e "${YELLOW}Could not create venv, skipping Steam integration${NC}"
+        return 1
+    }
+    
+    # Install required Python packages
+    echo -e "${BLUE}Installing Python packages...${NC}"
+    "$INSTALL_DIR/.venv/bin/pip" install --quiet --upgrade pip 2>/dev/null
+    "$INSTALL_DIR/.venv/bin/pip" install --quiet vdf 2>/dev/null || {
+        echo -e "${YELLOW}Could not install vdf library${NC}"
+    }
+    
+    # Install voice packages (optional - may fail on some systems)
+    echo -e "${BLUE}Installing voice packages (optional)...${NC}"
+    "$INSTALL_DIR/.venv/bin/pip" install --quiet faster-whisper 2>/dev/null && {
+        echo -e "${GREEN}✓ faster-whisper installed (speech-to-text)${NC}"
+    } || {
+        echo -e "${YELLOW}⚠ faster-whisper not installed (voice notes disabled)${NC}"
+    }
+    
+    "$INSTALL_DIR/.venv/bin/pip" install --quiet piper-tts 2>/dev/null && {
+        echo -e "${GREEN}✓ piper-tts installed (text-to-speech)${NC}"
+    } || {
+        echo -e "${YELLOW}⚠ piper-tts not installed (TTS disabled)${NC}"
+    }
+    
+    # Create add-to-steam script
+    cat > "$INSTALL_DIR/add-to-steam.py" << 'STEAMPY'
+#!/usr/bin/env python3
+"""Add SIGINT-Deck to Steam as a non-Steam game"""
+import os, sys
+venv_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".venv", "lib")
+for d in os.listdir(venv_path):
+    if d.startswith("python"):
+        sys.path.insert(0, os.path.join(venv_path, d, "site-packages"))
+        break
+import vdf
+
+STEAM_PATH = os.path.expanduser("~/.local/share/Steam")
+SHORTCUTS_PATH = os.path.join(STEAM_PATH, "userdata")
+INSTALL_DIR = os.path.expanduser("~/sigint-deck")
+
+def get_user_id():
+    for entry in os.listdir(SHORTCUTS_PATH):
+        if entry.isdigit(): return entry
+    return None
+
+def generate_shortcut_id(exe, name):
+    key = f"{exe}{name}"
+    crc = 0
+    for char in key:
+        crc = ((crc << 5) + crc + ord(char)) & 0xFFFFFFFF
+    if crc > 0x7FFFFFFF: crc = crc - 0x100000000
+    return crc
+
+def add_shortcut():
+    user_id = get_user_id()
+    if not user_id:
+        print("ERROR: Steam user directory not found")
+        return False
+    
+    shortcuts_file = os.path.join(SHORTCUTS_PATH, user_id, "config", "shortcuts.vdf")
+    shortcuts = {"shortcuts": {}}
+    if os.path.exists(shortcuts_file):
+        try:
+            with open(shortcuts_file, "rb") as f:
+                shortcuts = vdf.binary_load(f)
+        except: pass
+    
+    for key, sc in shortcuts.get("shortcuts", {}).items():
+        if "SIGINT" in str(sc.get("AppName", "")) or "sigint" in str(sc.get("Exe", "")).lower():
+            print("SIGINT-Deck already in Steam"); return True
+    
+    existing_keys = [int(k) for k in shortcuts.get("shortcuts", {}).keys() if k.isdigit()]
+    next_key = str(max(existing_keys) + 1) if existing_keys else "0"
+    exe_path = os.path.join(INSTALL_DIR, "launch-steam.sh")
+    
+    shortcuts["shortcuts"][next_key] = {
+        "appid": generate_shortcut_id(exe_path, "SIGINT-Deck"),
+        "AppName": "SIGINT-Deck", "Exe": f'"{exe_path}"',
+        "StartDir": f'"{INSTALL_DIR}"', "icon": "", "ShortcutPath": "",
+        "LaunchOptions": "", "IsHidden": 0, "AllowDesktopConfig": 1,
+        "AllowOverlay": 1, "OpenVR": 0, "Devkit": 0, "DevkitGameID": "",
+        "DevkitOverrideAppID": 0, "LastPlayTime": 0, "FlatpakAppID": "",
+        "tags": {"0": "Security", "1": "Tools"}
+    }
+    
+    os.makedirs(os.path.dirname(shortcuts_file), exist_ok=True)
+    with open(shortcuts_file, "wb") as f:
+        vdf.binary_dump(shortcuts, f)
+    print("SUCCESS: Added SIGINT-Deck to Steam!")
+    print("Restart Steam or switch to Gaming Mode to see it.")
+    return True
+
+if __name__ == "__main__":
+    try: add_shortcut()
+    except Exception as e: print(f"Error: {e}"); sys.exit(1)
+STEAMPY
+    chmod +x "$INSTALL_DIR/add-to-steam.py"
+    
+    echo -e "${GREEN}✓ Python environment ready${NC}"
+    return 0
+}
+
 # Offer to add to Steam
 add_to_steam() {
     echo ""
-    read -p "Would you like to add SIGINT-Deck to Steam? [y/N] " -n 1 -r
+    read -p "Would you like to add SIGINT-Deck to Steam library? [Y/n] " -n 1 -r
     echo
     
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        # Try automatic method first
+        if [ -f "$INSTALL_DIR/.venv/bin/python" ]; then
+            echo "Adding to Steam automatically..."
+            "$INSTALL_DIR/.venv/bin/python" "$INSTALL_DIR/add-to-steam.py" && return 0
+        fi
+        
+        # Fallback to manual instructions
         echo ""
-        echo -e "${YELLOW}To add to Steam:${NC}"
+        echo -e "${YELLOW}To add to Steam manually:${NC}"
         echo "1. Open Steam in Desktop Mode"
         echo "2. Go to Games → Add a Non-Steam Game"
         echo "3. Click Browse and select:"
-        echo -e "   ${GREEN}$INSTALL_DIR/launch-in-steam.sh${NC}"
+        echo -e "   ${GREEN}$INSTALL_DIR/launch-steam.sh${NC}"
         echo "4. Click 'Add Selected Programs'"
         echo "5. Right-click the game → Properties → Rename to 'SIGINT-Deck'"
         echo ""
@@ -681,6 +903,45 @@ print_summary() {
     echo -e "${RED}IMPORTANT: This tool is for authorized security research only.${NC}"
     echo -e "${RED}Only monitor networks you own or have permission to test.${NC}"
     echo ""
+    echo -e "${BLUE}Optional Add-ons:${NC}"
+    echo "  SDR Support (RTL-SDR, HackRF, LimeSDR):"
+    echo "    $INSTALL_DIR/scripts/install-sdr.sh"
+    echo ""
+    echo "  RayHunter IMSI Catcher Detection:"
+    echo "    $INSTALL_DIR/scripts/install-adb.sh"
+    echo ""
+}
+
+# Offer optional SDR installation
+offer_sdr_install() {
+    echo ""
+    echo -e "${BLUE}Optional: Install SDR Support?${NC}"
+    echo "This adds support for RTL-SDR, HackRF, and LimeSDR devices."
+    read -p "Install SDR tools? [y/N] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [ -f "$INSTALL_DIR/scripts/install-sdr.sh" ]; then
+            bash "$INSTALL_DIR/scripts/install-sdr.sh"
+        else
+            echo -e "${YELLOW}SDR install script not found, skipping${NC}"
+        fi
+    fi
+}
+
+# Offer optional RayHunter installation
+offer_rayhunter_install() {
+    echo ""
+    echo -e "${BLUE}Optional: Install RayHunter IMSI Catcher Detection?${NC}"
+    echo "This adds support for EFF's RayHunter (requires Pixel phone)."
+    read -p "Install RayHunter/ADB? [y/N] " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        if [ -f "$INSTALL_DIR/scripts/install-adb.sh" ]; then
+            bash "$INSTALL_DIR/scripts/install-adb.sh"
+        else
+            echo -e "${YELLOW}ADB install script not found, skipping${NC}"
+        fi
+    fi
 }
 
 # Main installation flow
@@ -697,7 +958,10 @@ main() {
     create_services
     create_desktop_launcher
     create_steam_launcher
+    setup_python_venv
     add_to_steam
+    offer_sdr_install
+    offer_rayhunter_install
     print_summary
 }
 

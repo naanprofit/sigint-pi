@@ -59,6 +59,11 @@ pub enum AlertType {
     AnomalousBehavior,
     SystemAlert,
     ImsiCatcher,
+    DroneDetected,
+    TscmThreat,
+    RfAnomaly,
+    SurveillanceDevice,
+    GeofenceBreach,
 }
 
 pub struct AlertManager {
@@ -352,12 +357,41 @@ impl AlertManagerState {
 
         info!("Sending alert: {} (priority: {:?})", alert.title, alert.priority);
 
-        // Route alert based on priority
-        let channels = match alert.priority {
-            AlertPriority::Critical => vec!["telegram", "twilio", "email", "mqtt"],
-            AlertPriority::High => vec!["telegram", "twilio", "mqtt"],
-            AlertPriority::Medium => vec!["telegram", "mqtt"],
-            AlertPriority::Low => vec!["mqtt"],
+        // Route alert based on type AND priority
+        // Critical security events go everywhere; lower-priority items go to appropriate channels
+        let channels = match (&alert.alert_type, &alert.priority) {
+            // IMSI catchers and surveillance: always all channels
+            (AlertType::ImsiCatcher, _) | (AlertType::SurveillanceDevice, _) =>
+                vec!["telegram", "twilio", "email", "mqtt"],
+            // Drone detection: high urgency channels
+            (AlertType::DroneDetected, _) =>
+                vec!["telegram", "twilio", "mqtt"],
+            // TSCM threats: depends on priority
+            (AlertType::TscmThreat, AlertPriority::Critical) =>
+                vec!["telegram", "twilio", "email", "mqtt"],
+            (AlertType::TscmThreat, _) =>
+                vec!["telegram", "mqtt"],
+            // WiFi attacks: based on priority
+            (AlertType::AttackDetected, AlertPriority::Critical) =>
+                vec!["telegram", "twilio", "email", "mqtt"],
+            (AlertType::AttackDetected, _) =>
+                vec!["telegram", "mqtt"],
+            // Tracker detection: high urgency
+            (AlertType::TrackerDetected, _) =>
+                vec!["telegram", "twilio", "mqtt"],
+            // RF anomalies: log only unless critical
+            (AlertType::RfAnomaly, AlertPriority::Critical) =>
+                vec!["telegram", "mqtt"],
+            (AlertType::RfAnomaly, _) =>
+                vec!["mqtt"],
+            // Geofence: notification channels
+            (AlertType::GeofenceBreach, _) =>
+                vec!["telegram", "mqtt"],
+            // Generic priority-based routing
+            (_, AlertPriority::Critical) => vec!["telegram", "twilio", "email", "mqtt"],
+            (_, AlertPriority::High) => vec!["telegram", "twilio", "mqtt"],
+            (_, AlertPriority::Medium) => vec!["telegram", "mqtt"],
+            (_, AlertPriority::Low) => vec!["mqtt"],
         };
 
         for channel in channels {

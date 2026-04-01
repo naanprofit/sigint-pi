@@ -12,6 +12,18 @@ pub struct Database {
     pool: Pool<Sqlite>,
 }
 
+/// Sighting record for detailed contact history
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct SightingRecord {
+    pub device_type: String,
+    pub rssi: i32,
+    pub channel: Option<i32>,
+    pub ssid: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+    pub timestamp: DateTime<Utc>,
+}
+
 impl Database {
     pub async fn new(path: &Path) -> Result<Self> {
         // Ensure parent directory exists
@@ -301,17 +313,6 @@ impl Database {
 }
 
 #[derive(Debug, Clone)]
-pub struct SightingRecord {
-    pub device_type: String,
-    pub rssi: i32,
-    pub channel: Option<i32>,
-    pub ssid: Option<String>,
-    pub latitude: Option<f64>,
-    pub longitude: Option<f64>,
-    pub timestamp: DateTime<Utc>,
-}
-
-#[derive(Debug, Clone)]
 pub struct DeviceCounts {
     pub wifi_total: u64,
     pub wifi_baseline: u64,
@@ -591,4 +592,280 @@ impl Database {
         
         Ok(())
     }
+
+    // ===== Contact History (Unified Device Log) =====
+
+    /// Get all contacts (devices) with full history - unified view
+    pub async fn get_all_contacts(&self, limit: i64, offset: i64, search: Option<&str>) -> Result<Vec<ContactRecord>> {
+        let search_pattern = search.map(|s| format!("%{}%", s));
+        
+        let rows = sqlx::query(r#"
+            SELECT * FROM (
+                SELECT 
+                    w.mac_address,
+                    'wifi' as device_type,
+                    w.vendor,
+                    NULL as device_name,
+                    w.first_seen,
+                    w.last_seen,
+                    w.is_baseline,
+                    w.is_ap,
+                    (SELECT COUNT(*) FROM sightings s WHERE s.device_id = w.id AND s.device_type = 'wifi') as sighting_count,
+                    (SELECT AVG(rssi) FROM sightings s WHERE s.device_id = w.id AND s.device_type = 'wifi') as avg_rssi,
+                    (SELECT latitude FROM sightings s WHERE s.device_id = w.id AND s.device_type = 'wifi' ORDER BY timestamp DESC LIMIT 1) as last_lat,
+                    (SELECT longitude FROM sightings s WHERE s.device_id = w.id AND s.device_type = 'wifi' ORDER BY timestamp DESC LIMIT 1) as last_lon,
+                    dd.ai_description,
+                    dd.threat_level
+                FROM wifi_devices w
+                LEFT JOIN device_descriptions dd ON w.mac_address = dd.mac_address
+                WHERE (? IS NULL OR w.mac_address LIKE ? OR w.vendor LIKE ?)
+                
+                UNION ALL
+                
+                SELECT 
+                    b.mac_address,
+                    'ble' as device_type,
+                    b.vendor,
+                    b.name as device_name,
+                    b.first_seen,
+                    b.last_seen,
+                    b.is_baseline,
+                    0 as is_ap,
+                    (SELECT COUNT(*) FROM sightings s WHERE s.device_id = b.id AND s.device_type = 'ble') as sighting_count,
+                    (SELECT AVG(rssi) FROM sightings s WHERE s.device_id = b.id AND s.device_type = 'ble') as avg_rssi,
+                    (SELECT latitude FROM sightings s WHERE s.device_id = b.id AND s.device_type = 'ble' ORDER BY timestamp DESC LIMIT 1) as last_lat,
+                    (SELECT longitude FROM sightings s WHERE s.device_id = b.id AND s.device_type = 'ble' ORDER BY timestamp DESC LIMIT 1) as last_lon,
+                    dd.ai_description,
+                    dd.threat_level
+                FROM ble_devices b
+                LEFT JOIN device_descriptions dd ON b.mac_address = dd.mac_address
+                WHERE (? IS NULL OR b.mac_address LIKE ? OR b.vendor LIKE ? OR b.name LIKE ?)
+            )
+            ORDER BY last_seen DESC
+            LIMIT ? OFFSET ?
+        "#)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(limit)
+            .bind(offset)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let mut contacts = Vec::new();
+        for row in rows {
+            contacts.push(ContactRecord {
+                mac_address: row.get("mac_address"),
+                device_type: row.get("device_type"),
+                vendor: row.get("vendor"),
+                device_name: row.get("device_name"),
+                first_seen: row.get("first_seen"),
+                last_seen: row.get("last_seen"),
+                is_baseline: row.get("is_baseline"),
+                is_ap: row.get("is_ap"),
+                sighting_count: row.get::<i64, _>("sighting_count") as u64,
+                avg_rssi: row.get("avg_rssi"),
+                last_latitude: row.get("last_lat"),
+                last_longitude: row.get("last_lon"),
+                ai_description: row.get("ai_description"),
+                threat_level: row.get("threat_level"),
+            });
+        }
+        Ok(contacts)
+    }
+
+    /// Get total contact count for pagination
+    pub async fn get_contact_count(&self, search: Option<&str>) -> Result<i64> {
+        let search_pattern = search.map(|s| format!("%{}%", s));
+        
+        let count: i64 = sqlx::query_scalar(r#"
+            SELECT (
+                SELECT COUNT(*) FROM wifi_devices 
+                WHERE (? IS NULL OR mac_address LIKE ? OR vendor LIKE ?)
+            ) + (
+                SELECT COUNT(*) FROM ble_devices 
+                WHERE (? IS NULL OR mac_address LIKE ? OR vendor LIKE ? OR name LIKE ?)
+            )
+        "#)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .bind(&search_pattern)
+            .fetch_one(&self.pool)
+            .await?;
+        
+        Ok(count)
+    }
+
+    /// Get detailed contact info with all sightings
+    pub async fn get_contact_detail(&self, mac: &str) -> Result<Option<ContactDetail>> {
+        // Get WiFi device
+        let wifi_row = sqlx::query(r#"
+            SELECT id, mac_address, vendor, is_ap, is_baseline, first_seen, last_seen, notes
+            FROM wifi_devices WHERE mac_address = ?
+        "#)
+            .bind(mac)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        // Get BLE device
+        let ble_row = sqlx::query(r#"
+            SELECT id, mac_address, name, device_type, vendor, is_baseline, is_tracker, first_seen, last_seen, notes
+            FROM ble_devices WHERE mac_address = ?
+        "#)
+            .bind(mac)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        let (device_id, device_type, device_name, vendor, is_baseline, first_seen, last_seen, notes) = 
+            if let Some(row) = wifi_row {
+                (
+                    row.get::<i64, _>("id"),
+                    "wifi".to_string(),
+                    None::<String>,
+                    row.get::<Option<String>, _>("vendor"),
+                    row.get::<bool, _>("is_baseline"),
+                    row.get::<DateTime<Utc>, _>("first_seen"),
+                    row.get::<DateTime<Utc>, _>("last_seen"),
+                    row.get::<Option<String>, _>("notes"),
+                )
+            } else if let Some(row) = ble_row {
+                (
+                    row.get::<i64, _>("id"),
+                    "ble".to_string(),
+                    row.get::<Option<String>, _>("name"),
+                    row.get::<Option<String>, _>("vendor"),
+                    row.get::<bool, _>("is_baseline"),
+                    row.get::<DateTime<Utc>, _>("first_seen"),
+                    row.get::<DateTime<Utc>, _>("last_seen"),
+                    row.get::<Option<String>, _>("notes"),
+                )
+            } else {
+                return Ok(None);
+            };
+
+        // Get sightings
+        let sightings = sqlx::query(r#"
+            SELECT rssi, channel, ssid, latitude, longitude, timestamp
+            FROM sightings
+            WHERE device_id = ? AND device_type = ?
+            ORDER BY timestamp DESC
+            LIMIT 100
+        "#)
+            .bind(device_id)
+            .bind(&device_type)
+            .fetch_all(&self.pool)
+            .await?;
+
+        let sighting_records: Vec<SightingRecord> = sightings.iter().map(|row| SightingRecord {
+            device_type: device_type.clone(),
+            rssi: row.get("rssi"),
+            channel: row.get("channel"),
+            ssid: row.get("ssid"),
+            latitude: row.get("latitude"),
+            longitude: row.get("longitude"),
+            timestamp: row.get("timestamp"),
+        }).collect();
+
+        // Get AI description
+        let desc_row = sqlx::query(r#"
+            SELECT ai_description, threat_level, times_seen FROM device_descriptions WHERE mac_address = ?
+        "#)
+            .bind(mac)
+            .fetch_optional(&self.pool)
+            .await?;
+
+        let (ai_description, threat_level, times_seen) = desc_row
+            .map(|row| (
+                row.get::<Option<String>, _>("ai_description"),
+                row.get::<Option<String>, _>("threat_level"),
+                row.get::<i64, _>("times_seen") as u64,
+            ))
+            .unwrap_or((None, None, 0));
+
+        // Get notes
+        let notes_data = self.get_device_notes(mac).await.unwrap_or_default();
+
+        Ok(Some(ContactDetail {
+            mac_address: mac.to_string(),
+            device_type,
+            device_name,
+            vendor,
+            is_baseline,
+            first_seen,
+            last_seen,
+            times_seen,
+            notes,
+            ai_description,
+            threat_level,
+            sightings: sighting_records,
+            user_notes: notes_data,
+        }))
+    }
+
+    /// Export all contacts as JSON for backup/sync
+    pub async fn export_contacts(&self) -> Result<serde_json::Value> {
+        let contacts = self.get_all_contacts(10000, 0, None).await?;
+        let notes = self.get_recent_notes(1000).await?;
+        let descriptions = self.get_all_device_descriptions().await?;
+        
+        Ok(serde_json::json!({
+            "exported_at": Utc::now().to_rfc3339(),
+            "version": "1.0",
+            "contacts": contacts,
+            "notes": notes,
+            "descriptions": descriptions.iter().map(|d| serde_json::json!({
+                "mac": d.mac_address,
+                "name": d.device_name,
+                "type": d.device_type,
+                "vendor": d.vendor_name,
+                "description": d.ai_description,
+                "threat_level": format!("{:?}", d.threat_level),
+            })).collect::<Vec<_>>()
+        }))
+    }
+}
+
+/// Unified contact record for history view
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContactRecord {
+    pub mac_address: String,
+    pub device_type: String,
+    pub vendor: Option<String>,
+    pub device_name: Option<String>,
+    pub first_seen: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
+    pub is_baseline: bool,
+    pub is_ap: bool,
+    pub sighting_count: u64,
+    pub avg_rssi: Option<f64>,
+    pub last_latitude: Option<f64>,
+    pub last_longitude: Option<f64>,
+    pub ai_description: Option<String>,
+    pub threat_level: Option<String>,
+}
+
+/// Detailed contact info with full sighting history
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ContactDetail {
+    pub mac_address: String,
+    pub device_type: String,
+    pub device_name: Option<String>,
+    pub vendor: Option<String>,
+    pub is_baseline: bool,
+    pub first_seen: DateTime<Utc>,
+    pub last_seen: DateTime<Utc>,
+    pub times_seen: u64,
+    pub notes: Option<String>,
+    pub ai_description: Option<String>,
+    pub threat_level: Option<String>,
+    pub sightings: Vec<SightingRecord>,
+    pub user_notes: Vec<serde_json::Value>,
 }

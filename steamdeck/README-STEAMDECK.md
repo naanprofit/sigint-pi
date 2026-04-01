@@ -377,6 +377,46 @@ systemctl --user reset-failed sigint-deck
 systemctl --user start sigint-deck channel-hop
 ```
 
+### WiFi not working after suspend/resume
+
+**Symptoms:**
+- WiFi was working before Steam Deck went to sleep
+- After waking up, no WiFi devices detected
+- Interface may show as DOWN or in wrong mode
+- Interface name may have changed (wlan137, wlan142, etc.)
+
+**Cause:** The MT7612U driver doesn't handle suspend/resume well. The interface gets reset or disappears.
+
+**Solution:**
+```bash
+# 1. Check if interface exists
+ip link show | grep wlan
+
+# 2. If interface has wrong name (e.g., wlan137), reload driver:
+sudo modprobe -r mt76x2u
+sleep 2
+sudo modprobe mt76x2u
+sleep 3
+
+# 3. Set monitor mode
+~/sigint-deck/set-monitor-mode.sh
+
+# 4. Restart service
+systemctl --user restart sigint-deck
+```
+
+**If interface keeps getting random names:**
+```bash
+# Clean up phantom interfaces (only wlan0 and wlan1 should exist)
+for i in $(ip link show | grep -oE "wlan[0-9]+" | grep -vE "wlan[01]$"); do
+    sudo ip link delete $i 2>/dev/null
+done
+```
+
+**Prevention:** The installer creates a `sigint-monitor-mode.service` that runs on boot. For resume, you can use the web UI to toggle monitor mode, or run the script manually.
+
+**Web UI Toggle:** Go to Settings > Scanning > Monitor Mode to toggle between monitor and managed mode.
+
 ### External adapter steals wlan0 / gets wrong name
 
 **Symptoms:**
@@ -703,7 +743,7 @@ Add to `~/sigint-pi/config.toml`:
 [llm]
 enabled = true
 provider = "llamacpp"
-endpoint = "http://192.168.50.191:8080/v1"  # Your LLM server
+endpoint = "http://localhost:8080/v1"  # Your LLM server
 model = "2slot-MM-local-gguf"               # Your model name
 max_tokens = 200
 timeout_secs = 60

@@ -10,6 +10,11 @@ use tracing::{debug, error, info, warn};
 use crate::config::GpsConfig;
 use crate::ScanEvent;
 
+/// Minimum backoff delay when gpsd is unavailable
+const MIN_RETRY_DELAY_SECS: u64 = 5;
+/// Maximum backoff delay (5 minutes)
+const MAX_RETRY_DELAY_SECS: u64 = 300;
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GpsPosition {
     pub latitude: f64,
@@ -42,12 +47,45 @@ impl GpsClient {
     }
 
     pub async fn run(&self, tx: broadcast::Sender<ScanEvent>) -> Result<()> {
+        // Check if GPS is enabled
+        if !self.config.enabled {
+            info!("GPS disabled in configuration, skipping GPS client");
+            // Just sleep forever since we're disabled
+            loop {
+                tokio::time::sleep(Duration::from_secs(3600)).await;
+            }
+        }
+
+        let mut retry_delay = MIN_RETRY_DELAY_SECS;
+        let mut consecutive_failures = 0u32;
+
         loop {
             match self.connect_and_read(&tx).await {
-                Ok(_) => info!("GPS connection closed normally"),
+                Ok(_) => {
+                    info!("GPS connection closed normally");
+                    // Reset backoff on successful connection
+                    retry_delay = MIN_RETRY_DELAY_SECS;
+                    consecutive_failures = 0;
+                }
                 Err(e) => {
-                    warn!("GPS connection error: {}, reconnecting in 5s", e);
-                    tokio::time::sleep(Duration::from_secs(5)).await;
+                    consecutive_failures += 1;
+                    
+                    // Exponential backoff with max limit
+                    if consecutive_failures > 1 {
+                        retry_delay = (retry_delay * 2).min(MAX_RETRY_DELAY_SECS);
+                    }
+                    
+                    if consecutive_failures <= 3 {
+                        warn!("GPS connection error: {}, reconnecting in {}s", e, retry_delay);
+                    } else if consecutive_failures == 4 {
+                        warn!("GPS connection failing repeatedly, reducing log frequency. Retrying every {}s", retry_delay);
+                    }
+                    // After 4 failures, only log every 10th attempt
+                    else if consecutive_failures % 10 == 0 {
+                        debug!("GPS still unavailable after {} attempts, retrying in {}s", consecutive_failures, retry_delay);
+                    }
+                    
+                    tokio::time::sleep(Duration::from_secs(retry_delay)).await;
                 }
             }
         }
@@ -56,26 +94,43 @@ impl GpsClient {
     async fn connect_and_read(&self, tx: &broadcast::Sender<ScanEvent>) -> Result<()> {
         let addr = format!("{}:{}", self.config.gpsd_host, self.config.gpsd_port);
         
-        // Connect to gpsd in a blocking thread
+        // First, try to connect synchronously to fail fast if gpsd isn't running
+        let test_connect = tokio::task::spawn_blocking({
+            let addr = addr.clone();
+            move || {
+                TcpStream::connect_timeout(
+                    &addr.parse().unwrap_or_else(|_| "127.0.0.1:2947".parse().unwrap()),
+                    Duration::from_secs(5)
+                )
+            }
+        }).await?;
+        
+        // If connection failed, return error immediately (don't spawn reader)
+        test_connect.context("Failed to connect to gpsd")?;
+        
+        info!("Connected to gpsd at {}", addr);
+        
+        // Connection successful, now spawn the reader
         let (reader_tx, mut reader_rx) = tokio::sync::mpsc::channel::<GpsPosition>(100);
         
         let addr_clone = addr.clone();
         let update_interval = self.config.update_interval_ms;
         
-        tokio::task::spawn_blocking(move || {
-            if let Err(e) = gpsd_reader(&addr_clone, reader_tx, update_interval) {
-                error!("GPS reader error: {}", e);
-            }
+        let reader_handle = tokio::task::spawn_blocking(move || {
+            gpsd_reader(&addr_clone, reader_tx, update_interval)
         });
-
-        info!("Connected to gpsd at {}", addr);
 
         // Forward GPS updates
         while let Some(position) = reader_rx.recv().await {
             let _ = tx.send(ScanEvent::GpsUpdate(position));
         }
 
-        Ok(())
+        // Wait for reader to finish and propagate any errors
+        match reader_handle.await {
+            Ok(Ok(_)) => Ok(()),
+            Ok(Err(e)) => Err(e),
+            Err(e) => Err(anyhow::anyhow!("GPS reader task panicked: {}", e)),
+        }
     }
 }
 

@@ -35,7 +35,7 @@ if [ -f "$BINARY" ]; then
     echo "Size: $(du -h "$BINARY" | cut -f1)"
     echo ""
     echo "To deploy to your Pi:"
-    echo "  scp $BINARY pi@<pi-ip>:/opt/sigint-pi/"
+    echo "  scp $BINARY user@<device-ip>:/opt/sigint-pi/"
 else
     echo "Build failed!"
     exit 1

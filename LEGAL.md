@@ -2,14 +2,55 @@
 
 **SIGINT-Deck / SIGINT-Pi Software Suite**
 
-Version: 1.0  
-Effective Date: March 2026
+Version: 2.0  
+Effective Date: April 2026
 
 ---
 
 ## IMPORTANT: READ THIS AGREEMENT CAREFULLY BEFORE DOWNLOADING, INSTALLING, OR USING THIS SOFTWARE
 
 By downloading, installing, copying, or otherwise using this software ("Software"), you ("User," "You," or "Your") acknowledge that you have read, understood, and agree to be bound by the terms and conditions set forth in this Legal Notice, Terms of Use, and Disclaimer ("Agreement"). If you do not agree to these terms, do not download, install, or use this Software.
+
+---
+
+## ⚠️ CRITICAL: RESEARCH AND ENTERTAINMENT USE ONLY
+
+### THIS SOFTWARE IS NOT A SAFETY DEVICE
+
+**THIS SOFTWARE IS PROVIDED STRICTLY FOR RESEARCH, EDUCATIONAL, AND ENTERTAINMENT PURPOSES ONLY.** It is an experimental research tool and is NOT designed, intended, tested, validated, or certified for use in any situation where human life, safety, health, or physical security depends on its correct operation.
+
+**YOU MUST NOT RELY ON THIS SOFTWARE IN ANY LIFE-THREATENING, SAFETY-CRITICAL, OR EMERGENCY SITUATION.** This includes, without limitation:
+
+- Personal safety decisions during active surveillance, pursuit, or physical threat
+- Decisions to enter, exit, remain in, or evacuate any location
+- Assessments of whether a physical area is safe from hostile electronic surveillance, drones, or directed energy
+- Any military, paramilitary, conflict zone, or active combat application
+- Medical, health, or safety-of-life decisions of any kind
+- Navigation, position verification, or movement decisions based on GPS or RF data
+- Determining whether communications are secure or intercepted
+- Any use where software failure or inaccuracy could result in death, personal injury, property damage, environmental damage, or any other harm
+
+**This software may produce false positives, false negatives, inaccurate readings, missed detections, and erroneous analyses.** RF detection, spectrum analysis, drone detection, IMSI catcher detection, TSCM sweeps, and all other features are experimental and have NOT been validated against any safety standard. Detection confidence levels, distance estimates, threat classifications, and AI-generated analyses are approximations and should never be treated as authoritative.
+
+### COMPLETE ASSUMPTION OF RISK AND ABSOLUTE RELEASE OF LIABILITY
+
+**BY USING THIS SOFTWARE, YOU UNCONDITIONALLY AND IRREVOCABLY:**
+
+1. **ACKNOWLEDGE** that this Software is experimental research/entertainment software with no guarantee of accuracy, reliability, completeness, or fitness for any purpose whatsoever.
+
+2. **ACCEPT FULL AND SOLE RESPONSIBILITY** for any and all consequences, damages, injuries, losses, legal actions, fines, penalties, criminal charges, civil liability, or any other adverse outcome arising from your use of this Software, whether foreseeable or unforeseeable.
+
+3. **COMPLETELY AND FOREVER ABSOLVE, RELEASE, AND DISCHARGE** the developer(s), author(s), contributor(s), maintainer(s), distributor(s), and all affiliated persons and entities from any and all claims, demands, causes of action, damages, costs, expenses, liabilities, and obligations of every kind and nature, whether known or unknown, suspected or unsuspected, disclosed or undisclosed, that arise out of or are in any way related to your use of this Software.
+
+4. **WAIVE ANY AND ALL CLAIMS** against the developer(s) regardless of the theory of liability (including but not limited to negligence, strict liability, product liability, breach of warranty, misrepresentation, or any other legal or equitable theory).
+
+5. **ACCEPT** that if you use this Software for any purpose outside your legal rights, authorizations, or justifications — including but not limited to unauthorized surveillance, illegal interception, privacy violations, or any criminal activity — you bear complete, exclusive, and total responsibility for all consequences, and the developer(s) bear absolutely none.
+
+6. **UNDERSTAND** that no developer, contributor, or distributor of this Software has any duty, obligation, or responsibility to ensure this Software works correctly, to warn you of its limitations, or to prevent you from misusing it.
+
+### COMPARISON WITH INDUSTRY STANDARD DISCLAIMERS
+
+This disclaimer is consistent with and informed by the liability frameworks used by comparable security research tools including Metasploit Framework (Rapid7), Kali Linux (Offensive Security), Aircrack-ng, Wireshark, GNU Radio, and other open-source security and SDR tools that are provided "AS IS" for authorized research and educational use only, with no warranty and no liability for misuse.
 
 ---
 

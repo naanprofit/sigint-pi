@@ -1,10 +1,10 @@
-# SIGINT-Pi Container for Steam Deck
+# SIGINT-Deck Container for Steam Deck
 # Optimized for rootless Podman on SteamOS
 #
-# Build: podman build -f Containerfile.steamdeck -t sigint-pi:steamdeck .
-# Run:   See podman-compose.steamdeck.yml or scripts/steamdeck-launch.sh
+# Build: podman build -f Containerfile.steamdeck -t sigint-deck:latest .
+# Run:   See podman-compose.steamdeck.yml
 
-FROM docker.io/library/rust:1.85-bookworm AS builder
+FROM docker.io/library/rust:1.88-bookworm AS builder
 
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
@@ -40,17 +40,17 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create directories
-RUN mkdir -p /etc/sigint-pi /var/lib/sigint-pi/pcap /data /app/static
+RUN mkdir -p /etc/sigint-deck /var/lib/sigint-deck/pcap /data /app/static
 
 WORKDIR /app
 
 # Copy binary and static files
-COPY --from=builder /app/target/release/sigint-pi /app/sigint-pi
-COPY --from=builder /app/config.toml.example /etc/sigint-pi/config.toml
+COPY --from=builder /app/target/release/sigint-deck /app/sigint-deck
+COPY --from=builder /app/config.toml.example /etc/sigint-deck/config.toml
 COPY --from=builder /app/static /app/static
 
 # Persistent data volume mount point
-VOLUME ["/data", "/etc/sigint-pi"]
+VOLUME ["/data", "/etc/sigint-deck"]
 
 # Web UI port
 EXPOSE 8080
@@ -65,4 +65,4 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s \
     CMD curl -f http://localhost:8080/api/status || exit 1
 
 # Default entrypoint
-ENTRYPOINT ["/app/sigint-pi"]
+ENTRYPOINT ["/app/sigint-deck"]

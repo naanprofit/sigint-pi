@@ -13,17 +13,17 @@ version: "3.8"
 
 services:
   # Main application - simulation mode (safe, no special permissions)
-  sigint-pi-sim:
+  sigint-deck-sim:
     build:
       context: .
       dockerfile: Containerfile.steamdeck
-    container_name: sigint-pi
+    container_name: sigint-deck
     ports:
       - "8080:8080"
     volumes:
       # Persistent data in user home directory
-      - ${HOME}/.local/share/sigint-pi/data:/data:Z
-      - ${HOME}/.config/sigint-pi:/etc/sigint-pi:Z
+      - ${HOME}/.local/share/sigint-deck/data:/data:Z
+      - ${HOME}/.config/sigint-deck:/etc/sigint-deck:Z
     environment:
       - SIGINT_PLATFORM=steamdeck
       - SIGINT_SIMULATION=1
@@ -36,17 +36,17 @@ services:
   # Main application - real hardware mode
   # REQUIRES: External USB WiFi adapter with monitor mode support
   # REQUIRES: Running with elevated privileges for network capture
-  sigint-pi-hw:
+  sigint-deck-hw:
     build:
       context: .
       dockerfile: Containerfile.steamdeck
-    container_name: sigint-pi
+    container_name: sigint-deck
     ports:
       - "8080:8080"
     volumes:
       # Persistent data
-      - ${HOME}/.local/share/sigint-pi/data:/data:Z
-      - ${HOME}/.config/sigint-pi:/etc/sigint-pi:Z
+      - ${HOME}/.local/share/sigint-deck/data:/data:Z
+      - ${HOME}/.config/sigint-deck:/etc/sigint-deck:Z
       # D-Bus for Bluetooth access
       - /run/dbus:/run/dbus:ro
       - /var/run/dbus:/var/run/dbus:ro
@@ -73,16 +73,16 @@ services:
       - hardware
 
   # Minimal hardware mode (WiFi only, no BLE/GPS)
-  sigint-pi-wifi:
+  sigint-deck-wifi:
     build:
       context: .
       dockerfile: Containerfile.steamdeck
-    container_name: sigint-pi
+    container_name: sigint-deck
     ports:
       - "8080:8080"
     volumes:
-      - ${HOME}/.local/share/sigint-pi/data:/data:Z
-      - ${HOME}/.config/sigint-pi:/etc/sigint-pi:Z
+      - ${HOME}/.local/share/sigint-deck/data:/data:Z
+      - ${HOME}/.config/sigint-deck:/etc/sigint-deck:Z
     environment:
       - SIGINT_PLATFORM=steamdeck
       - RUST_LOG=info
@@ -99,11 +99,11 @@ services:
 # Notes for Steam Deck users:
 #
 # 1. Create config directories first:
-#    mkdir -p ~/.local/share/sigint-pi/data ~/.config/sigint-pi
-#    cp config.toml.example ~/.config/sigint-pi/config.toml
+#    mkdir -p ~/.local/share/sigint-deck/data ~/.config/sigint-deck
+#    cp config.toml.example ~/.config/sigint-deck/config.toml
 #
 # 2. Edit your config:
-#    nano ~/.config/sigint-pi/config.toml
+#    nano ~/.config/sigint-deck/config.toml
 #
 # 3. For real WiFi capture, you MUST:
 #    - Connect an external USB WiFi adapter (e.g., Alfa AWUS036ACHM)

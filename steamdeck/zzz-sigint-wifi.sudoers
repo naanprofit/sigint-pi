@@ -1,0 +1,12 @@
+# SIGINT-Deck sudoers file
+# Install to: /etc/sudoers.d/zzz-sigint-wifi
+# Permissions: chmod 440
+#
+# The zzz- prefix ensures this is processed AFTER the wheel group entry
+# which otherwise requires a password for all sudo commands.
+
+# Allow passwordless iw for channel hopping
+deck ALL=(ALL) NOPASSWD: /usr/bin/iw
+
+# Don't require TTY for automated scripts
+Defaults:deck !requiretty

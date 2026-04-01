@@ -150,14 +150,14 @@ pub struct RayHunterConfig {
     pub alert_template: Option<String>,
 }
 
-fn default_rayhunter_url() -> String { "http://localhost:8080".to_string() }
+fn default_rayhunter_url() -> String { "http://localhost:8081".to_string() }
 fn default_rayhunter_interval() -> u64 { 5 }
 
 impl Default for RayHunterConfig {
     fn default() -> Self {
         Self {
             enabled: false,
-            api_url: "http://localhost:8080".to_string(),
+            api_url: default_rayhunter_url(),
             poll_interval_secs: 5,
             alert_on_suspicious: true,
             relay_to_openclaw: true,
@@ -229,7 +229,7 @@ pub struct LlmConfig {
     pub enabled: bool,
     /// Provider type: "openai", "llamacpp", "ollama", "lmstudio", "custom"
     pub provider: String,
-    /// API endpoint URL (e.g., "https://api.openai.com/v1" or "http://192.168.1.100:8080")
+    /// API endpoint URL (e.g., "https://api.openai.com/v1" or "http://localhost:8080")
     pub endpoint: String,
     /// API key (loaded from config, never hardcoded)
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -252,7 +252,7 @@ impl Default for LlmConfig {
         Self {
             enabled: false,
             provider: "llamacpp".to_string(),
-            endpoint: "http://localhost:11434".to_string(),
+            endpoint: "http://localhost:8080".to_string(),
             api_key: None,
             model: "default".to_string(),
             max_tokens: 200,

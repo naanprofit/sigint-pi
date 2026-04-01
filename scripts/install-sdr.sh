@@ -1,8 +1,9 @@
 #!/bin/bash
-# SIGINT-Pi SDR Tools Installer
-# Installs RTL-SDR, HackRF, and LimeSDR support
+# SIGINT-Deck SDR Tools Installer
+# Installs RTL-SDR, HackRF, LimeSDR, and SoapySDR to ~/bin
+# Survives SteamOS updates (read-only root filesystem workaround)
 #
-# Usage: ./install-sdr.sh [--all|--rtlsdr|--hackrf|--limesdr]
+# Usage: ./install-sdr.sh [--all|--rtlsdr|--hackrf|--limesdr|--soapysdr]
 
 set -e
 
@@ -12,27 +13,23 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
+INSTALL_DIR="$HOME/bin"
+LIB_DIR="$HOME/bin/lib"
+TEMP_DIR="$HOME/.sdr-install-tmp"
+ARCH_MIRROR="https://archive.archlinux.org/packages"
+
+# Package URLs
+RTLSDR_PKG="r/rtl-sdr/rtl-sdr-1%3A2.0.2-1-x86_64.pkg.tar.zst"
+HACKRF_PKG="h/hackrf/hackrf-2024.02.1-3-x86_64.pkg.tar.zst"
+LIMESUITE_PKG="l/limesuite/limesuite-23.11.0-4-x86_64.pkg.tar.zst"
+SOAPYSDR_PKG="s/soapysdr/soapysdr-0.8.1-3-x86_64.pkg.tar.zst"
+
 echo -e "${BLUE}"
 echo "╔═══════════════════════════════════════════════╗"
-echo "║        SIGINT-Pi SDR Tools Installer          ║"
+echo "║       SIGINT-Deck SDR Tools Installer         ║"
 echo "║   RTL-SDR | HackRF | LimeSDR | SoapySDR       ║"
 echo "╚═══════════════════════════════════════════════╝"
 echo -e "${NC}"
-
-# Check if running as root
-if [ "$EUID" -ne 0 ]; then
-    echo -e "${YELLOW}Note: Some operations may require sudo${NC}"
-fi
-
-# Detect platform
-if [ -f /etc/os-release ]; then
-    . /etc/os-release
-    DISTRO="$ID"
-else
-    DISTRO="unknown"
-fi
-
-echo "Detected: $DISTRO"
 
 # Parse arguments
 INSTALL_RTLSDR=false
@@ -54,7 +51,18 @@ for arg in "$@"; do
         --soapysdr) INSTALL_SOAPYSDR=true ;;
         --help|-h)
             echo "Usage: $0 [--all|--rtlsdr|--hackrf|--limesdr|--soapysdr]"
+            echo ""
+            echo "Options:"
+            echo "  --all       Install all SDR tools (default)"
+            echo "  --rtlsdr    Install RTL-SDR tools only"
+            echo "  --hackrf    Install HackRF tools only"
+            echo "  --limesdr   Install LimeSDR tools only"
+            echo "  --soapysdr  Install SoapySDR (universal API)"
             exit 0
+            ;;
+        *)
+            echo -e "${RED}Unknown option: $arg${NC}"
+            exit 1
             ;;
     esac
 done
@@ -66,122 +74,100 @@ if $INSTALL_ALL; then
     INSTALL_SOAPYSDR=true
 fi
 
-# Install based on distro
-case "$DISTRO" in
-    raspbian|debian|ubuntu)
-        echo -e "\n${BLUE}Installing SDR packages via apt...${NC}"
-        
-        # Update package list
-        sudo apt-get update
-        
-        if $INSTALL_RTLSDR; then
-            echo -e "\n${GREEN}Installing RTL-SDR...${NC}"
-            sudo apt-get install -y rtl-sdr librtlsdr-dev
-        fi
-        
-        if $INSTALL_HACKRF; then
-            echo -e "\n${GREEN}Installing HackRF...${NC}"
-            sudo apt-get install -y hackrf libhackrf-dev
-        fi
-        
-        if $INSTALL_LIMESDR; then
-            echo -e "\n${GREEN}Installing LimeSDR...${NC}"
-            sudo apt-get install -y limesuite liblimesuite-dev
-        fi
-        
-        if $INSTALL_SOAPYSDR; then
-            echo -e "\n${GREEN}Installing SoapySDR...${NC}"
-            sudo apt-get install -y soapysdr-tools libsoapysdr-dev
-            # Install SoapySDR modules for each SDR
-            sudo apt-get install -y soapysdr-module-rtlsdr 2>/dev/null || true
-            sudo apt-get install -y soapysdr-module-hackrf 2>/dev/null || true
-            sudo apt-get install -y soapysdr-module-lms7 2>/dev/null || true
-        fi
-        ;;
-        
-    arch|steamos)
-        echo -e "\n${BLUE}Installing SDR packages via pacman...${NC}"
-        
-        # Check if read-only (Steam Deck)
-        if ! touch /tmp/.write-test 2>/dev/null; then
-            echo -e "${RED}Read-only filesystem detected (Steam Deck)${NC}"
-            echo "Use the Steam Deck install script instead:"
-            echo "  ~/sigint-deck/scripts/install-sdr.sh"
-            exit 1
-        fi
-        
-        if $INSTALL_RTLSDR; then
-            sudo pacman -S --noconfirm rtl-sdr
-        fi
-        
-        if $INSTALL_HACKRF; then
-            sudo pacman -S --noconfirm hackrf
-        fi
-        
-        if $INSTALL_LIMESDR; then
-            sudo pacman -S --noconfirm limesuite
-        fi
-        
-        if $INSTALL_SOAPYSDR; then
-            sudo pacman -S --noconfirm soapysdr
-        fi
-        ;;
-        
-    *)
-        echo -e "${RED}Unsupported distribution: $DISTRO${NC}"
-        echo "Please install SDR packages manually:"
-        echo "  - rtl-sdr"
-        echo "  - hackrf"
-        echo "  - limesuite"
-        echo "  - soapysdr"
-        exit 1
-        ;;
-esac
+# Create directories
+mkdir -p "$INSTALL_DIR" "$LIB_DIR" "$TEMP_DIR"
+cd "$TEMP_DIR"
 
-# Setup udev rules for non-root access
-echo -e "\n${BLUE}Setting up udev rules...${NC}"
+# Helper function to download and extract
+extract_pkg() {
+    local url="$1"
+    local name="$2"
+    
+    echo -e "${BLUE}Downloading $name...${NC}"
+    wget -q "$ARCH_MIRROR/$url" -O "$name.pkg.tar.zst" || {
+        echo -e "${RED}Failed to download $name${NC}"
+        return 1
+    }
+    
+    echo "Extracting..."
+    mkdir -p "$name"
+    cd "$name"
+    zstd -d "../$name.pkg.tar.zst" -o "$name.tar" 2>/dev/null
+    tar xf "$name.tar"
+    cd ..
+}
 
-cat | sudo tee /etc/udev/rules.d/99-sdr.rules > /dev/null << 'EOF'
-# RTL-SDR
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", MODE="0666"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", MODE="0666"
+# Install RTL-SDR
+if $INSTALL_RTLSDR; then
+    echo -e "\n${GREEN}[1/4] Installing RTL-SDR...${NC}"
+    if extract_pkg "$RTLSDR_PKG" "rtlsdr"; then
+        cp rtlsdr/usr/bin/rtl_* "$INSTALL_DIR/" 2>/dev/null || true
+        cp rtlsdr/usr/lib/*.so* "$LIB_DIR/" 2>/dev/null || true
+        echo -e "${GREEN}✓ RTL-SDR installed${NC}"
+        echo "  Tools: rtl_sdr, rtl_fm, rtl_power, rtl_adsb, rtl_tcp, rtl_test"
+    fi
+fi
 
-# HackRF
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6089", MODE="0666"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="604b", MODE="0666"
+# Install HackRF
+if $INSTALL_HACKRF; then
+    echo -e "\n${GREEN}[2/4] Installing HackRF...${NC}"
+    if extract_pkg "$HACKRF_PKG" "hackrf"; then
+        cp hackrf/usr/bin/hackrf_* "$INSTALL_DIR/" 2>/dev/null || true
+        cp hackrf/usr/lib/*.so* "$LIB_DIR/" 2>/dev/null || true
+        echo -e "${GREEN}✓ HackRF installed${NC}"
+        echo "  Tools: hackrf_info, hackrf_transfer, hackrf_sweep"
+    fi
+fi
 
-# LimeSDR
-SUBSYSTEM=="usb", ATTRS{idVendor}=="0403", ATTRS{idProduct}=="601f", MODE="0666"
-SUBSYSTEM=="usb", ATTRS{idVendor}=="1d50", ATTRS{idProduct}=="6108", MODE="0666"
-EOF
+# Install LimeSDR
+if $INSTALL_LIMESDR; then
+    echo -e "\n${GREEN}[3/4] Installing LimeSDR...${NC}"
+    if extract_pkg "$LIMESUITE_PKG" "limesuite"; then
+        cp limesuite/usr/bin/Lime* "$INSTALL_DIR/" 2>/dev/null || true
+        cp limesuite/usr/lib/*.so* "$LIB_DIR/" 2>/dev/null || true
+        echo -e "${GREEN}✓ LimeSDR installed${NC}"
+        echo "  Tools: LimeUtil, LimeQuickTest, LimeSuiteGUI"
+    fi
+fi
 
-sudo udevadm control --reload-rules
-sudo udevadm trigger
+# Install SoapySDR
+if $INSTALL_SOAPYSDR; then
+    echo -e "\n${GREEN}[4/4] Installing SoapySDR...${NC}"
+    if extract_pkg "$SOAPYSDR_PKG" "soapysdr"; then
+        cp soapysdr/usr/bin/Soapy* "$INSTALL_DIR/" 2>/dev/null || true
+        cp soapysdr/usr/lib/*.so* "$LIB_DIR/" 2>/dev/null || true
+        echo -e "${GREEN}✓ SoapySDR installed${NC}"
+        echo "  Tools: SoapySDRUtil"
+    fi
+fi
 
-# Blacklist kernel DVB drivers for RTL-SDR
-echo -e "\n${BLUE}Blacklisting DVB kernel modules...${NC}"
-cat | sudo tee /etc/modprobe.d/blacklist-rtlsdr.conf > /dev/null << 'EOF'
-# Blacklist DVB drivers to allow RTL-SDR access
-blacklist dvb_usb_rtl28xxu
-blacklist rtl2832
-blacklist rtl2830
-EOF
+# Cleanup
+echo -e "\n${BLUE}Cleaning up...${NC}"
+rm -rf "$TEMP_DIR"
+
+# Update .bashrc
+if ! grep -q 'LD_LIBRARY_PATH.*bin/lib' ~/.bashrc 2>/dev/null; then
+    echo -e "\n${BLUE}Adding library path to .bashrc...${NC}"
+    echo '' >> ~/.bashrc
+    echo '# SDR tools library path' >> ~/.bashrc
+    echo 'export LD_LIBRARY_PATH="$HOME/bin/lib:$LD_LIBRARY_PATH"' >> ~/.bashrc
+fi
 
 # Summary
 echo -e "\n${GREEN}╔═══════════════════════════════════════════════╗${NC}"
 echo -e "${GREEN}║          SDR Installation Complete!            ║${NC}"
 echo -e "${GREEN}╚═══════════════════════════════════════════════╝${NC}"
 echo ""
-echo -e "${BLUE}Installed tools:${NC}"
-which rtl_sdr 2>/dev/null && echo "  ✓ RTL-SDR: $(which rtl_sdr)"
-which hackrf_info 2>/dev/null && echo "  ✓ HackRF: $(which hackrf_info)"
-which LimeUtil 2>/dev/null && echo "  ✓ LimeSDR: $(which LimeUtil)"
-which SoapySDRUtil 2>/dev/null && echo "  ✓ SoapySDR: $(which SoapySDRUtil)"
-
+echo "Installed tools:"
+ls -1 "$INSTALL_DIR" | grep -E "^(rtl_|hackrf_|Lime|Soapy)" | sed 's/^/  /'
 echo ""
-echo -e "${YELLOW}Note: Unplug and replug your SDR device for udev rules to take effect${NC}"
+echo -e "${YELLOW}To use immediately, run:${NC}"
+echo "  export LD_LIBRARY_PATH=\"\$HOME/bin/lib:\$LD_LIBRARY_PATH\""
 echo ""
-echo -e "${BLUE}Test your SDR:${NC}"
+echo -e "${YELLOW}Or restart your shell:${NC}"
+echo "  source ~/.bashrc"
+echo ""
+echo -e "${BLUE}Test your SDR hardware:${NC}"
 echo "  rtl_test -t          # RTL-SDR"
 echo "  hackrf_info          # HackRF"
 echo "  LimeUtil --find      # LimeSDR"

@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=SIGINT-Deck
+Comment=Signals Intelligence Security Scanner for Steam Deck
+Exec=/home/deck/sigint-deck/launch.sh
+Icon=network-wireless
+Terminal=false
+Type=Application
+Categories=Network;Security;System;
+Keywords=wifi;bluetooth;security;scanner;monitor;

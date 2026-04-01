@@ -182,8 +182,8 @@ pub async fn channel_hopper(interface: &str, channels: Vec<u8>) -> Result<()> {
     // Small delay to let scanner initialize
     tokio::time::sleep(Duration::from_secs(2)).await;
     
-    // Always use sudo -n (non-interactive) for iw commands
     let mut hop_count = 0u64;
+    let mut consecutive_failures = 0u32;
     
     loop {
         for channel in &channels {
@@ -195,25 +195,40 @@ pub async fn channel_hopper(interface: &str, channels: Vec<u8>) -> Result<()> {
                 Ok(output) => {
                     if output.status.success() {
                         hop_count += 1;
-                        if hop_count % 20 == 1 {
+                        consecutive_failures = 0;
+                        if hop_count % 100 == 1 {
                             info!("Channel hop #{}: now on ch{}", hop_count, channel);
                         }
                     } else {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        if hop_count == 0 {
+                        consecutive_failures += 1;
+                        if consecutive_failures <= 3 {
+                            let stderr = String::from_utf8_lossy(&output.stderr);
                             warn!("Channel hop failed: {}", stderr.trim());
+                        }
+                        if consecutive_failures > 10 {
+                            // Device is persistently busy/unavailable, back off significantly
+                            warn!("Channel hopper: {} consecutive failures, backing off 30s", consecutive_failures);
+                            tokio::time::sleep(Duration::from_secs(30)).await;
+                            continue;
                         }
                     }
                 }
                 Err(e) => {
-                    if hop_count == 0 {
+                    consecutive_failures += 1;
+                    if consecutive_failures <= 3 {
                         warn!("Channel hop command error: {}", e);
+                    }
+                    if consecutive_failures > 10 {
+                        warn!("Channel hopper: command error, backing off 30s");
+                        tokio::time::sleep(Duration::from_secs(30)).await;
+                        continue;
                     }
                 }
             }
             
-            // 500ms per channel
-            tokio::time::sleep(Duration::from_millis(500)).await;
+            // 500ms per channel normally, 2s when seeing failures
+            let delay = if consecutive_failures > 0 { 2000 } else { 500 };
+            tokio::time::sleep(Duration::from_millis(delay)).await;
         }
     }
 }

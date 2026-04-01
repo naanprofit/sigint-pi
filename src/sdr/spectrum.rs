@@ -211,17 +211,17 @@ impl SpectrumMonitor {
             _ => (0, None),
         };
         
+        // rtl_power -f expects Hz values or M/k suffixed: "start:stop:bin_size"
         let freq_range = format!(
-            "{}:{}:{}",
+            "{}M:{}M:100k",
             band.start_hz / 1_000_000,
             band.end_hz / 1_000_000,
-            100_000 // 100 kHz bins
         );
         
         let mut args = vec![
             "-f".to_string(), freq_range,
-            "-i".to_string(), "1".to_string(), // 1 second integration
-            "-1".to_string(), // Single sweep
+            "-i".to_string(), "1".to_string(),
+            "-1".to_string(),
             "-d".to_string(), device_index.to_string(),
         ];
         
@@ -230,10 +230,17 @@ impl SpectrumMonitor {
             args.push(g.to_string());
         }
         
-        let output = Command::new("rtl_power")
+        let cmd = crate::sdr::resolve_sdr_command("rtl_power");
+        let output = Command::new(&cmd)
             .args(&args)
             .output()
             .await?;
+        
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            tracing::warn!("rtl_power failed: {}", stderr);
+            anyhow::bail!("rtl_power exited with {}: {}", output.status, stderr);
+        }
         
         let stdout = String::from_utf8_lossy(&output.stdout);
         let points = parse_rtl_power_output(&stdout, band);
@@ -257,14 +264,21 @@ impl SpectrumMonitor {
     pub async fn scan_hackrf_sweep(&self, start_mhz: u32, end_mhz: u32) -> anyhow::Result<SpectrumScan> {
         let start = SystemTime::now();
         
-        let output = Command::new("hackrf_sweep")
+        let cmd = crate::sdr::resolve_sdr_command("hackrf_sweep");
+        let output = Command::new(&cmd)
             .args(&[
                 "-f", &format!("{}:{}", start_mhz, end_mhz),
-                "-w", "100000", // 100 kHz bin width
-                "-1", // Single sweep
+                "-w", "100000",
+                "-1",
             ])
             .output()
             .await?;
+        
+        if !output.status.success() {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            tracing::warn!("hackrf_sweep failed: {}", stderr);
+            anyhow::bail!("hackrf_sweep exited with {}: {}", output.status, stderr);
+        }
         
         let stdout = String::from_utf8_lossy(&output.stdout);
         let points = parse_hackrf_sweep_output(&stdout);

@@ -1,19 +1,16 @@
 # SIGINT-Pi
 
-Portable signals intelligence and security monitoring device for Raspberry Pi Zero 2 W and Steam Deck.
+Portable signals intelligence and security monitoring for Raspberry Pi.
 
 ---
 
 ## ⚠️ LEGAL DISCLAIMER AND TERMS OF USE
 
-> **IMPORTANT: BY DOWNLOADING, INSTALLING, OR USING THIS SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS:**
+> **IMPORTANT: BY DOWNLOADING, INSTALLING, OR USING THIS SOFTWARE, YOU AGREE TO THE FOLLOWING TERMS.**
 
-### Regulatory Compliance Notice
+### Research and Entertainment Only
 
-This software interacts with radio frequency spectrum and wireless communications. Its use is subject to strict regulation by:
-
-- **United States**: FCC regulations (47 CFR), Electronic Communications Privacy Act (18 U.S.C. § 2511), Computer Fraud and Abuse Act (18 U.S.C. § 1030)
-- **International**: Equivalent regulatory bodies and laws in your jurisdiction
+**This software is provided strictly for research, educational, and entertainment purposes only.** It is an experimental tool and is NOT designed, tested, or certified for use in any life-threatening, safety-critical, or emergency situation. Do not rely on this software for personal safety decisions. It may produce false positives, false negatives, inaccurate readings, and erroneous analyses.
 
 ### Authorized Use Only
 
@@ -36,19 +33,28 @@ You **SHALL NOT** use this software to:
 - ❌ Conduct stalking, harassment, or illegal surveillance
 - ❌ Intercept cellular, cordless, or similar protected communications
 
-### Liability Waiver
+### Complete Assumption of Risk and Release of Liability
 
 **THE AUTHORS AND CONTRIBUTORS OF THIS SOFTWARE SHALL NOT BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES ARISING FROM YOUR USE OF THIS SOFTWARE.**
 
-You agree to **indemnify and hold harmless** the authors from any claims arising from your use of this software. You accept **full responsibility** for ensuring your use complies with all applicable laws in your jurisdiction.
+By using this software, you **unconditionally and irrevocably**:
+
+1. **Accept full and sole responsibility** for all consequences of your use
+2. **Completely absolve** the developer(s), contributor(s), and distributor(s) from any and all claims, damages, and liabilities of every kind
+3. **Acknowledge** that if you use this software outside your legal rights or justifications, you bear exclusive responsibility and the developer(s) bear none
+4. **Agree to indemnify and hold harmless** the authors from any claims arising from your use
+
+### Regulatory Compliance
+
+This software interacts with radio frequency spectrum and wireless communications, subject to strict regulation by the FCC (47 CFR), ECPA (18 U.S.C. § 2511), CFAA (18 U.S.C. § 1030), and equivalent international regulatory bodies. **You are solely responsible for legal compliance in your jurisdiction.**
 
 ### Acceptance
 
 **By downloading, installing, or using this software, you certify that:**
 1. You have read and understood the full [LEGAL.md](LEGAL.md) document
-2. You will use this software only for lawful purposes
-3. You have obtained all necessary legal authorizations for your intended use
-4. You accept all risks and liabilities associated with your use
+2. You will use this software only for lawful, authorized purposes
+3. You accept this is research/entertainment software, not a safety device
+4. You accept all risks and absolve the developers of all liability
 
 **If you do not agree to these terms, do not download, install, or use this software.**
 
@@ -65,820 +71,347 @@ You agree to **indemnify and hold harmless** the authors from any claims arising
 ![Settings](docs/images/dashboard-settings.png)
 *Settings panel with AI/LLM integration and quick toggles*
 
+> **LEGAL DISCLAIMER**: This tool is for authorized security research and educational purposes only. Monitoring wireless communications without authorization may be illegal in your jurisdiction. You are solely responsible for ensuring your use complies with all applicable laws.
+
 ## Features
 
 - **WiFi Monitoring** (802.11)
   - Device detection and tracking
-  - Probe request analysis
-  - Signal strength monitoring
+  - Probe request analysis  
+  - Signal strength monitoring (RSSI)
   - Attack detection (deauth, evil twin, KARMA)
   - PCAP capture for forensics
 
 - **Bluetooth/BLE Monitoring**
   - BLE advertisement scanning
-  - AirTag/Tile/SmartTag tracker detection with extended data parsing
-  - Device type classification (Phone, Wearable, Headphones, etc.)
+  - AirTag/Tile/SmartTag tracker detection with extended data
+  - Device type classification (Phone, Wearable, SmartLight, etc.)
   - Lost mode and separated device detection
 
-- **Tracker Intelligence** (AirTag, Tile, SmartTag)
-  - Detects Find My network devices (Apple AirTags)
-  - Extracts status byte, counter, and privacy-preserving key hints
-  - Identifies lost mode and separated-from-owner states
-  - NFC data retrieval (if physically accessible)
+- **SDR Spectrum Analysis**
+  - RTL-SDR, HackRF One, LimeSDR support
+  - Spectrum analyzer with band presets
+  - TSCM sweep (counter-surveillance) with threat database
+  - Continuous drone RF monitoring (military + commercial bands)
+  - RTL-433 ISM band device decoding
+  - Cell tower scanning via kalibrate-rtl
+  - Browser audio streaming (FM/AM/SSB)
+  - Distance estimation via free-space path loss model
+
+- **IMSI Catcher Detection** (RayHunter)
+  - EFF RayHunter integration via direct HTTP API
+  - Automatic ADB port forwarding
+  - Real-time monitoring with audible alerts
+  - QMDL recording start/stop control
+
+- **Drone Detection**
+  - RF signature detection for military drones (9 countries)
+  - EMI harmonic analysis (ESC/PWM patterns)
+  - Combined RF+EMI correlation for high confidence
+  - Continuous scanning with contact tracking
 
 - **AI/LLM Integration** (Optional)
   - Device analysis via local or cloud LLM
   - Support for llama.cpp, Ollama, LMStudio, OpenAI
-  - On-demand analysis (user-triggered, not automatic)
-  - Local caching for offline operation
   - Threat intelligence with 100+ surveillance equipment OUIs
 
-- **Device Intelligence**
-  - OUI vendor lookup
-  - Automatic baseline learning
-  - Anomaly detection
-  - Geofenced location awareness
+- **GPS Integration**
+  - Location tracking with USB GPS
+  - Geofencing with alerts
+
+- **Device Learning & Anomaly Detection**
+  - Learns baseline of normal devices over time
+  - Flags new/unknown devices immediately
+  - Detects anomalous behavior patterns
+  - Device fingerprinting (survives MAC randomization)
+  - Configurable training period (default: 1 hour)
 
 - **Multi-Channel Alerts**
-  - Telegram Bot
-  - Twilio SMS
-  - Email (SMTP)
-  - MQTT (Home Assistant integration)
-
-- **GPS Integration**
-  - Location tracking
-  - Geofencing
-  - Movement detection
+  - Sound alerts with Ninja Mode
+  - Telegram, Signal, Email, MQTT
+  - Custom webhooks
 
 ## Hardware Requirements
 
-| Component | Recommendation | Purpose |
-|-----------|---------------|---------|
-| Raspberry Pi Zero 2 W | Required | Main compute |
-| USB Hub | Zero4U or similar | Connect multiple USB devices |
-| WiFi Adapter | Alfa AWUS036ACHM | Monitor mode, dual-band |
-| GPS Module | VK-162 u-blox 7 | Location tracking |
-| MicroSD Card | 64GB+ high-endurance | Storage |
-| Battery | PiSugar 2 Pro (5000mAh) | ~8-10 hours runtime |
+> **IMPORTANT**: Steam Deck's internal WiFi does NOT support monitor mode!
+
+| Component | Recommendation | Notes |
+|-----------|---------------|-------|
+| Steam Deck | LCD or OLED | Main platform |
+| USB WiFi | Alfa AWUS036ACHM | Monitor mode required |
+| USB GPS | VK-162 u-blox 7 | Optional |
+| USB Hub | Powered | Recommended |
 
 ### Optional SDR Hardware
+
+SIGINT-Deck supports Software Defined Radio for advanced spectrum monitoring:
 
 | SDR Device | USB ID | Frequency Range | Notes |
 |------------|--------|-----------------|-------|
 | RTL-SDR (RTL2832U) | 0bda:2838 | 24-1766 MHz | Budget option, RX only |
 | HackRF One | 1d50:6089 | 1-6000 MHz | TX/RX capable |
-| LimeSDR Mini | 0403:601f | 10-3500 MHz | Full duplex |
+| LimeSDR Mini | 0403:601f | 10-3500 MHz | Full duplex, high bandwidth |
+| LimeSDR USB | 1d50:6108 | 100kHz-3.8GHz | Professional grade |
 
 ### Optional IMSI Catcher Detection
 
 | Component | Recommendation | Notes |
 |-----------|---------------|-------|
 | RayHunter Device | Pixel 3a/4a with RayHunter | EFF's IMSI catcher detector |
-| USB Cable | Data-capable USB-C | Connect phone to Pi |
+| USB Cable | Data-capable USB-C | Connect phone to Steam Deck |
 
 ## Quick Start
 
-### 1. Prepare the Pi
+### 1. Enable Developer Mode
 
 ```bash
-# Flash Raspberry Pi OS Lite (64-bit) to SD card
-# SSH into the Pi and run:
-git clone https://github.com/yourusername/sigint-pi.git
-cd sigint-pi
-sudo bash scripts/setup.sh
+# On Steam Deck, switch to Desktop Mode
+# Settings → System → Enable Developer Mode
+# Open Konsole and set password:
+passwd
 ```
 
-### 2. Configure
+### 2. Clone and Setup
 
 ```bash
-sudo nano /etc/sigint-pi/config.toml
+git clone https://github.com/naanprofit/sigint-deck.git
+cd sigint-deck
+
+# Run setup script
+chmod +x steamdeck/setup-steamdeck.sh
+./steamdeck/setup-steamdeck.sh
 ```
 
-Set up at minimum:
-- `device.name` - unique identifier
-- `wifi.interface` - your external WiFi adapter (usually `wlan1`)
-- `alerts.telegram` - for notifications
+### 3. Configure
 
-### 3. Build and Install
-
-On the Pi (slower):
 ```bash
-cargo build --release
-sudo cp target/release/sigint-pi /opt/sigint-pi/
+cp config.toml.example ~/sigint-deck/config.toml
+nano ~/sigint-deck/config.toml
 ```
 
-Cross-compile (faster):
-```bash
-# On your development machine:
-./scripts/cross-compile.sh
-scp target/armv7-unknown-linux-gnueabihf/release/sigint-pi pi@<pi-ip>:/opt/sigint-pi/
-```
+Key settings:
+- `wifi.interface` - External WiFi adapter (usually `wlan1`)
+- `gps.enabled` - Enable if GPS connected
+- `alerts.*` - Configure notification channels
 
 ### 4. Start
 
 ```bash
-sudo systemctl enable sigint-pi
-sudo systemctl start sigint-pi
-sudo journalctl -u sigint-pi -f  # View logs
+~/sigint-deck/start-sigint.sh
 ```
 
-## Web Interface
+Dashboard: http://localhost:8080
 
-Access at `http://<pi-ip>:8080`
+## WiFi Interface Setup
 
-API endpoints:
-- `GET /api/status` - System status
-- `GET /api/devices` - List all devices
-- `GET /api/alerts` - Recent alerts
-- `GET /api/stats` - Device statistics
+The setup script ensures persistent naming:
+- `wlan0` = Internal Steam Deck WiFi (managed)
+- `wlan1` = External USB WiFi (monitor mode)
 
-## Alert Priority Levels
+## Web Dashboard
 
-| Priority | Trigger | Channels |
-|----------|---------|----------|
-| Critical | Active attack detected | Telegram, SMS, Email, MQTT |
-| High | New device with strong signal, tracker | Telegram, SMS, MQTT |
-| Medium | New device nearby | Telegram, MQTT |
-| Low | Normal activity | MQTT only |
+Features:
+- Real-time device lists (WiFi + BLE)
+- **New Devices** tab - combined view of devices seen in last 60 seconds
+- Tracker detection with status badges
+- Attack alerts
+- GPS location
+- Settings management
 
-## Power Management
+### Keyboard Shortcuts
 
-For extended battery life:
-```toml
-[power]
-low_power_mode = true
-battery_scan_interval_ms = 15000
-```
+| Key | Action |
+|-----|--------|
+| 1 | WiFi tab |
+| 2 | BLE tab |
+| 3 | New devices |
+| 4 | Alerts |
+| 5 | Attacks |
+| 6 | SDR / Radio |
+| 7 | TSCM |
+| 8 | IMSI / RayHunter |
+| N | Toggle Ninja Mode |
 
-Estimated runtime with PiSugar 2 Pro (5000mAh):
-- Normal mode: ~8 hours
-- Low power mode: ~12 hours
-
-## Attack Detection
-
-Detects:
-- Deauthentication floods
-- Disassociation attacks
-- Evil twin access points
-- KARMA/MANA attacks
-- Beacon floods
-
----
-
-## Telegram Bot Setup
-
-Telegram provides free, instant push notifications to your phone. This is the recommended alert method.
-
-### Step 1: Create a Bot
-
-1. Open Telegram and search for **@BotFather**
-2. Send `/newbot`
-3. Follow the prompts:
-   - Enter a name for your bot (e.g., "SIGINT-Pi Alerts")
-   - Enter a username (must end in `bot`, e.g., `my_sigint_pi_bot`)
-4. BotFather will give you a **token** like: `123456789:ABCdefGHIjklMNOpqrsTUVwxyz`
-5. Save this token
-
-### Step 2: Get Your Chat ID
-
-1. Search for **@userinfobot** in Telegram
-2. Send `/start`
-3. It will reply with your **Chat ID** (a number like `123456789`)
-
-### Step 3: Configure SIGINT-Pi
-
-Edit your config file:
+## PCAP Capture
 
 ```bash
-sudo nano /etc/sigint-pi/config.toml
+# Start capture via API
+curl -X POST http://localhost:8080/api/pcap/start
+
+# Check status
+curl http://localhost:8080/api/pcap/status
+
+# Stop capture
+curl -X POST http://localhost:8080/api/pcap/stop
+
+# List capture files
+curl http://localhost:8080/api/pcap/files
 ```
 
-Add your credentials:
-
-```toml
-[alerts.telegram]
-enabled = true
-bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
-chat_id = "123456789"
-```
-
-### Step 4: Test
-
-Restart the service:
+## Geofencing
 
 ```bash
-sudo systemctl restart sigint-pi
-```
-
-You should receive a test alert when a new device is detected. If running in simulation mode, alerts will start immediately.
-
-### Alert Examples
-
-You'll receive messages like:
-
-```
-🚨 ATTACK: DeauthFlood
-
-WiFi Attack Detected!
-Type: DeauthFlood
-Severity: High
-Source: AA:BB:CC:DD:EE:FF
-
-📍 Location: home
-🕐 Time: 2024-01-15 14:32:15 UTC
-```
-
-```
-⚠️ New WiFi Device: AA:BB:CC:11:22:33
-
-New device detected
-MAC: AA:BB:CC:11:22:33
-Vendor: Apple
-RSSI: -45 dBm
-Channel: 6
-
-📍 Location: home
-```
-
----
-
-## Home Assistant Integration
-
-SIGINT-Pi integrates with Home Assistant via MQTT, allowing you to:
-- Display device counts on dashboards
-- Trigger automations based on alerts
-- Track presence based on detected devices
-- Get notifications through HA's notification system
-
-### Prerequisites
-
-- Home Assistant with MQTT integration enabled
-- MQTT broker (Mosquitto recommended - can run on HA or separately)
-
-### Step 1: Set Up MQTT Broker
-
-If you don't have an MQTT broker, install Mosquitto on Home Assistant:
-
-1. Go to **Settings → Add-ons → Add-on Store**
-2. Search for "Mosquitto broker"
-3. Click **Install**, then **Start**
-4. Go to **Configuration** tab and note the credentials
-
-Or use the included Docker Compose:
-
-```bash
-cd /path/to/sigint-pi
-docker-compose --profile mqtt up -d mosquitto
-```
-
-### Step 2: Configure SIGINT-Pi for MQTT
-
-Edit your config:
-
-```toml
-[alerts.mqtt]
-enabled = true
-broker_host = "192.168.1.100"  # Your HA/MQTT broker IP
-broker_port = 1883
-client_id = "sigint-pi"
-topic_prefix = "sigint"
-username = "mqtt_user"         # Optional, if broker requires auth
-password = "mqtt_password"     # Optional
-```
-
-### Step 3: Configure Home Assistant
-
-Add MQTT sensors to your `configuration.yaml`:
-
-```yaml
-mqtt:
-  sensor:
-    # Device counts
-    - name: "SIGINT WiFi Devices"
-      state_topic: "sigint/stats"
-      value_template: "{{ value_json.wifi_total }}"
-      icon: mdi:wifi
-
-    - name: "SIGINT BLE Devices"
-      state_topic: "sigint/stats"
-      value_template: "{{ value_json.ble_total }}"
-      icon: mdi:bluetooth
-
-    - name: "SIGINT New Devices"
-      state_topic: "sigint/stats"
-      value_template: "{{ value_json.new_devices }}"
-      icon: mdi:account-alert
-
-    # GPS Location
-    - name: "SIGINT-Pi Location"
-      state_topic: "sigint/gps"
-      value_template: "{{ value_json.latitude }}, {{ value_json.longitude }}"
-      icon: mdi:crosshairs-gps
-
-  binary_sensor:
-    # Attack detection
-    - name: "SIGINT Attack Detected"
-      state_topic: "sigint/alerts/critical"
-      value_template: "{{ 'attack' in value_json.alert_type | lower }}"
-      device_class: safety
-      payload_on: "true"
-      payload_off: "false"
-
-    # Tracker detection (AirTag, Tile, etc.)
-    - name: "SIGINT Tracker Detected"
-      state_topic: "sigint/alerts/high"
-      value_template: "{{ 'tracker' in value_json.alert_type | lower }}"
-      device_class: presence
-      payload_on: "true"
-      payload_off: "false"
-```
-
-### Step 4: Create Automations
-
-**Example: Send notification when attack detected**
-
-```yaml
-automation:
-  - alias: "SIGINT Attack Alert"
-    trigger:
-      - platform: mqtt
-        topic: "sigint/alerts/critical"
-    action:
-      - service: notify.mobile_app_your_phone
-        data:
-          title: "🚨 WiFi Attack Detected!"
-          message: "{{ trigger.payload_json.description }}"
-          data:
-            priority: high
-            ttl: 0
-
-  - alias: "SIGINT Unknown Tracker Alert"
-    trigger:
-      - platform: mqtt
-        topic: "sigint/alerts/high"
-    condition:
-      - condition: template
-        value_template: "{{ 'tracker' in trigger.payload_json.alert_type | lower }}"
-    action:
-      - service: notify.mobile_app_your_phone
-        data:
-          title: "⚠️ Tracker Detected!"
-          message: "{{ trigger.payload_json.message }}"
-
-  - alias: "SIGINT New Strong Signal Device"
-    trigger:
-      - platform: mqtt
-        topic: "sigint/alerts/high"
-    condition:
-      - condition: template
-        value_template: "{{ trigger.payload_json.rssi | int > -50 }}"
-    action:
-      - service: notify.persistent_notification
-        data:
-          title: "New Device Nearby"
-          message: "Strong signal device: {{ trigger.payload_json.device_mac }}"
-```
-
-### Step 5: Dashboard Cards
-
-Add to your Lovelace dashboard:
-
-```yaml
-type: entities
-title: SIGINT-Pi Security
-entities:
-  - entity: sensor.sigint_wifi_devices
-    name: WiFi Devices
-  - entity: sensor.sigint_ble_devices
-    name: BLE Devices
-  - entity: sensor.sigint_new_devices
-    name: New Devices (24h)
-  - entity: binary_sensor.sigint_attack_detected
-    name: Attack Status
-  - entity: binary_sensor.sigint_tracker_detected
-    name: Tracker Alert
-```
-
-**Gauge card for signal monitoring:**
-
-```yaml
-type: gauge
-entity: sensor.sigint_new_devices
-name: Unknown Devices
-min: 0
-max: 20
-severity:
-  green: 0
-  yellow: 5
-  red: 10
-```
-
-### MQTT Topic Reference
-
-SIGINT-Pi publishes to these topics:
-
-| Topic | Description | Payload |
-|-------|-------------|---------|
-| `sigint/alerts/critical` | Attack alerts | JSON with alert details |
-| `sigint/alerts/high` | High priority (trackers, strong signals) | JSON with alert details |
-| `sigint/alerts/medium` | New devices | JSON with alert details |
-| `sigint/alerts/low` | Normal activity | JSON with alert details |
-| `sigint/devices/{mac}` | Per-device updates | JSON with RSSI, vendor, etc. |
-| `sigint/stats` | Overall statistics | JSON with device counts |
-| `sigint/gps` | GPS position | JSON with lat/lon |
-
-### Example MQTT Payloads
-
-**Alert payload:**
-```json
-{
-  "id": "abc123",
-  "priority": "High",
-  "alert_type": "NewDevice",
-  "title": "New WiFi Device: AA:BB:CC:DD:EE:FF",
-  "message": "New device detected...",
-  "device_mac": "AA:BB:CC:DD:EE:FF",
-  "device_vendor": "Apple",
-  "rssi": -45,
-  "location": "home",
-  "timestamp": "2024-01-15T14:32:15Z"
-}
-```
-
-**Device payload:**
-```json
-{
-  "mac": "AA:BB:CC:DD:EE:FF",
-  "vendor": "Apple",
-  "rssi": -52,
-  "device_type": "wifi",
-  "last_seen": "2024-01-15T14:35:00Z"
-}
-```
-
----
-
-## Steam Deck Support
-
-SIGINT-Pi runs on Steam Deck OLED/LCD using rootless Podman containers.
-
-### Critical Hardware Requirements
-
-> ⚠️ **The Steam Deck's internal WiFi (wlan0) does NOT support monitor mode!**
-> You MUST use an external USB WiFi adapter for WiFi packet capture.
-
-**Recommended Setup:**
-| Component | Recommendation | Notes |
-|-----------|---------------|-------|
-| USB WiFi Adapter | Alfa AWUS036ACHM | Dual-band, excellent Linux support |
-| USB GPS | VK-162 u-blox 7 | For location tracking |
-| USB Hub | Powered hub recommended | Ensures stable power to devices |
-
-### Installation on Steam Deck
-
-```bash
-# SSH into Steam Deck (enable SSH in Settings)
-ssh deck@steamdeck.local
-
-# Clone the repo
-git clone https://github.com/naanprofit/sigint-pi.git
-cd sigint-pi
-
-# Create config directories
-mkdir -p ~/.local/share/sigint-pi/data ~/.config/sigint-pi
-cp config.toml.example ~/.config/sigint-pi/config.toml
-
-# Build the container
-podman build -f Containerfile.steamdeck -t sigint-pi:steamdeck .
-
-# Run in simulation mode (no special hardware needed)
-podman-compose -f podman-compose.steamdeck.yml --profile simulation up -d
-
-# Or run with real hardware (requires external USB WiFi)
-# First, put your USB WiFi adapter in monitor mode:
-sudo ./scripts/wifi-monitor.sh wlan1
-
-# Then start with hardware profile:
-podman-compose -f podman-compose.steamdeck.yml --profile hardware up -d
-```
-
-### Adding to Steam as Non-Steam App
-
-1. Copy launcher script: `cp scripts/steamdeck-launch.sh ~/bin/`
-2. Make executable: `chmod +x ~/bin/steamdeck-launch.sh`
-3. In Steam Desktop Mode: **Games → Add Non-Steam Game**
-4. Browse to `~/bin/steamdeck-launch.sh` and add it
-5. Optionally set a custom icon and controller configuration
-
-### Steam Deck Scripts
-
-| Script | Purpose |
-|--------|---------|
-| `steamdeck-launch.sh` | Start container and open browser |
-| `steamdeck-stop.sh` | Stop container cleanly |
-| `steamdeck-status.sh` | Show hardware and runtime status |
-| `wifi-list.sh` | List wireless interfaces and capabilities |
-| `wifi-monitor.sh` | Enable monitor mode on interface |
-| `wifi-managed.sh` | Restore managed mode |
-
----
-
-## Signal Messenger Alerts
-
-Signal provides end-to-end encrypted alert delivery using signal-cli.
-
-### Setup
-
-1. **Install signal-cli:**
-```bash
-# Download from https://github.com/AsamK/signal-cli/releases
-wget https://github.com/AsamK/signal-cli/releases/download/v0.13.2/signal-cli-0.13.2-Linux.tar.gz
-tar xf signal-cli-*.tar.gz
-sudo mv signal-cli-*/bin/signal-cli /usr/local/bin/
-sudo mv signal-cli-*/lib /usr/local/lib/signal-cli
-```
-
-2. **Register a phone number (requires receiving SMS):**
-```bash
-signal-cli -a +1YOURNUMBER register
-signal-cli -a +1YOURNUMBER verify CODE_FROM_SMS
-```
-
-3. **Configure SIGINT-Pi:**
-```toml
-[alerts.signal]
-enabled = true
-sender_number = "+1YOURNUMBER"
-recipients = ["+1RECIPIENT1", "+1RECIPIENT2"]
-signal_cli_path = "/usr/local/bin/signal-cli"
-config_dir = "/etc/sigint-pi/signal"
-min_priority = "high"
-```
-
-4. **Test:**
-```bash
-signal-cli -a +1YOURNUMBER send -m "Test from SIGINT-Pi" +1RECIPIENT
-```
-
----
-
-## OpenClaw Integration
-
-OpenClaw is a centralized alert aggregation platform that can receive alerts from multiple SIGINT-Pi devices.
-
-### Configuration
-
-```toml
-[alerts.openclaw]
-enabled = true
-api_url = "https://api.openclaw.io/v1/alerts"
-api_key = "your-api-key-here"
-device_id = "sigint-pi-001"
-device_name = "SIGINT-Pi Living Room"
-tags = ["home", "primary"]
-include_raw_data = false
-min_priority = "medium"
-```
-
-### API Key Setup
-
-1. Create an account at your OpenClaw instance (or https://openclaw.io)
-2. Navigate to **Settings → API Keys**
-3. Create a new API key with `alerts:write` scope
-4. Copy the key to your config.toml
-
-### Alert Payload Format
-
-SIGINT-Pi sends alerts to OpenClaw in this JSON format:
-
-```json
-{
-    "device_id": "sigint-pi-001",
-    "device_name": "SIGINT-Pi Living Room",
-    "alert_type": "new_device|attack|tracker|geofence",
-    "priority": "low|medium|high|critical",
-    "title": "Alert Title",
-    "message": "Detailed message",
-    "timestamp": 1234567890,
-    "location": {
-        "latitude": 40.7128,
-        "longitude": -74.0060
-    },
-    "tags": ["home", "primary"],
-    "metadata": {
-        "mac_address": "AA:BB:CC:DD:EE:FF",
-        "vendor": "Apple Inc",
-        "rssi": -45
-    }
-}
-```
-
-### Multi-Device Setup
-
-For multiple SIGINT-Pi devices reporting to one OpenClaw instance:
-- Use unique `device_id` for each device
-- Use descriptive `device_name` for identification
-- Use tags to group devices by location/purpose
-
-### Testing
-
-```bash
-curl -X POST https://api.openclaw.io/v1/alerts \
-  -H "Authorization: Bearer your-api-key" \
+# Set home location
+curl -X POST http://localhost:8080/api/geofence/home \
   -H "Content-Type: application/json" \
-  -d '{"device_id":"test","alert_type":"test","title":"Test","message":"Test message","timestamp":0}'
+  -d '{"latitude": 40.7128, "longitude": -74.0060, "radius_m": 100}'
+
+# Check status
+curl http://localhost:8080/api/geofence/status
 ```
 
----
+## Settings
 
-## Tracker Detection & AirTag Data
+Settings are saved to `~/sigint-deck/config.toml`:
 
-SIGINT-Pi provides advanced detection and analysis of Bluetooth tracking devices.
-
-### Supported Trackers
-
-| Tracker | Detection | Extended Data |
-|---------|-----------|---------------|
-| Apple AirTag | ✅ | Status, Lost Mode, Counter, Key Hint |
-| Apple Find My (3rd party) | ✅ | Status, Counter |
-| Tile | ✅ | Basic |
-| Samsung SmartTag | ✅ | Basic |
-
-### What Data Can Be Extracted
-
-**From BLE Advertisements (Passive Scanning):**
-
-| Data | Available | Notes |
-|------|-----------|-------|
-| Detect as tracker | ✅ | Payload type 0x12 = Find My |
-| Signal strength (RSSI) | ✅ | Estimate proximity |
-| Status byte | ✅ | Indicates device state |
-| Lost mode flag | ✅ | Partial - from status byte |
-| Separated from owner | ✅ | From status byte (>3 days away) |
-| Counter/nonce | ✅ | Changes every 15 minutes |
-| Key hint (fingerprint) | ✅ | Privacy-preserving, for session correlation |
-| Owner identity | ❌ | Encrypted, only Apple can decrypt |
-| Serial number | ❌ | Not in BLE broadcasts |
-| Device name | ❌ | Not in BLE broadcasts |
-| Location history | ❌ | Stored on Apple servers only |
-
-**From NFC Tap (Physical Access Required):**
-
-| Data | Available | Notes |
-|------|-----------|-------|
-| Found URL | ✅ | Links to found.apple.com |
-| Owner contact info | ✅ | Only if Lost Mode enabled by owner |
-| Serial number | ❌ | Not exposed via NFC |
-
-### Privacy by Design
-
-Apple AirTags are designed with strong privacy protections:
-
-1. **Rotating Public Key** - The EC P-224 public key rotates daily, preventing long-term tracking
-2. **Rotating MAC Address** - BLE address changes with the key
-3. **End-to-End Encryption** - Location data encrypted with owner's iCloud keys
-4. **No Owner Identification** - Cannot determine who owns an AirTag from BLE alone
-
-### Dashboard Display
-
-The dashboard shows tracker-specific information:
-
-- **Type Badge**: AirTag, Tile, SmartTag
-- **LOST MODE**: Red badge when tracker appears to be in lost mode
-- **SEPARATED**: Yellow badge when tracker is separated from owner (>3 days)
-- **Key Hint**: Privacy-preserving fingerprint for session correlation (e.g., `ab12..ff`)
-- **Status**: Raw status byte in hex
-- **Counter**: Nonce value (changes every 15 minutes)
-
-### Use Cases
-
-1. **Detect Unwanted Tracking** - Alert when unknown trackers follow you
-2. **Stalker Detection** - Identify persistent trackers across sessions
-3. **Security Awareness** - Know what BLE trackers are in your environment
-4. **Lost Item Recovery** - NFC tap reveals owner contact if Lost Mode enabled
-
-### Ethical Considerations
-
-- SIGINT-Pi cannot identify AirTag owners from BLE data alone
-- Designed for defensive use (detecting trackers following you)
-- Does not enable stalking or privacy invasion
-- Key hints are session-only and not stored long-term
-
----
-
-## AI/LLM Device Analysis
-
-SIGINT-Pi can optionally use AI to analyze detected devices and provide threat assessments.
-
-### Supported Providers
-
-| Provider | Type | Configuration |
-|----------|------|---------------|
-| llama.cpp | Local | `http://localhost:8080/v1` |
-| Ollama | Local | `http://localhost:11434/v1` |
-| LMStudio | Local | `http://localhost:1234/v1` |
-| OpenAI | Cloud | `https://api.openai.com/v1` |
-| Custom | Any | OpenAI-compatible API endpoint |
-
-### Configuration
-
-```toml
-[llm]
-enabled = true
-provider = "llamacpp"  # llamacpp, ollama, lmstudio, openai, custom
-endpoint = "http://192.168.1.100:8080/v1"
-model = "llama-3.2-3b"
-api_key = ""  # Required for OpenAI, optional for local
-timeout_secs = 30
-max_tokens = 500
-temperature = 0.3
+```bash
+# Save settings via API
+curl -X POST http://localhost:8080/api/settings \
+  -H "Content-Type: application/json" \
+  -d @settings.json
 ```
 
-### Features
+## Systemd Service
 
-- **On-Demand Analysis**: User-triggered, not automatic (saves resources)
-- **Threat Assessment**: Identifies surveillance equipment, suspicious patterns
-- **Device Classification**: Enhanced device type identification
-- **Local Caching**: Stores descriptions for offline access
-- **Privacy-Preserving**: Only analyzes OUI/vendor data, not personal info
+```bash
+# Start
+systemctl --user start sigint-deck
 
-### Threat Intelligence Database
+# Stop  
+systemctl --user stop sigint-deck
 
-SIGINT-Pi includes a built-in database of 100+ surveillance equipment OUIs:
+# Enable on boot
+systemctl --user enable sigint-deck
+loginctl enable-linger deck
 
-| Category | Examples |
-|----------|----------|
-| US Defense | Harris (Stingray), L3Harris, Raytheon, Lockheed Martin |
-| Law Enforcement | Cellebrite, Digital Intelligence, MSAB |
-| Chinese State-Linked | Huawei, ZTE, Hikvision, Dahua |
-| Israeli | NSO Group, Elbit Systems, Rafael |
-| European | Thales, BAE Systems, Airbus Defence |
+# Logs
+journalctl --user -u sigint-deck -f
+```
 
-### API Endpoints
+## API Endpoints
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/ai/status` | GET | Check AI availability |
-| `/api/ai/analyze` | POST | Analyze device(s) |
-| `/api/settings/llm` | GET/POST | Configure LLM settings |
+| `/api/status` | GET | System status |
+| `/api/wifi/devices` | GET | WiFi devices |
+| `/api/ble/devices` | GET | BLE devices |
+| `/api/alerts` | GET | Recent alerts |
+| `/api/settings` | GET/POST | Settings |
+| `/api/pcap/start` | POST | Start PCAP |
+| `/api/pcap/stop` | POST | Stop PCAP |
+| `/api/geofence/home` | POST | Set geofence |
+| `/api/sdr/status` | GET | SDR hardware detection |
+| `/api/sdr/spectrum` | POST | Spectrum scan |
+| `/api/sdr/radio/tune` | POST | Tune radio |
+| `/api/sdr/radio/stream` | GET | PCM audio stream |
+| `/api/sdr/tscm/sweep` | POST | TSCM sweep |
+| `/api/sdr/drone/scan` | POST | Drone RF scan |
+| `/api/sdr/rtl433/devices` | GET | RTL-433 decoded devices |
+| `/api/rayhunter/status` | GET | RayHunter IMSI status |
+| `/api/rayhunter/start-recording` | POST | Start QMDL recording |
+| `/api/rayhunter/stop-recording` | POST | Stop QMDL recording |
 
-### Dashboard Integration
+## OUI Database
 
-- **AI Status Indicator**: Shows if AI is available
-- **Analyze Button**: Trigger analysis for selected devices
-- **Threat Badges**: Visual indicators for suspicious devices
+Includes 500+ vendor entries:
+- Consumer devices (Apple, Samsung, Intel, etc.)
+- IoT/Smart Home (MELK LED strips, Govee, Philips Hue, etc.)
+- Threat intel (Harris/Stingray, Hikvision, Dahua, etc.)
 
----
+## Device Learning
 
-## Sound Alerts & Ninja Mode
+SIGINT-Deck learns your environment over time:
 
-### Sound Alerts
-
-SIGINT-Pi can play audio alerts for various events:
-
+### Training Period
 ```toml
-[alerts.sound]
+[learning]
 enabled = true
-ninja_mode = false
-volume = 70
-new_device_sound = true
-tracker_sound = true
-attack_sound = true
-geofence_sounds = true
+training_hours = 1    # Hours to establish baseline
+anomaly_threshold = 0.7
 ```
 
-### Ninja Mode 🥷
+### What Happens
+1. **During Training**: Collects device data, no anomaly alerts
+2. **After Training**: Known devices become baseline, new devices flagged
+3. **Location Change**: GPS detects movement > 100m, resets training
 
-**Ninja Mode** silences ALL audio alerts and can disable visual indicators for covert operation:
+### Anomaly Detection
+After training, devices are scored for unusual behavior:
+- Signal strength deviation
+- Unusual time of appearance  
+- Behavioral pattern changes
 
-- Toggle via Settings UI or API: `POST /api/settings/ninja_mode`
-- Keyboard shortcut in dashboard: Press `N`
-- All sounds are immediately silenced
-- Useful when you need silent monitoring
+Score > 0.7 triggers alert.
 
----
+### Device Fingerprinting
+Creates behavioral profiles that survive MAC randomization:
+- Probe request patterns
+- Time-of-day patterns
+- Associated networks
+- Device classification (Phone, Laptop, IoT, etc.)
+
+## Troubleshooting
+
+### WiFi adapter not in monitor mode
+```bash
+sudo ip link set wlan1 down
+sudo iw wlan1 set type monitor
+sudo ip link set wlan1 up
+```
+
+### GPS not detecting
+```bash
+# Check device
+lsusb | grep -i u-blox
+ls -la /dev/ttyACM*
+
+# Start gpsd
+sudo gpsd /dev/ttyACM0 -F /var/run/gpsd.sock
+```
+
+### Dashboard shows disconnected
+```bash
+# Check service
+systemctl --user status sigint-deck
+
+# Check API
+curl http://localhost:8080/api/status
+```
 
 ## SDR Support (Optional)
 
-SIGINT-Pi supports Software Defined Radios for spectrum monitoring.
+SIGINT-Deck supports Software Defined Radios for spectrum monitoring. Since Steam Deck has a read-only root filesystem, SDR tools are installed to `~/bin` to survive SteamOS updates.
 
-### Install SDR Tools (Raspberry Pi)
-
-```bash
-# Install from apt
-sudo apt-get install -y rtl-sdr hackrf libhackrf-dev limesuite
-
-# Or use the install script
-./scripts/install-sdr.sh
-```
-
-### Install SDR Tools (Steam Deck)
-
-Steam Deck has a read-only root filesystem, so tools are installed to `~/bin`:
+### Install SDR Tools
 
 ```bash
 # Run the SDR setup script
 ~/sigint-deck/scripts/install-sdr.sh
+```
+
+Or install manually:
+
+```bash
+# The script downloads and extracts SDR tools from Arch packages
+mkdir -p ~/sdr-tools ~/bin/lib
+
+# RTL-SDR
+wget "https://archive.archlinux.org/packages/r/rtl-sdr/rtl-sdr-1%3A2.0.2-1-x86_64.pkg.tar.zst" -O rtl-sdr.pkg.tar.zst
+zstd -d rtl-sdr.pkg.tar.zst && tar xf rtl-sdr.pkg.tar
+cp usr/bin/rtl_* ~/bin/ && cp usr/lib/*.so* ~/bin/lib/
+
+# HackRF
+wget "https://archive.archlinux.org/packages/h/hackrf/hackrf-2024.02.1-3-x86_64.pkg.tar.zst" -O hackrf.pkg.tar.zst
+zstd -d hackrf.pkg.tar.zst && tar xf hackrf.pkg.tar
+cp usr/bin/hackrf_* ~/bin/ && cp usr/lib/*.so* ~/bin/lib/
+
+# LimeSDR
+wget "https://archive.archlinux.org/packages/l/limesuite/limesuite-23.11.0-4-x86_64.pkg.tar.zst" -O limesuite.pkg.tar.zst
+zstd -d limesuite.pkg.tar.zst && tar xf limesuite.pkg.tar
+cp usr/bin/Lime* ~/bin/ && cp usr/lib/*.so* ~/bin/lib/
+
+# Add to .bashrc
+echo 'export LD_LIBRARY_PATH="$HOME/bin/lib:$LD_LIBRARY_PATH"' >> ~/.bashrc
 ```
 
 ### SDR Tools Reference
@@ -886,53 +419,59 @@ Steam Deck has a read-only root filesystem, so tools are installed to `~/bin`:
 | Tool | Purpose | Example |
 |------|---------|---------|
 | `rtl_sdr` | Raw I/Q capture | `rtl_sdr -f 433.92M -s 2.4M capture.bin` |
-| `rtl_fm` | FM demodulation | `rtl_fm -f 99.5M -M wbfm -s 200k - \| aplay -r 48k` |
-| `rtl_power` | Spectrum scanning | `rtl_power -f 400M:500M:100k scan.csv` |
+| `rtl_fm` | FM demodulation | `rtl_fm -f 99.5M -M wbfm -s 200k - \| aplay -r 48000` |
+| `rtl_power` | Spectrum scanning | `rtl_power -f 400M:500M:100k -i 1 scan.csv` |
+| `rtl_adsb` | Aircraft tracking | `rtl_adsb` |
 | `hackrf_info` | HackRF device info | `hackrf_info` |
-| `hackrf_sweep` | Wideband sweep | `hackrf_sweep -f 2400:2500` |
+| `hackrf_sweep` | Wideband sweep | `hackrf_sweep -f 2400:2500 -w 100000` |
+| `hackrf_transfer` | Raw TX/RX | `hackrf_transfer -r capture.bin -f 433920000` |
 | `LimeUtil` | LimeSDR info | `LimeUtil --find` |
+| `SoapySDRUtil` | Universal SDR API | `SoapySDRUtil --find` |
 
----
+### Verify Installation
+
+```bash
+export LD_LIBRARY_PATH="$HOME/bin/lib:$LD_LIBRARY_PATH"
+
+# Test RTL-SDR
+rtl_test -t
+
+# Test HackRF
+hackrf_info
+
+# Test LimeSDR
+LimeUtil --find
+
+# Universal check
+SoapySDRUtil --find
+```
 
 ## RayHunter IMSI Catcher Detection (Optional)
 
-SIGINT-Pi integrates with EFF's RayHunter for detecting IMSI catchers (Stingrays).
+SIGINT-Deck integrates with EFF's RayHunter for detecting IMSI catchers (Stingrays).
 
 ### Requirements
 
 - Pixel 3a, 3a XL, 4a, or 4a 5G with RayHunter installed
 - USB data cable
 
-### Setup (Raspberry Pi)
+### Setup
 
 ```bash
-# Install ADB
-sudo apt-get install -y android-tools-adb
+# Install ADB (Android Debug Bridge)
+~/sigint-deck/scripts/install-adb.sh
 
 # Connect phone and enable USB debugging
 adb devices  # Should show your device
 
-# Create polling script
-./scripts/install-rayhunter.sh
-
-# Enable the service
-sudo systemctl enable --now rayhunter-adb
-```
-
-### Setup (Steam Deck)
-
-```bash
-# Install ADB and RayHunter integration
-~/sigint-deck/scripts/install-adb.sh
-
-# Enable the service
+# Enable and start RayHunter ADB service
 systemctl --user enable --now rayhunter-adb
 ```
 
 ### How It Works
 
 1. RayHunter runs on the Pixel phone, monitoring cellular baseband
-2. SIGINT-Pi/Deck polls RayHunter via ADB every 5 seconds
+2. SIGINT-Deck polls RayHunter via ADB every 5 seconds
 3. If IMSI catcher activity detected, a distinct siren alert plays
 4. The "🐳 IMSI" tab shows real-time status
 
@@ -944,86 +483,42 @@ systemctl --user enable --now rayhunter-adb
 | 2G Downgrade | Forced downgrade to insecure 2G |
 | LTE SIB 6/7 Downgrade | Suspicious broadcast of 2G/3G priorities |
 
----
+## Documentation
 
-## Running on macOS (Development/Testing)
-
-You can run SIGINT-Pi in simulation mode on your Mac for testing:
-
-```bash
-cd sigint-pi
-
-# Copy and edit config
-cp config.toml.example config.toml
-nano config.toml  # Add your Telegram token
-
-# Run with Docker
-docker-compose up sigint-pi
-```
-
-Dashboard: http://localhost:8080
-
-**Note:** WiFi monitor mode doesn't work on macOS. Simulation mode generates realistic fake device traffic for testing the full alert pipeline.
-
----
+| Document | Description |
+|----------|-------------|
+| [INSTALL.md](docs/INSTALL.md) | Full installation guide for Pi and Deck |
+| [BUILD.md](docs/BUILD.md) | Build from source (native and cross-compile) |
+| [KNOWN_ISSUES.md](KNOWN_ISSUES.md) | Known bugs, workarounds, and hardware quirks |
+| [CHANGELOG.md](CHANGELOG.md) | Version history and all fixes |
+| [LEGAL.md](LEGAL.md) | Legal compliance and regulatory guidance |
+| [CREDITS.md](CREDITS.md) | Open-source credits and attributions |
+| [DRONE_DETECTION.md](docs/DRONE_DETECTION.md) | Drone detection methodology and frequencies |
+| [TSCM-THREAT-DATABASE.md](docs/TSCM-THREAT-DATABASE.md) | TSCM threat signatures |
+| [HARDWARE-BOM.md](docs/HARDWARE-BOM.md) | Bill of materials |
+| [PI_REQUIREMENTS.md](docs/PI_REQUIREMENTS.md) | Pi hardware requirements |
 
 ## Legal Notice
 
-### ⚠️ IMPORTANT LEGAL DISCLAIMER
+This software is for **authorized security research only**.
 
-**READ THIS BEFORE USING SIGINT-Pi**
-
-This software is provided for **authorized security research, penetration testing, and educational purposes ONLY**.
-
-#### Legal Compliance
-
-- **You are solely responsible** for ensuring your use of this tool complies with all applicable local, state, federal, and international laws.
-- **Monitoring wireless communications without authorization is ILLEGAL** in most jurisdictions.
-- The legality of passive WiFi monitoring varies by country and region.
-
-#### Authorized Use Only
-
-- **ONLY** use this tool on networks and devices you own or have explicit written permission to monitor.
-- Unauthorized interception of communications may result in **criminal prosecution**.
-
-#### Prohibited Uses
-
-Do NOT use this tool to:
-- Intercept, capture, or analyze communications of third parties without consent
-- Stalk, harass, or invade the privacy of others
-- Conduct attacks on networks or devices
-- Any illegal or unethical purpose
-
-#### Hardware Requirements
-
-For proper operation, you MUST use appropriate hardware:
-
-| Requirement | Details |
-|-------------|---------|
-| **WiFi Monitor Mode** | Requires an **external USB WiFi adapter** that supports monitor mode. The Steam Deck's internal WiFi does NOT support monitor mode. Recommended: Alfa AWUS036ACHM |
-| **GPS** | Requires an **external USB GPS receiver** (e.g., VK-162 u-blox 7) |
-| **Portable Power** | Use a **powered USB hub** to ensure stable power delivery to all connected USB devices |
-
-#### No Warranty
-
-This software is provided "AS IS" without warranty of any kind. The authors are not responsible for any damages, legal issues, or consequences arising from the use of this software.
-
----
+- Only use on networks/devices you own or have permission to monitor
+- Unauthorized interception is illegal in most jurisdictions
+- You are solely responsible for legal compliance
+- See [LEGAL.md](LEGAL.md) for complete regulatory guidance
 
 ## Support
 
-If you find SIGINT-Pi useful, consider supporting development:
+If you find SIGINT-Deck useful, consider supporting development:
 
 **Bitcoin:** `3GD3hpufcCPCemfQdoAFu9JH5Td5US1pzJ`
 
 ## License
 
-MIT License - See LICENSE file
+GPL-3.0-or-later. See [LICENSE](LICENSE) for full text.
 
-## Author
+## Repository
 
-**sigkill**
+https://github.com/naanprofit/sigint-pi
 
----
-
-*By using this software, you acknowledge that you have read, understood, and agree to comply with all applicable laws and the terms of this disclaimer.*
+> This is the Raspberry Pi build of the SIGINT-Deck project. The codebase is identical to [sigint-deck](https://github.com/naanprofit/sigint-deck) with Pi-specific defaults. Both repos produce the same binary.

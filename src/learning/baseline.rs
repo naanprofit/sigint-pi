@@ -5,13 +5,17 @@ use tokio::sync::broadcast;
 use tracing::{debug, info, warn};
 
 use crate::config::Config;
-use crate::storage::Database;
+use crate::storage::{Database, OuiLookup};
 use crate::gps::GpsPosition;
 use crate::wifi::WifiDevice;
 use crate::bluetooth::BleDevice;
 use crate::ScanEvent;
 
 use super::anomaly::AnomalyDetector;
+
+lazy_static::lazy_static! {
+    static ref OUI_LOOKUP: OuiLookup = OuiLookup::embedded();
+}
 
 pub struct DeviceLearner {
     db: Arc<Database>,
@@ -175,8 +179,13 @@ impl DeviceLearnerState {
             }
         }
 
-        // Store sighting in database
-        if let Ok(device_id) = self.db.upsert_wifi_device(device, self.current_location_id).await {
+        // Store sighting in database (with OUI lookup if vendor not set)
+        let mut device_with_vendor = device.clone();
+        if device_with_vendor.vendor.is_none() {
+            device_with_vendor.vendor = OUI_LOOKUP.lookup(&device.mac_address).map(|s| s.to_string());
+        }
+        
+        if let Ok(device_id) = self.db.upsert_wifi_device(&device_with_vendor, self.current_location_id).await {
             let _ = self.db.record_sighting(
                 device_id,
                 "wifi",
@@ -222,8 +231,13 @@ impl DeviceLearnerState {
             info!("Tracker device detected: {} (type: {:?})", mac, device.device_type);
         }
 
-        // Store in database
-        if let Ok(device_id) = self.db.upsert_ble_device(device, self.current_location_id).await {
+        // Store in database (with OUI lookup if vendor not set)
+        let mut device_with_vendor = device.clone();
+        if device_with_vendor.vendor.is_none() {
+            device_with_vendor.vendor = OUI_LOOKUP.lookup(&device.mac_address).map(|s| s.to_string());
+        }
+        
+        if let Ok(device_id) = self.db.upsert_ble_device(&device_with_vendor, self.current_location_id).await {
             let _ = self.db.record_sighting(
                 device_id,
                 "ble",

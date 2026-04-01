@@ -1188,6 +1188,474 @@
         .voice-status.unavailable {
             color: var(--accent-yellow);
         }
+        
+        /* Contact Log Styles */
+        .contacts-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .contacts-header h3 {
+            margin: 0;
+        }
+        
+        .contacts-controls {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        
+        .contact-search-input {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            min-width: 200px;
+        }
+        
+        .export-btn {
+            background: var(--accent-blue) !important;
+        }
+        
+        .contacts-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+            padding: 0 1rem 1rem;
+        }
+        
+        .stat-box {
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem;
+            text-align: center;
+        }
+        
+        .stat-box .stat-value {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--accent-blue);
+        }
+        
+        .stat-box .stat-label {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        
+        .contacts-table-container {
+            overflow-x: auto;
+            padding: 0 1rem;
+        }
+        
+        .contacts-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+        }
+        
+        .contacts-table th,
+        .contacts-table td {
+            padding: 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .contacts-table th {
+            background: var(--bg-secondary);
+            cursor: pointer;
+            user-select: none;
+            position: sticky;
+            top: 0;
+        }
+        
+        .contacts-table th:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .contacts-table tr:hover {
+            background: var(--bg-tertiary);
+        }
+        
+        .contacts-table .type-wifi {
+            color: var(--accent-blue);
+        }
+        
+        .contacts-table .type-ble {
+            color: var(--accent-purple);
+        }
+        
+        .contacts-table .threat-critical {
+            color: var(--accent-red);
+            font-weight: bold;
+        }
+        
+        .contacts-table .threat-high {
+            color: #ff6b6b;
+        }
+        
+        .contacts-table .threat-medium {
+            color: var(--accent-yellow);
+        }
+        
+        .contacts-table .threat-low {
+            color: var(--accent-green);
+        }
+        
+        .contacts-table .action-btn {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .contacts-pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+        }
+        
+        /* Contact Modal */
+        .contact-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+        
+        .contact-modal.active {
+            display: flex;
+        }
+        
+        .contact-modal-content {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 1.5rem;
+        }
+        
+        .contact-modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 1rem;
+        }
+        
+        .contact-modal-close {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-size: 1.5rem;
+            cursor: pointer;
+        }
+        
+        .contact-detail-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .detail-card {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+        }
+        
+        .detail-card h4 {
+            margin: 0 0 0.5rem 0;
+            color: var(--text-secondary);
+            font-size: 0.8rem;
+            text-transform: uppercase;
+        }
+        
+        .detail-card p {
+            margin: 0;
+            font-size: 1rem;
+            word-break: break-all;
+        }
+        
+        .sighting-timeline {
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .sighting-timeline h4 {
+            margin: 0 0 1rem 0;
+        }
+        
+        .sighting-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .sighting-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+        }
+        
+        .sighting-item:last-child {
+            border-bottom: none;
+        }
+        
+        /* SDR Panel Styles */
+        .sdr-panel {
+            padding: 1rem;
+        }
+        
+        .sdr-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .sdr-logo {
+            font-size: 2.5rem;
+        }
+        
+        .sdr-title h3 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        
+        .sdr-subtitle {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+        }
+        
+        .sdr-capabilities {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .sdr-capabilities h4 {
+            margin: 0 0 0.75rem 0;
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+        
+        .sdr-status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 0.75rem;
+        }
+        
+        .sdr-devices-list {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+        }
+        
+        .sdr-device-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            margin-bottom: 0.25rem;
+        }
+        
+        .sdr-device-item .device-icon {
+            font-size: 1.25rem;
+        }
+        
+        .sdr-section {
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+        }
+        
+        .sdr-section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+        
+        .sdr-section-header h4 {
+            margin: 0;
+            font-size: 1rem;
+        }
+        
+        .sdr-info-text {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            margin-bottom: 0.75rem;
+            padding: 0.5rem;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+        }
+        
+        .sdr-controls {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .spectrum-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            margin-bottom: 0.75rem;
+        }
+        
+        .spectrum-select, .spectrum-input {
+            padding: 0.5rem;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+        
+        .spectrum-display {
+            min-height: 150px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            padding: 1rem;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        
+        .spectrum-bar {
+            display: inline-block;
+            width: 4px;
+            margin-right: 1px;
+            background: var(--accent-blue);
+            vertical-align: bottom;
+        }
+        
+        .spectrum-bar.strong {
+            background: var(--accent-red);
+        }
+        
+        .spectrum-bar.medium {
+            background: var(--accent-yellow);
+        }
+        
+        .rf-device-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .rf-device-info {
+            flex: 1;
+        }
+        
+        .rf-device-model {
+            font-weight: 600;
+            color: var(--accent-blue);
+        }
+        
+        .rf-device-details {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .rf-device-meta {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        
+        .cell-tower-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+            border-left: 3px solid var(--accent-blue);
+        }
+        
+        .cell-tower-item.suspicious {
+            border-left-color: var(--accent-red);
+            background: rgba(248, 81, 73, 0.1);
+        }
+        
+        .cell-tower-info {
+            flex: 1;
+        }
+        
+        .cell-tower-band {
+            font-weight: 600;
+        }
+        
+        .cell-tower-freq {
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .cell-tower-power {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        
+        .drone-signal-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: rgba(210, 153, 34, 0.1);
+            border: 1px solid var(--accent-yellow);
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        
+        .drone-signal-item.active {
+            background: rgba(248, 81, 73, 0.1);
+            border-color: var(--accent-red);
+            animation: pulse 2s infinite;
+        }
+        
+        .audio-controls {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .sdr-available {
+            color: var(--accent-green);
+        }
+        
+        .sdr-unavailable {
+            color: var(--text-secondary);
+        }
     </style>
 </head>
 <body>
@@ -1271,8 +1739,23 @@
         <button class="tab-btn" data-tab="gps" tabindex="0">
             🛰️ GPS
         </button>
+        <button class="tab-btn" data-tab="contacts" tabindex="0">
+            📋 Contacts <span class="badge-count" id="contactCount">--</span>
+        </button>
+        <button class="tab-btn" data-tab="sdr" tabindex="0">
+            📻 SDR <span class="badge-count" id="sdrBadge">--</span>
+        </button>
+        <button class="tab-btn" data-tab="radio" tabindex="0">
+            🎵 Radio
+        </button>
+        <button class="tab-btn" data-tab="tscm" tabindex="0">
+            🔍 TSCM <span class="badge-count" id="tscmBadge">--</span>
+        </button>
         <button class="tab-btn" data-tab="settings" tabindex="0">
             ⚙️ Settings
+        </button>
+        <button class="tab-btn" data-tab="about" tabindex="0">
+            ℹ️ About
         </button>
     </nav>
 
@@ -1431,6 +1914,357 @@
         </div>
     </div>
     
+    <!-- SDR Tab (Software Defined Radio) -->
+    <div class="tab-content" id="tab-sdr">
+        <div class="sdr-panel">
+            <div class="sdr-header">
+                <div class="sdr-logo">📻</div>
+                <div class="sdr-title">
+                    <h3>Software Defined Radio</h3>
+                    <span class="sdr-subtitle">RTL-SDR, HackRF, LimeSDR Monitoring</span>
+                </div>
+                <button class="action-btn" onclick="refreshSdrStatus()">🔄 Refresh</button>
+            </div>
+            
+            <!-- SDR Capabilities -->
+            <div class="sdr-capabilities" id="sdrCapabilities">
+                <h4>Hardware Detection</h4>
+                <div class="sdr-status-grid" id="sdrStatusGrid">
+                    <div class="status-card">
+                        <span class="status-label">RTL-SDR</span>
+                        <span class="status-value" id="sdrRtlsdr">Checking...</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">RTL_433</span>
+                        <span class="status-value" id="sdrRtl433">Checking...</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">HackRF</span>
+                        <span class="status-value" id="sdrHackrf">Checking...</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">LimeSDR</span>
+                        <span class="status-value" id="sdrLimesdr">Checking...</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Kalibrate</span>
+                        <span class="status-value" id="sdrKalibrate">Checking...</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">RTL Power</span>
+                        <span class="status-value" id="sdrRtlpower">Checking...</span>
+                    </div>
+                </div>
+                <div id="sdrDevicesList" class="sdr-devices-list" style="margin-top: 0.75rem;">
+                    <!-- Connected devices will be listed here -->
+                </div>
+            </div>
+            
+            <!-- RF Device Monitor (rtl_433) -->
+            <div class="sdr-section" id="sdrRfMonitorSection">
+                <div class="sdr-section-header">
+                    <h4>📡 RF Device Monitor (433/315 MHz)</h4>
+                    <div class="sdr-controls">
+                        <button class="action-btn" id="rtl433StartBtn" onclick="toggleRtl433()">▶️ Start</button>
+                    </div>
+                </div>
+                <div class="sdr-info-text">
+                    Monitors ISM bands for wireless sensors, weather stations, remotes, tire pressure sensors, doorbells, etc.
+                </div>
+                <div id="rtl433Devices" class="device-list">
+                    <div class="empty-state">Click Start to begin RF monitoring</div>
+                </div>
+            </div>
+            
+            <!-- Spectrum Analyzer -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📊 Spectrum Analyzer</h4>
+                </div>
+                <div class="spectrum-controls">
+                    <select id="spectrumBand" class="spectrum-select">
+                        <option value="">Select Band...</option>
+                        <option value="ism433">ISM 433 MHz</option>
+                        <option value="ism915">ISM 915 MHz</option>
+                        <option value="wifi24">WiFi 2.4 GHz</option>
+                        <option value="drones">Drone Bands (2.4/5.8 GHz)</option>
+                        <option value="gsm850">GSM 850</option>
+                        <option value="gsm1900">GSM 1900 / PCS</option>
+                        <option value="lte700">LTE 700 MHz</option>
+                    </select>
+                    <span style="margin: 0 0.5rem;">or</span>
+                    <input type="number" id="spectrumStartMhz" placeholder="Start MHz" style="width: 100px;" class="spectrum-input">
+                    <span>-</span>
+                    <input type="number" id="spectrumEndMhz" placeholder="End MHz" style="width: 100px;" class="spectrum-input">
+                    <button class="action-btn" onclick="scanSpectrum()">🔍 Scan</button>
+                </div>
+                <div id="spectrumDisplay" class="spectrum-display">
+                    <div class="empty-state">Select a band and click Scan to analyze spectrum</div>
+                </div>
+            </div>
+            
+            <!-- Cellular Tower Scanner -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📶 Cell Tower Scanner</h4>
+                    <button class="action-btn" onclick="scanCellTowers()">🔍 Scan Towers</button>
+                </div>
+                <div class="sdr-info-text">
+                    Scans GSM/LTE bands to identify nearby cell towers. Useful for detecting fake base stations.
+                </div>
+                <div id="cellTowerList" class="device-list">
+                    <div class="empty-state">Click Scan to detect nearby cell towers</div>
+                </div>
+            </div>
+            
+            <!-- Drone Detection -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🚁 Drone Detection</h4>
+                    <button class="action-btn" onclick="scanDrones()">🔍 Scan</button>
+                </div>
+                <div class="sdr-info-text">
+                    Monitors 2.4 GHz and 5.8 GHz bands for drone control signals and video downlinks.
+                </div>
+                <div id="droneSignalList" class="device-list">
+                    <div class="empty-state">Click Scan to detect drone signals</div>
+                </div>
+            </div>
+            
+            <!-- SDR Audio Streaming (future) -->
+            <div class="sdr-section sdr-audio-section" style="display: none;">
+                <div class="sdr-section-header">
+                    <h4>🔊 Audio Stream</h4>
+                </div>
+                <div class="audio-controls">
+                    <input type="number" id="audioFreqMhz" placeholder="Frequency MHz" style="width: 120px;">
+                    <select id="audioMode">
+                        <option value="fm">FM</option>
+                        <option value="am">AM</option>
+                        <option value="usb">USB</option>
+                        <option value="lsb">LSB</option>
+                    </select>
+                    <button class="action-btn" onclick="startAudioStream()">▶️ Listen</button>
+                    <button class="action-btn" onclick="stopAudioStream()">⏹️ Stop</button>
+                </div>
+                <div id="audioPlayer" style="margin-top: 0.5rem;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Radio Tab -->
+    <div class="tab-content" id="tab-radio">
+        <div class="sdr-panel">
+            <div class="sdr-header">
+                <div class="sdr-logo">🎵</div>
+                <div class="sdr-title">
+                    <h3>Radio Receiver</h3>
+                    <span class="sdr-subtitle">FM, AM, Shortwave, Weather, Emergency</span>
+                </div>
+            </div>
+            
+            <!-- Radio Status -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📻 Radio Status</h4>
+                </div>
+                <div class="radio-status" id="radioStatus">
+                    <div class="status-card">
+                        <span class="status-label">Status</span>
+                        <span class="status-value" id="radioRunning">Stopped</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Frequency</span>
+                        <span class="status-value" id="radioFrequency">--</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Modulation</span>
+                        <span class="status-value" id="radioModulation">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Manual Tuning -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🎚️ Manual Tuning</h4>
+                </div>
+                <div class="radio-tuner">
+                    <div class="tuner-row">
+                        <input type="number" id="radioFreqInput" placeholder="Frequency (Hz)" style="width: 150px;" class="spectrum-input">
+                        <select id="radioModSelect" class="spectrum-select">
+                            <option value="fm">FM (Narrowband)</option>
+                            <option value="wfm">WFM (Broadcast)</option>
+                            <option value="am">AM</option>
+                            <option value="usb">USB (Upper Sideband)</option>
+                            <option value="lsb">LSB (Lower Sideband)</option>
+                            <option value="cw">CW (Morse)</option>
+                        </select>
+                        <input type="number" id="radioSqInput" placeholder="Squelch (dB)" value="-40" style="width: 100px;" class="spectrum-input">
+                        <button class="action-btn" onclick="tuneRadio()">▶️ Tune</button>
+                        <button class="action-btn" onclick="stopRadio()">⏹️ Stop</button>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Preset Lists -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📋 Frequency Presets</h4>
+                    <button class="action-btn" onclick="loadPresets()">🔄 Refresh</button>
+                </div>
+                <div class="preset-categories">
+                    <button class="preset-cat-btn active" onclick="showPresetList('noaa')">🌦️ NOAA Weather</button>
+                    <button class="preset-cat-btn" onclick="showPresetList('marine')">⚓ Marine VHF</button>
+                    <button class="preset-cat-btn" onclick="showPresetList('airband')">✈️ Aviation</button>
+                    <button class="preset-cat-btn" onclick="showPresetList('ham')">📡 Ham Radio</button>
+                    <button class="preset-cat-btn" onclick="showPresetList('emergency')">🚨 Emergency</button>
+                    <button class="preset-cat-btn" onclick="showPresetList('numbers')">🔢 Numbers Stations</button>
+                </div>
+                <div id="presetList" class="preset-list">
+                    <div class="empty-state">Select a category to view presets</div>
+                </div>
+            </div>
+            
+            <!-- Search Presets -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🔍 Search Presets</h4>
+                </div>
+                <div class="search-row">
+                    <input type="text" id="presetSearchInput" placeholder="Search by name, frequency, or tag..." style="flex: 1;" class="spectrum-input">
+                    <button class="action-btn" onclick="searchPresets()">Search</button>
+                </div>
+                <div id="presetSearchResults" class="preset-list" style="margin-top: 0.5rem;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- TSCM Tab (Technical Surveillance Countermeasures) -->
+    <div class="tab-content" id="tab-tscm">
+        <div class="sdr-panel">
+            <div class="sdr-header">
+                <div class="sdr-logo">🔍</div>
+                <div class="sdr-title">
+                    <h3>TSCM Bug Detection</h3>
+                    <span class="sdr-subtitle">Technical Surveillance Countermeasures</span>
+                </div>
+            </div>
+            
+            <!-- Legal Warning -->
+            <div class="legal-warning" style="background: rgba(210, 153, 34, 0.2); border: 1px solid var(--accent-yellow); border-radius: 8px; padding: 1rem; margin-bottom: 1rem;">
+                <strong>⚠️ Legal Notice:</strong> TSCM sweeps should only be conducted on property you own or have explicit authorization to sweep. 
+                This tool is for defensive counter-surveillance only. <a href="#" onclick="showLegalModal(); return false;" style="color: var(--accent-blue);">View Legal Terms</a>
+            </div>
+            
+            <!-- Sweep Controls -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🎯 Sweep Controls</h4>
+                </div>
+                <div class="sweep-controls">
+                    <select id="sweepType" class="spectrum-select" style="width: 200px;">
+                        <option value="quick">Quick Sweep (5-10 min)</option>
+                        <option value="standard" selected>Standard Sweep (20-30 min)</option>
+                        <option value="full">Full Sweep (1-2 hours)</option>
+                        <option value="federal">Federal Threat Sweep (Extended)</option>
+                    </select>
+                    <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.85rem;cursor:pointer;">
+                        <input type="checkbox" id="tscmContinuous"> Continuous
+                    </label>
+                    <button class="action-btn" id="tscmStartBtn" onclick="startTscmSweep()">▶️ Start Sweep</button>
+                    <button class="action-btn" onclick="stopTscmSweep()">⏹️ Stop</button>
+                </div>
+                
+                <!-- Progress -->
+                <div class="sweep-progress" id="sweepProgress" style="margin-top: 1rem; display: none;">
+                    <div class="progress-bar-container" style="background: var(--bg-tertiary); border-radius: 4px; height: 24px; overflow: hidden;">
+                        <div class="progress-bar" id="sweepProgressBar" style="background: var(--accent-blue); height: 100%; width: 0%; transition: width 0.5s;"></div>
+                    </div>
+                    <div class="progress-text" id="sweepProgressText" style="margin-top: 0.5rem; text-align: center;">0%</div>
+                </div>
+            </div>
+            
+            <!-- Sweep Status -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📊 Sweep Status</h4>
+                    <button class="action-btn" onclick="refreshTscmStatus()">🔄 Refresh</button>
+                </div>
+                <div class="sdr-status-grid" id="tscmStatusGrid">
+                    <div class="status-card">
+                        <span class="status-label">Status</span>
+                        <span class="status-value" id="tscmRunning">Idle</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Progress</span>
+                        <span class="status-value" id="tscmProgress">0%</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Threats Found</span>
+                        <span class="status-value" id="tscmThreatsFound">0</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Sweeps</span>
+                        <span class="status-value" id="tscmSweepCount">0</span>
+                    </div>
+                    <div class="status-card">
+                        <span class="status-label">Scanning</span>
+                        <span class="status-value" id="tscmCurrentBand" style="font-size:0.75rem;">--</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Detected Threats -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🚨 Detected Threats</h4>
+                </div>
+                <div id="tscmThreatList" class="device-list">
+                    <div class="empty-state">No threats detected. Run a sweep to scan for surveillance devices.</div>
+                </div>
+            </div>
+            
+            <!-- Threat Database Reference -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📚 Threat Database</h4>
+                    <button class="action-btn" onclick="loadThreatDatabase()">Load Database</button>
+                </div>
+                <div class="sdr-info-text">
+                    Reference database of known surveillance device frequencies including audio bugs, video transmitters, 
+                    GPS trackers, body wires, carrier current devices, and more.
+                </div>
+                <div id="threatDatabaseList" class="device-list" style="max-height: 300px; overflow-y: auto;">
+                    <div class="empty-state">Click "Load Database" to view known threat frequencies</div>
+                </div>
+            </div>
+            
+            <!-- Drone Detection (Enhanced) -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🚁 Drone Detection (RF + EMI)</h4>
+                </div>
+                <div class="drone-controls" style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <button class="action-btn" onclick="scanDronesRf()">📡 RF Scan</button>
+                    <button class="action-btn" onclick="scanDronesEmi()">⚡ EMI Scan</button>
+                    <button class="action-btn" onclick="scanDronesFull()">🔍 Full Scan</button>
+                    <span style="margin: 0 0.25rem; color: var(--text-secondary);">|</span>
+                    <button class="action-btn" id="droneMonitorBtn" onclick="toggleDroneMonitor()">🔄 Continuous</button>
+                    <span id="droneMonitorStatus" style="font-size:0.8rem;color:var(--text-secondary);">Stopped</span>
+                </div>
+                <div class="sdr-info-text" style="margin-top: 0.5rem;">
+                    <strong>RF:</strong> HackRF 2.4/5.8 GHz + RTL-SDR 868/915 MHz |
+                    <strong>EMI:</strong> Motor harmonics 24-30 MHz |
+                    <strong>Continuous:</strong> Loops all scans until stopped
+                </div>
+                <div id="droneDetectionResults" class="device-list" style="margin-top: 0.5rem;">
+                    <div class="empty-state">Run a scan to detect nearby drones</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     <!-- Settings Tab -->
     <div class="tab-content" id="tab-settings">
         <div class="settings-section">
@@ -1466,9 +2300,18 @@
                 </div>
                 <div class="setting-item" style="grid-column: span 2;">
                     <label>Endpoint</label>
-                    <input type="text" id="llmEndpoint" placeholder="http://localhost:11434" style="width: 100%;">
+                    <input type="text" id="llmEndpoint" placeholder="http://localhost:8080" style="width: 100%;">
+                </div>
+                <div class="setting-item">
+                    <label>Model</label>
+                    <input type="text" id="llmModel" placeholder="llama3" style="width: 100%;">
+                </div>
+                <div class="setting-item">
+                    <label>API Key (optional)</label>
+                    <input type="password" id="llmApiKey" placeholder="sk-..." style="width: 100%;">
                 </div>
             </div>
+            <div id="llmTestResult" style="margin-top: 0.5rem; font-size: 0.85rem;"></div>
             <button id="testLlm" class="action-btn" style="margin-top: 0.5rem;">Test Connection</button>
             <button id="analyzeDevices" class="action-btn" style="margin-top: 0.5rem;">Analyze Devices</button>
         </div>
@@ -1477,6 +2320,157 @@
             <h3>Configuration</h3>
             <button id="saveConfig" class="action-btn save-btn">Save Settings</button>
             <span id="saveStatus" style="margin-left: 1rem;"></span>
+        </div>
+    </div>
+
+    <!-- About Tab -->
+    <div class="tab-content" id="tab-about">
+        <div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
+            <div style="text-align: center; margin-bottom: 2rem;">
+                <h2 style="font-size: 1.8rem; margin-bottom: 0.25rem;">SIGINT-Pi</h2>
+                <div style="color: var(--accent-green); font-size: 1.1rem; font-weight: bold;" id="aboutVersion">v0.2.3</div>
+                <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Portable Signals Intelligence &amp; Security Monitoring</div>
+                <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem;" id="aboutDeviceName">--</div>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--accent-red); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--accent-red); margin: 0 0 0.75rem 0; font-size: 1rem;">⚠️ RESEARCH &amp; ENTERTAINMENT USE ONLY</h3>
+                <p style="color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; margin: 0 0 0.75rem 0;">
+                    <strong>This software is provided strictly for research, educational, and entertainment purposes only.</strong>
+                    It is an experimental research tool and is NOT designed, intended, tested, validated, or certified for use in any
+                    situation where human life, safety, health, or physical security depends on its correct operation.
+                </p>
+                <p style="color: var(--accent-red); font-size: 0.85rem; line-height: 1.5; margin: 0 0 0.75rem 0; font-weight: bold;">
+                    DO NOT RELY ON THIS SOFTWARE IN ANY LIFE-THREATENING, SAFETY-CRITICAL, OR EMERGENCY SITUATION.
+                </p>
+                <p style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; margin: 0 0 0.75rem 0;">
+                    This software may produce false positives, false negatives, inaccurate readings, missed detections, and erroneous
+                    analyses. RF detection, spectrum analysis, drone detection, IMSI catcher detection, TSCM sweeps, and all other
+                    features are experimental and have NOT been validated against any safety standard. Detection confidence levels,
+                    distance estimates, threat classifications, and AI-generated analyses are approximations only.
+                </p>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">Complete Assumption of Risk</h3>
+                <p style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; margin: 0 0 0.5rem 0;">
+                    By using this software, you unconditionally and irrevocably:
+                </p>
+                <ul style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.6; padding-left: 1.25rem; margin: 0 0 0.5rem 0;">
+                    <li><strong>Accept full and sole responsibility</strong> for any and all consequences of your use</li>
+                    <li><strong>Completely and forever absolve</strong> the developer(s), author(s), contributor(s), and distributor(s) from any and all claims, damages, and liabilities</li>
+                    <li><strong>Acknowledge</strong> that if you use this software outside your legal rights or justifications, you bear exclusive and total responsibility</li>
+                    <li><strong>Waive any and all claims</strong> regardless of legal theory, including negligence, strict liability, product liability, or breach of warranty</li>
+                </ul>
+                <p style="color: var(--text-secondary); font-size: 0.75rem; line-height: 1.5; margin: 0.5rem 0 0 0; font-style: italic;">
+                    Authorized use is limited to: security research, educational purposes, network administration on networks you own,
+                    counter-surveillance of your own property, licensed amateur radio operations, and TSCM by licensed professionals.
+                    See <a href="https://github.com/naanprofit/sigint-pi/blob/main/LEGAL.md" target="_blank" style="color:var(--accent-blue);">LEGAL.md</a> for full terms.
+                </p>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">Version Details</h3>
+                <table style="width: 100%; font-size: 0.8rem; color: var(--text-secondary);">
+                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Version</td><td style="padding: 4px 8px; color: var(--text-primary);" id="aboutVersionDetail">--</td></tr>
+                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Device</td><td style="padding: 4px 8px; color: var(--text-primary);" id="aboutDevice">--</td></tr>
+                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Uptime</td><td style="padding: 4px 8px; color: var(--text-primary);" id="aboutUptime">--</td></tr>
+                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">License</td><td style="padding: 4px 8px; color: var(--text-primary);">GPL-3.0-or-later</td></tr>
+                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Repository</td><td style="padding: 4px 8px;"><a href="https://github.com/naanprofit/sigint-pi" target="_blank" style="color:var(--accent-blue);">github.com/naanprofit/sigint-pi</a></td></tr>
+                </table>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">v0.2.3 Changelog Highlights</h3>
+                <ul style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.6; padding-left: 1.25rem; margin: 0;">
+                    <li><strong>TSCM Threat Grouping</strong> &mdash; signals at the same frequency grouped as one emitter; consumer device false-positive suggestions</li>
+                    <li><strong>14 SDR Bug Fixes</strong> &mdash; rtl_power frequency format, EMI direct sampling, async cell tower scanning, hardware detection</li>
+                    <li><strong>Consumer Device Database</strong> &mdash; 50+ benign devices (baby monitors, doorbells, key fobs, etc.) for false-positive identification</li>
+                    <li><strong>Browser Audio Streaming</strong> &mdash; live FM/AM/SSB audio from SDR to browser via Web Audio API</li>
+                    <li><strong>Distance Estimation</strong> &mdash; free-space path loss model for all RF detections</li>
+                    <li><strong>RayHunter API Rewrite</strong> &mdash; direct HTTP API to EFF RayHunter with auto ADB forwarding</li>
+                    <li><strong>Military Drone Signatures</strong> &mdash; RF profiles from 9 countries including Shahed, Lancet, Bayraktar, Switchblade</li>
+                    <li><strong>Continuous Scanning</strong> &mdash; TSCM and drone monitors run until stopped with contact tracking</li>
+                    <li><strong>LLM API Key Support</strong> &mdash; OpenAI, Anthropic, Ollama, llama.cpp, LMStudio with Bearer token auth</li>
+                </ul>
+            </div>
+
+            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
+                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">Hardware Support</h3>
+                <div id="aboutHardware" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
+                    Loading...
+                </div>
+            </div>
+
+            <div style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.75rem;">
+                <p style="margin: 0.25rem 0;">Built with Rust, Actix, pcap, btleplug, and open-source SDR tools</p>
+                <p style="margin: 0.25rem 0;">
+                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/LEGAL.md" target="_blank" style="color:var(--accent-blue);">Legal</a> &bull;
+                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/CREDITS.md" target="_blank" style="color:var(--accent-blue);">Credits</a> &bull;
+                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/CHANGELOG.md" target="_blank" style="color:var(--accent-blue);">Changelog</a> &bull;
+                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/KNOWN_ISSUES.md" target="_blank" style="color:var(--accent-blue);">Known Issues</a>
+                </p>
+                <p style="margin: 0.5rem 0 0 0; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.7;">
+                    &copy; 2026 naanprofit &bull; GPL-3.0-or-later
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Log Tab (Database Browser) -->
+    <div class="tab-content" id="tab-contacts">
+        <div class="contacts-header">
+            <h3>📋 Contact Log</h3>
+            <div class="contacts-controls">
+                <input type="text" id="contactSearch" placeholder="Search MAC, vendor, name..." class="contact-search-input">
+                <button class="action-btn" onclick="searchContacts()">🔍 Search</button>
+                <button class="action-btn export-btn" onclick="exportContacts()">📥 Export JSON</button>
+            </div>
+        </div>
+        
+        <div class="contacts-stats" id="contactsStats">
+            <div class="stat-box"><span class="stat-value" id="totalContacts">--</span><span class="stat-label">Total Contacts</span></div>
+            <div class="stat-box"><span class="stat-value" id="wifiContacts">--</span><span class="stat-label">WiFi Devices</span></div>
+            <div class="stat-box"><span class="stat-value" id="bleContacts">--</span><span class="stat-label">BLE Devices</span></div>
+            <div class="stat-box"><span class="stat-value" id="aiDescriptions">--</span><span class="stat-label">AI Analyzed</span></div>
+        </div>
+        
+        <div class="contacts-table-container">
+            <table class="contacts-table" id="contactsTable">
+                <thead>
+                    <tr>
+                        <th onclick="sortContacts('type')">Type</th>
+                        <th onclick="sortContacts('mac')">MAC Address</th>
+                        <th onclick="sortContacts('vendor')">Vendor</th>
+                        <th onclick="sortContacts('name')">Name/SSID</th>
+                        <th onclick="sortContacts('sightings')">Sightings</th>
+                        <th onclick="sortContacts('first_seen')">First Seen</th>
+                        <th onclick="sortContacts('last_seen')">Last Seen</th>
+                        <th onclick="sortContacts('threat')">Threat</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="contactsBody">
+                    <tr><td colspan="9" class="empty-state">Loading contacts...</td></tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div class="contacts-pagination">
+            <button class="action-btn" id="prevPage" onclick="changePage(-1)" disabled>◀ Previous</button>
+            <span id="pageInfo">Page 1</span>
+            <button class="action-btn" id="nextPage" onclick="changePage(1)">Next ▶</button>
+        </div>
+    </div>
+
+    <!-- Contact Detail Modal -->
+    <div class="contact-modal" id="contactModal">
+        <div class="contact-modal-content">
+            <div class="contact-modal-header">
+                <h2>📱 Contact Details</h2>
+                <button class="contact-modal-close" onclick="closeContactModal()">✕</button>
+            </div>
+            <div id="contactDetailContent">Loading...</div>
         </div>
     </div>
 
@@ -1511,6 +2505,26 @@
 
     <div class="shortcut-hint">
         <kbd>P</kbd> Power Mode &nbsp; <kbd>1-5</kbd> Switch Tabs
+    </div>
+
+    <!-- Legal Disclaimer Modal -->
+    <div class="modal-overlay" id="legalModal">
+        <div class="modal" style="max-width: 700px; max-height: 80vh; display: flex; flex-direction: column;">
+            <h2>⚖️ Legal Disclaimer</h2>
+            <div id="legalContent" style="flex: 1; overflow-y: auto; font-size: 0.85rem; line-height: 1.6; white-space: pre-wrap; padding: 1rem; background: var(--bg-tertiary); border-radius: 4px; margin-bottom: 1rem; max-height: 50vh;">
+                Loading...
+            </div>
+            <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 1rem;">
+                <input type="checkbox" id="legalAcceptCheck" style="width: 18px; height: 18px;">
+                <label for="legalAcceptCheck" style="font-size: 0.9rem;">
+                    I have read and understood the legal terms, compliance requirements, and accept full responsibility for lawful use of this tool.
+                </label>
+            </div>
+            <div style="display: flex; gap: 0.5rem;">
+                <button class="action-btn" id="legalAcceptBtn" onclick="acceptLegal()" disabled style="flex: 1; opacity: 0.5;">Accept</button>
+                <button class="modal-close" onclick="closeLegalModal()" tabindex="0" style="flex: 1;">Close</button>
+            </div>
+        </div>
     </div>
 
     <!-- Note Modal -->
@@ -1814,11 +2828,15 @@
                 return;
             }
 
-            list.innerHTML = devices.map(d => `
+            list.innerHTML = devices.map(d => {
+                const firstSeen = d.first_seen ? new Date(d.first_seen * 1000).toLocaleString() : '';
+                const lastSeen = d.last_seen ? new Date(d.last_seen * 1000).toLocaleString() : (d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '');
+                return `
                 <li class="device-item" tabindex="0" data-mac="${d.mac}" data-type="wifi">
                     <div class="device-info">
                         <span class="device-mac">${d.mac}</span>
                         <span class="device-vendor">${d.vendor || 'Unknown'}${d.ssid ? ' • ' + d.ssid : ''}</span>
+                        ${firstSeen ? `<span class="device-times" style="font-size:0.7rem;color:var(--text-secondary);">First: ${firstSeen}${lastSeen ? ' | Last: ' + lastSeen : ''}</span>` : ''}
                     </div>
                     <div class="device-meta">
                         ${d.is_new ? '<span class="badge new">NEW</span>' : ''}
@@ -1828,7 +2846,7 @@
                         <button class="note-btn" onclick="openNoteModal('${d.mac}', 'wifi', '${d.vendor || ''}', '${d.ssid || ''}', '')" title="Add note">📝</button>
                     </div>
                 </li>
-            `).join('');
+            `}).join('');
         }
 
         function renderBleDevices() {
@@ -1846,11 +2864,15 @@
                 return;
             }
 
-            list.innerHTML = devices.map(d => `
+            list.innerHTML = devices.map(d => {
+                const firstSeen = d.first_seen ? new Date(d.first_seen * 1000).toLocaleString() : '';
+                const lastSeen = d.last_seen ? new Date(d.last_seen * 1000).toLocaleString() : (d.lastSeen ? new Date(d.lastSeen).toLocaleString() : '');
+                return `
                 <li class="device-item ${d.is_tracker ? 'tracker-item' : ''}" tabindex="0" data-mac="${d.mac}" data-type="ble">
                     <div class="device-info">
                         <span class="device-mac">${d.name || d.mac}</span>
                         <span class="device-vendor">${d.vendor ? d.vendor + ' • ' : ''}${d.device_type || 'Unknown'}</span>
+                        ${firstSeen ? `<span class="device-times" style="font-size:0.7rem;color:var(--text-secondary);">First: ${firstSeen}${lastSeen ? ' | Last: ' + lastSeen : ''}</span>` : ''}
                         ${d.tracker_info ? renderTrackerInfo(d.tracker_info) : ''}
                     </div>
                     <div class="device-meta">
@@ -1862,7 +2884,7 @@
                         <button class="note-btn" onclick="openNoteModal('${d.mac}', 'ble', '${d.vendor || ''}', '', '${(d.name || '').replace(/'/g, "\\'")}')" title="Add note">📝</button>
                     </div>
                 </li>
-            `).join('');
+            `}).join('');
         }
 
         function renderNewDevices() {
@@ -2199,20 +3221,26 @@
                     return;
                 }
                 
-                // Update status
-                document.getElementById('rhDeviceStatus').textContent = data.running ? 'Running' : 'Stopped';
-                document.getElementById('rhMonitoring').textContent = data.running ? 'Active' : 'Inactive';
-                document.getElementById('rhDataFiles').textContent = data.latest_file?.split('/').pop() || '--';
+                // Update status fields
+                document.getElementById('rhDeviceStatus').textContent = 
+                    `v${data.version || '?'} (${data.system_os || 'unknown'})`;
+                document.getElementById('rhMonitoring').textContent = 
+                    data.recording ? 'Recording' : 'Idle';
+                document.getElementById('rhDataFiles').textContent = 
+                    `${data.total_entries || 0} entries`;
                 
-                // Parse timestamp
-                if (data.last_analysis?.timestamp) {
-                    const ts = new Date(data.last_analysis.timestamp);
+                // Parse timestamp from current entry
+                if (data.current_entry?.last_message_time) {
+                    const ts = new Date(data.current_entry.last_message_time);
+                    document.getElementById('rhLastUpdate').textContent = ts.toLocaleTimeString();
+                } else if (data.analysis?.timestamp) {
+                    const ts = new Date(data.analysis.timestamp);
                     document.getElementById('rhLastUpdate').textContent = ts.toLocaleTimeString();
                 }
                 
                 // Check for threats
-                const hasThreat = data.threat_detected || 
-                    (data.last_analysis?.analysis && data.last_analysis.analysis.length > 0);
+                const hasThreat = data.threat_detected || data.imsi_catcher_detected || 
+                    (data.warnings_count && data.warnings_count > 0);
                 
                 if (hasThreat) {
                     indicator.className = 'rayhunter-indicator threat';
@@ -2220,9 +3248,16 @@
                     badge.textContent = '⚠️';
                     badge.className = 'badge-count rayhunter-status threat';
                     
-                    // Show threat panel
+                    // Show threat panel with warning details
                     threatPanel.style.display = 'block';
-                    threatDetails.innerHTML = `<pre>${JSON.stringify(data.last_analysis.analysis, null, 2)}</pre>`;
+                    let detailHtml = `<p><strong>${data.warnings_count || 0} warnings detected</strong></p>`;
+                    if (data.analysis?.findings) {
+                        for (const f of data.analysis.findings) {
+                            detailHtml += `<p style="color:var(--accent-red)">⚠️ ${f.description}</p>`;
+                            if (f.details) detailHtml += `<p style="font-size:0.8em;color:var(--text-secondary)">${f.details}</p>`;
+                        }
+                    }
+                    threatDetails.innerHTML = detailHtml;
                     
                     // Play alert if this is a new threat
                     if (!rayhunterLastThreat) {
@@ -2252,6 +3287,902 @@
                 console.error('RayHunter status fetch failed:', e);
                 document.getElementById('rayhunterBadge').textContent = '--';
             }
+        }
+
+        // ============================================
+        // SDR (Software Defined Radio) Functions
+        // ============================================
+        
+        let sdrState = {
+            rtl433Running: false,
+            rtl433Devices: [],
+            capabilities: null
+        };
+        
+        async function fetchSdrStatus() {
+            try {
+                const response = await fetch('/api/sdr/status');
+                const data = await response.json();
+                sdrState.capabilities = data;
+                renderSdrStatus(data);
+            } catch (e) {
+                console.error('SDR status fetch failed:', e);
+                document.getElementById('sdrBadge').textContent = '--';
+            }
+        }
+        
+        function renderSdrStatus(data) {
+            // Update capability indicators
+            const caps = data.capabilities || {};
+            
+            document.getElementById('sdrRtlsdr').textContent = caps.rtl_sdr ? '✓ Available' : '✗ Not found';
+            document.getElementById('sdrRtlsdr').className = caps.rtl_sdr ? 'status-value sdr-available' : 'status-value sdr-unavailable';
+            
+            document.getElementById('sdrRtl433').textContent = caps.rtl_433 ? '✓ Available' : '✗ Not found';
+            document.getElementById('sdrRtl433').className = caps.rtl_433 ? 'status-value sdr-available' : 'status-value sdr-unavailable';
+            
+            document.getElementById('sdrHackrf').textContent = caps.hackrf ? '✓ Available' : '✗ Not found';
+            document.getElementById('sdrHackrf').className = caps.hackrf ? 'status-value sdr-available' : 'status-value sdr-unavailable';
+            
+            document.getElementById('sdrLimesdr').textContent = caps.limesdr ? '✓ Available' : '✗ Not found';
+            document.getElementById('sdrLimesdr').className = caps.limesdr ? 'status-value sdr-available' : 'status-value sdr-unavailable';
+            
+            document.getElementById('sdrKalibrate').textContent = caps.kalibrate ? '✓ Available' : '✗ Not found';
+            document.getElementById('sdrKalibrate').className = caps.kalibrate ? 'status-value sdr-available' : 'status-value sdr-unavailable';
+            
+            document.getElementById('sdrRtlpower').textContent = caps.rtl_power ? '✓ Available' : '✗ Not found';
+            document.getElementById('sdrRtlpower').className = caps.rtl_power ? 'status-value sdr-available' : 'status-value sdr-unavailable';
+            
+            // Update badge
+            const availableCount = Object.values(caps).filter(v => v === true).length;
+            document.getElementById('sdrBadge').textContent = data.available ? `${availableCount}` : '--';
+            
+            // Render connected devices
+            const devicesList = document.getElementById('sdrDevicesList');
+            if (data.devices && data.devices.length > 0) {
+                devicesList.innerHTML = data.devices.map(d => `
+                    <div class="sdr-device-item">
+                        <span class="device-icon">📻</span>
+                        <span>${d}</span>
+                    </div>
+                `).join('');
+            } else {
+                devicesList.innerHTML = '<div class="sdr-info-text">No SDR devices connected</div>';
+            }
+        }
+        
+        function refreshSdrStatus() {
+            fetchSdrStatus();
+        }
+        
+        async function toggleRtl433() {
+            const btn = document.getElementById('rtl433StartBtn');
+            
+            if (sdrState.rtl433Running) {
+                // Stop
+                try {
+                    await fetch('/api/sdr/rtl433/stop', { method: 'POST' });
+                    sdrState.rtl433Running = false;
+                    btn.textContent = '▶️ Start';
+                    document.getElementById('rtl433Devices').innerHTML = '<div class="empty-state">Monitoring stopped</div>';
+                } catch (e) {
+                    console.error('Failed to stop rtl_433:', e);
+                }
+            } else {
+                // Start
+                try {
+                    const response = await fetch('/api/sdr/rtl433/start', { method: 'POST' });
+                    const data = await response.json();
+                    if (data.error) {
+                        document.getElementById('rtl433Devices').innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}<br><small>${data.hint || ''}</small></div>`;
+                        return;
+                    }
+                    sdrState.rtl433Running = true;
+                    btn.textContent = '⏹️ Stop';
+                    document.getElementById('rtl433Devices').innerHTML = '<div class="empty-state">Monitoring 433/315 MHz... Waiting for devices</div>';
+                    // Start polling for devices
+                    pollRtl433Devices();
+                } catch (e) {
+                    console.error('Failed to start rtl_433:', e);
+                }
+            }
+        }
+        
+        async function pollRtl433Devices() {
+            if (!sdrState.rtl433Running) return;
+            
+            try {
+                const response = await fetch('/api/sdr/rtl433/devices');
+                const devices = await response.json();
+                renderRtl433Devices(devices);
+            } catch (e) {
+                console.error('Failed to fetch rtl_433 devices:', e);
+            }
+            
+            if (sdrState.rtl433Running) {
+                setTimeout(pollRtl433Devices, 2000);
+            }
+        }
+        
+        function renderRtl433Devices(devices) {
+            const container = document.getElementById('rtl433Devices');
+            
+            if (!devices || devices.length === 0) {
+                container.innerHTML = '<div class="empty-state">Monitoring... No RF devices detected yet</div>';
+                return;
+            }
+            
+            container.innerHTML = devices.map(d => `
+                <div class="rf-device-item">
+                    <div class="rf-device-info">
+                        <div class="rf-device-model">${d.model || 'Unknown Device'}</div>
+                        <div class="rf-device-details">
+                            ID: ${d.id || '--'} • Freq: ${d.frequency || '--'} MHz
+                            ${d.battery ? ' • Battery: ' + d.battery : ''}
+                            ${d.temperature ? ' • Temp: ' + d.temperature + '°' : ''}
+                        </div>
+                    </div>
+                    <div class="rf-device-meta">
+                        <span class="badge">${d.count || 1}x</span>
+                        <span class="rssi ${getRssiClass(d.rssi || -70)}">${d.rssi || '--'} dB</span>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        async function scanSpectrum() {
+            const band = document.getElementById('spectrumBand').value;
+            const startMhz = document.getElementById('spectrumStartMhz').value;
+            const endMhz = document.getElementById('spectrumEndMhz').value;
+            
+            const display = document.getElementById('spectrumDisplay');
+            display.innerHTML = '<div class="empty-state">Scanning spectrum...</div>';
+            
+            try {
+                const body = {};
+                if (band) body.band = band;
+                if (startMhz) body.start_mhz = parseInt(startMhz);
+                if (endMhz) body.end_mhz = parseInt(endMhz);
+                
+                const data = await safeFetchJson('/api/sdr/spectrum/scan', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                
+                if (data.error) {
+                    display.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}<br><small>${data.hint || ''}</small></div>`;
+                    return;
+                }
+                
+                renderSpectrum(data);
+            } catch (e) {
+                display.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Scan failed: ${e.message}</div>`;
+            }
+        }
+        
+        function renderSpectrum(data) {
+            const display = document.getElementById('spectrumDisplay');
+            
+            if (!data.data || data.data.length === 0) {
+                display.innerHTML = '<div class="empty-state">No spectrum data received</div>';
+                return;
+            }
+            
+            // Simple bar visualization
+            let html = `<div style="margin-bottom: 0.5rem;">Range: ${data.start_mhz} - ${data.end_mhz} MHz</div>`;
+            html += '<div class="spectrum-bars">';
+            
+            for (const segment of data.data) {
+                if (segment.powers) {
+                    for (const power of segment.powers) {
+                        const normalizedPower = Math.max(0, Math.min(100, (power + 100) * 1.5));
+                        const barClass = power > -30 ? 'strong' : power > -60 ? 'medium' : '';
+                        html += `<span class="spectrum-bar ${barClass}" style="height: ${normalizedPower}px;" title="${power.toFixed(1)} dB"></span>`;
+                    }
+                }
+            }
+            
+            html += '</div>';
+            display.innerHTML = html;
+        }
+        
+        async function scanCellTowers() {
+            const container = document.getElementById('cellTowerList');
+            container.innerHTML = '<div class="empty-state">Scanning cellular bands... This may take a minute.</div>';
+            
+            try {
+                const response = await fetch('/api/sdr/cellular/scan', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.error) {
+                    container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}<br><small>${data.hint || ''}</small></div>`;
+                    return;
+                }
+                
+                renderCellTowers(data.towers || []);
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Scan failed: ${e.message}</div>`;
+            }
+        }
+        
+        function renderCellTowers(towers) {
+            const container = document.getElementById('cellTowerList');
+            
+            if (!towers || towers.length === 0) {
+                container.innerHTML = '<div class="empty-state">No cell towers detected</div>';
+                return;
+            }
+            
+            container.innerHTML = towers.map(t => `
+                <div class="cell-tower-item ${t.suspicious ? 'suspicious' : ''}">
+                    <div class="cell-tower-info">
+                        <div class="cell-tower-band">${t.band || 'Unknown Band'}</div>
+                        <div class="cell-tower-freq">${t.frequency || '--'} MHz (ARFCN: ${t.arfcn || '--'})</div>
+                        <div class="cell-tower-power">Power: ${t.power || '--'} dB</div>
+                    </div>
+                    ${t.suspicious ? '<span class="badge tracker">SUSPICIOUS</span>' : ''}
+                </div>
+            `).join('');
+        }
+        
+        async function scanDrones() {
+            const container = document.getElementById('droneSignalList');
+            container.innerHTML = '<div class="empty-state">Scanning drone frequencies...</div>';
+            
+            try {
+                const response = await fetch('/api/sdr/drone/scan', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.error) {
+                    container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}<br><small>${data.hint || ''}</small></div>`;
+                    return;
+                }
+                
+                renderDroneSignals(data.signals || []);
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Scan failed: ${e.message}</div>`;
+            }
+        }
+        
+        function renderDroneSignals(signals) {
+            const container = document.getElementById('droneSignalList');
+            
+            if (!signals || signals.length === 0) {
+                container.innerHTML = '<div class="empty-state">No drone signals detected</div>';
+                return;
+            }
+            
+            container.innerHTML = signals.map(s => `
+                <div class="drone-signal-item ${s.active ? 'active' : ''}">
+                    <div class="rf-device-info">
+                        <div class="rf-device-model">🚁 ${s.type || 'Unknown Drone Signal'}</div>
+                        <div class="rf-device-details">
+                            Freq: ${s.frequency || '--'} MHz • Band: ${s.band || '--'}
+                            ${s.protocol ? ' • Protocol: ' + s.protocol : ''}
+                        </div>
+                    </div>
+                    <div class="rf-device-meta">
+                        <span class="rssi ${getRssiClass(s.rssi || -70)}">${s.rssi || '--'} dB</span>
+                        ${s.active ? '<span class="badge tracker">ACTIVE</span>' : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Audio streaming (placeholder for future implementation)
+        function startAudioStream() {
+            alert('Audio streaming requires WebSocket support - coming soon!');
+        }
+        
+        function stopAudioStream() {
+            // Placeholder
+        }
+
+        // ============================================
+        // Radio Tab Functions
+        // ============================================
+        
+        async function tuneRadio() {
+            const freqInput = document.getElementById('radioFreqInput');
+            const modSelect = document.getElementById('radioModSelect');
+            const sqInput = document.getElementById('radioSqInput');
+            
+            const frequency_hz = parseInt(freqInput.value);
+            if (!frequency_hz || frequency_hz < 1000) {
+                alert('Please enter a valid frequency in Hz (e.g., 162550000 for 162.55 MHz)');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/sdr/radio/tune', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        frequency_hz: frequency_hz,
+                        modulation: modSelect.value,
+                        squelch: parseInt(sqInput.value) || -40
+                    })
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert('Error: ' + data.error);
+                    return;
+                }
+                
+                document.getElementById('radioRunning').textContent = 'Playing';
+                document.getElementById('radioRunning').style.color = 'var(--accent-green)';
+                document.getElementById('radioFrequency').textContent = (data.frequency_hz / 1000000).toFixed(3) + ' MHz';
+                document.getElementById('radioModulation').textContent = data.modulation.toUpperCase();
+                
+                // Start audio stream to browser
+                startAudioStream(data.sample_rate || 24000);
+            } catch (e) {
+                alert('Failed to tune: ' + e.message);
+            }
+        }
+        
+        let audioCtx = null;
+        let audioAbort = null;
+        
+        async function startAudioStream(sampleRate) {
+            stopAudioStream();
+            try {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: sampleRate });
+                audioAbort = new AbortController();
+                const resp = await fetch('/api/sdr/radio/stream', { signal: audioAbort.signal });
+                const reader = resp.body.getReader();
+                let leftover = new Uint8Array(0);
+                
+                async function pump() {
+                    while (true) {
+                        const { done, value } = await reader.read();
+                        if (done) break;
+                        
+                        // Combine leftover + new data
+                        const combined = new Uint8Array(leftover.length + value.length);
+                        combined.set(leftover);
+                        combined.set(value, leftover.length);
+                        
+                        // Process pairs of bytes (16-bit signed LE PCM)
+                        const sampleCount = Math.floor(combined.length / 2);
+                        if (sampleCount === 0) { leftover = combined; continue; }
+                        leftover = combined.slice(sampleCount * 2);
+                        
+                        const buf = audioCtx.createBuffer(1, sampleCount, sampleRate);
+                        const chan = buf.getChannelData(0);
+                        const view = new DataView(combined.buffer, combined.byteOffset, sampleCount * 2);
+                        for (let i = 0; i < sampleCount; i++) {
+                            chan[i] = view.getInt16(i * 2, true) / 32768.0;
+                        }
+                        
+                        const src = audioCtx.createBufferSource();
+                        src.buffer = buf;
+                        src.connect(audioCtx.destination);
+                        src.start(0);
+                    }
+                }
+                pump().catch(() => {});
+            } catch (e) {
+                if (e.name !== 'AbortError') console.error('Audio stream error:', e);
+            }
+        }
+        
+        function stopAudioStream() {
+            if (audioAbort) { audioAbort.abort(); audioAbort = null; }
+            if (audioCtx) { audioCtx.close().catch(() => {}); audioCtx = null; }
+        }
+        
+        async function stopRadio() {
+            stopAudioStream();
+            try {
+                await fetch('/api/sdr/radio/stop', { method: 'POST' });
+                document.getElementById('radioRunning').textContent = 'Stopped';
+                document.getElementById('radioRunning').style.color = 'var(--text-secondary)';
+            } catch (e) {
+                console.error('Stop radio failed:', e);
+            }
+        }
+        
+        async function loadPresets() {
+            try {
+                const response = await fetch('/api/sdr/presets');
+                const data = await response.json();
+                console.log('Presets loaded:', data);
+            } catch (e) {
+                console.error('Failed to load presets:', e);
+            }
+        }
+        
+        async function showPresetList(listId) {
+            const container = document.getElementById('presetList');
+            container.innerHTML = '<div class="empty-state">Loading...</div>';
+            
+            // Update active button
+            document.querySelectorAll('.preset-cat-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            try {
+                const response = await fetch(`/api/sdr/presets/${listId}`);
+                const data = await response.json();
+                
+                if (data.error) {
+                    container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}</div>`;
+                    return;
+                }
+                
+                if (!data.presets || data.presets.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No presets in this category</div>';
+                    return;
+                }
+                
+                container.innerHTML = data.presets.map(p => `
+                    <div class="preset-item" onclick="tunePreset(${p.frequency_hz}, '${p.modulation || 'fm'}')">
+                        <div class="preset-info">
+                            <div class="preset-name">${p.name}</div>
+                            <div class="preset-details">${(p.frequency_hz / 1000000).toFixed(3)} MHz • ${p.modulation || 'FM'}</div>
+                        </div>
+                        <button class="action-btn" onclick="event.stopPropagation(); tunePreset(${p.frequency_hz}, '${p.modulation || 'fm'}')">▶️</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Failed to load: ${e.message}</div>`;
+            }
+        }
+        
+        function tunePreset(frequency_hz, modulation) {
+            document.getElementById('radioFreqInput').value = frequency_hz;
+            document.getElementById('radioModSelect').value = modulation.toLowerCase();
+            tuneRadio();
+        }
+        
+        async function searchPresets() {
+            const query = document.getElementById('presetSearchInput').value;
+            const container = document.getElementById('presetSearchResults');
+            
+            if (!query) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = '<div class="empty-state">Searching...</div>';
+            
+            try {
+                const response = await fetch(`/api/sdr/presets/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+                
+                if (!data.results || data.results.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No results found</div>';
+                    return;
+                }
+                
+                container.innerHTML = data.results.map(p => `
+                    <div class="preset-item" onclick="tunePreset(${p.frequency_hz}, '${p.modulation || 'fm'}')">
+                        <div class="preset-info">
+                            <div class="preset-name">${p.name}</div>
+                            <div class="preset-details">${(p.frequency_hz / 1000000).toFixed(3)} MHz • ${p.modulation || 'FM'}</div>
+                        </div>
+                        <button class="action-btn">▶️</button>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Search failed: ${e.message}</div>`;
+            }
+        }
+        
+        // Legal modal functions
+        async function showLegalModal() {
+            document.getElementById('legalModal').classList.add('active');
+            try {
+                const data = await safeFetchJson('/api/legal');
+                document.getElementById('legalContent').textContent = data.legal_text || 'Legal text unavailable';
+            } catch (e) {
+                document.getElementById('legalContent').textContent = 'Failed to load legal text: ' + e.message;
+            }
+            // Check existing acceptance
+            try {
+                const status = await safeFetchJson('/api/legal/status');
+                if (status.accepted) {
+                    document.getElementById('legalAcceptCheck').checked = true;
+                    document.getElementById('legalAcceptBtn').disabled = false;
+                    document.getElementById('legalAcceptBtn').style.opacity = '1';
+                    document.getElementById('legalAcceptBtn').textContent = 'Already Accepted';
+                }
+            } catch (e) { /* ignore */ }
+        }
+        
+        function closeLegalModal() {
+            document.getElementById('legalModal').classList.remove('active');
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            const cb = document.getElementById('legalAcceptCheck');
+            if (cb) cb.addEventListener('change', () => {
+                const btn = document.getElementById('legalAcceptBtn');
+                btn.disabled = !cb.checked;
+                btn.style.opacity = cb.checked ? '1' : '0.5';
+            });
+        });
+        
+        async function acceptLegal() {
+            try {
+                await safeFetchJson('/api/legal/accept', { method: 'POST' });
+                document.getElementById('legalAcceptBtn').textContent = 'Accepted ✓';
+                document.getElementById('legalAcceptBtn').disabled = true;
+                setTimeout(closeLegalModal, 1000);
+            } catch (e) {
+                alert('Failed to record acceptance: ' + e.message);
+            }
+        }
+        
+        // Safe fetch helper - handles empty/error responses gracefully
+        async function safeFetchJson(url, options = {}) {
+            const response = await fetch(url, options);
+            const text = await response.text();
+            if (!text || text.trim() === '') {
+                if (!response.ok) throw new Error(`Server returned ${response.status} ${response.statusText} (empty response)`);
+                return {};
+            }
+            try {
+                return JSON.parse(text);
+            } catch (e) {
+                throw new Error(`Server returned ${response.status}: ${text.substring(0, 200)}`);
+            }
+        }
+
+        // ============================================
+        // TSCM Tab Functions
+        // ============================================
+        
+        async function startTscmSweep() {
+            const sweepType = document.getElementById('sweepType').value;
+            const continuous = document.getElementById('tscmContinuous').checked;
+            const btn = document.getElementById('tscmStartBtn');
+            btn.disabled = true;
+            btn.textContent = '⏳ Starting...';
+            
+            document.getElementById('sweepProgress').style.display = 'block';
+            document.getElementById('sweepProgressBar').style.width = '0%';
+            document.getElementById('sweepProgressText').textContent = 'Starting sweep...';
+            
+            try {
+                const data = await safeFetchJson('/api/sdr/tscm/sweep', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sweep_type: sweepType, continuous: continuous })
+                });
+                
+                if (data.error) {
+                    alert('Error: ' + data.error + (data.hint ? '\n' + data.hint : ''));
+                    btn.disabled = false;
+                    btn.textContent = '▶️ Start Sweep';
+                    return;
+                }
+                
+                document.getElementById('tscmRunning').textContent = continuous ? 'Continuous' : 'Running';
+                document.getElementById('tscmRunning').style.color = 'var(--accent-green)';
+                btn.textContent = continuous ? '🔄 Sweeping...' : '⏳ Sweeping...';
+                
+                pollTscmStatus();
+            } catch (e) {
+                alert('Failed to start sweep: ' + e.message);
+                btn.disabled = false;
+                btn.textContent = '▶️ Start Sweep';
+            }
+        }
+        
+        async function stopTscmSweep() {
+            try {
+                await fetch('/api/sdr/tscm/stop', { method: 'POST' });
+                document.getElementById('tscmRunning').textContent = 'Stopped';
+                document.getElementById('tscmRunning').style.color = 'var(--text-secondary)';
+                document.getElementById('tscmStartBtn').disabled = false;
+                document.getElementById('tscmStartBtn').textContent = '▶️ Start Sweep';
+            } catch (e) {
+                console.error('Stop failed:', e);
+            }
+        }
+        
+        let tscmPollInterval = null;
+        
+        function pollTscmStatus() {
+            if (tscmPollInterval) clearInterval(tscmPollInterval);
+            tscmPollInterval = setInterval(refreshTscmStatus, 1000); // Poll every 1s for fast updates
+        }
+        
+        async function refreshTscmStatus() {
+            try {
+                const data = await safeFetchJson('/api/sdr/tscm/status');
+                
+                document.getElementById('tscmProgress').textContent = Math.round(data.progress || 0) + '%';
+                const emitters = data.unique_emitters || data.threats_found || 0;
+                const totalRules = data.total_rules_matched || emitters;
+                document.getElementById('tscmThreatsFound').textContent = 
+                    totalRules > emitters ? `${emitters} signals (${totalRules} rules)` : emitters;
+                document.getElementById('sweepProgressBar').style.width = (data.progress || 0) + '%';
+                document.getElementById('sweepProgressText').textContent = 
+                    (data.current_band ? `Scanning ${data.current_band}` : '') + 
+                    ` (${Math.round(data.progress || 0)}%)`;
+                
+                // Enhanced status fields
+                const sweepCountEl = document.getElementById('tscmSweepCount');
+                if (sweepCountEl) sweepCountEl.textContent = data.sweep_count || 0;
+                const bandEl = document.getElementById('tscmCurrentBand');
+                if (bandEl) bandEl.textContent = data.current_band || '--';
+                
+                if (data.running) {
+                    const isContinuous = data.sweep_count > 0 || document.getElementById('tscmContinuous').checked;
+                    document.getElementById('tscmRunning').textContent = isContinuous ? `Continuous (Sweep #${(data.sweep_count || 0) + 1})` : 'Running';
+                    document.getElementById('tscmRunning').style.color = 'var(--accent-green)';
+                } else {
+                    document.getElementById('tscmRunning').textContent = data.progress >= 100 ? 'Complete' : 'Idle';
+                    document.getElementById('tscmRunning').style.color = 'var(--text-secondary)';
+                    document.getElementById('tscmStartBtn').disabled = false;
+                    document.getElementById('tscmStartBtn').textContent = '▶️ Start Sweep';
+                    if (tscmPollInterval) {
+                        clearInterval(tscmPollInterval);
+                        tscmPollInterval = null;
+                    }
+                }
+                
+                renderTscmThreats(data.threats || []);
+            } catch (e) {
+                console.error('TSCM status failed:', e);
+            }
+        }
+        
+        function renderTscmThreats(threats) {
+            const container = document.getElementById('tscmThreatList');
+            
+            if (!threats || threats.length === 0) {
+                container.innerHTML = '<div class="empty-state">No threats detected</div>';
+                return;
+            }
+            
+            container.innerHTML = threats.map((t, idx) => {
+                const firstSeen = t.first_seen ? new Date(t.first_seen * 1000).toLocaleTimeString() : '';
+                const lastSeen = t.last_seen ? new Date(t.last_seen * 1000).toLocaleTimeString() : '';
+                const sightings = t.sightings || 1;
+                const rulesCount = t.matched_rules_count || 1;
+                const rules = t.matched_rules || [];
+                const distStr = t.distance_description ? ` | ~${t.distance_description}` : '';
+
+                const benign = t.possible_benign || [];
+                let rulesHtml = '';
+                if (rules.length > 1) {
+                    const otherRules = rules.slice(1);
+                    rulesHtml = `
+                        <details style="margin-top:0.25rem;font-size:0.75rem;">
+                            <summary style="cursor:pointer;color:var(--text-secondary);">
+                                +${otherRules.length} other rule${otherRules.length > 1 ? 's' : ''} matched this signal
+                            </summary>
+                            <div style="padding:0.25rem 0 0 0.5rem;color:var(--text-secondary);">
+                                ${otherRules.map(r => `<div style="margin:2px 0;">
+                                    <span style="color:${getSeverityColor(r.severity)};">&#9679;</span>
+                                    ${r.name} (${r.category} / ${r.severity})
+                                </div>`).join('')}
+                            </div>
+                            <div style="padding:0.25rem 0 0 0.5rem;font-style:italic;color:var(--text-secondary);">
+                                These rules overlap at this frequency. Likely 1 emitter, not ${rulesCount}.
+                            </div>
+                        </details>`;
+                }
+                if (benign.length > 0) {
+                    rulesHtml += `
+                        <details style="margin-top:0.25rem;font-size:0.75rem;">
+                            <summary style="cursor:pointer;color:var(--accent-blue);">
+                                &#x1F4E1; ${benign.length} common consumer device${benign.length > 1 ? 's' : ''} also use this frequency
+                            </summary>
+                            <div style="padding:0.25rem 0 0 0.5rem;color:var(--text-secondary);">
+                                ${benign.map(b => `<div style="margin:3px 0;">
+                                    <span style="color:var(--accent-blue);">&#9675;</span>
+                                    <strong>${b.name}</strong> (${b.category})
+                                    ${b.brands && b.brands.length > 0 ? `<br><span style="font-size:0.7rem;">Brands: ${b.brands.join(', ')}</span>` : ''}
+                                    ${b.prevalence ? `<span style="font-size:0.7rem;margin-left:0.5rem;opacity:0.7;">[${b.prevalence}]</span>` : ''}
+                                </div>`).join('')}
+                            </div>
+                            <div style="padding:0.25rem 0 0 0.5rem;font-style:italic;color:var(--accent-blue);font-size:0.7rem;">
+                                Consider whether nearby consumer devices could explain this signal before escalating.
+                            </div>
+                        </details>`;
+                }
+
+                return `
+                <div class="threat-item" style="border-left: 3px solid ${getSeverityColor(t.severity)}; padding: 0.5rem; margin: 0.25rem 0; background: var(--bg-tertiary); border-radius: 4px;">
+                    <div class="threat-info">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div class="threat-name" style="font-weight:bold;">⚠️ ${t.band_name || 'Unknown'}</div>
+                            ${rulesCount > 1 ? `<span style="font-size:0.7rem;background:var(--bg-secondary);padding:2px 6px;border-radius:8px;color:var(--text-secondary);">${rulesCount} rules</span>` : ''}
+                        </div>
+                        <div class="threat-details">
+                            ${(t.frequency_hz / 1000000).toFixed(3)} MHz &bull; ${t.power_db?.toFixed(1) || '--'} dB
+                            ${t.peak_power_db ? `(peak: ${t.peak_power_db.toFixed(1)} dB)` : ''}
+                        </div>
+                        <div class="threat-category">${t.category || '--'} &bull; ${t.severity || '--'}${distStr}</div>
+                        <div style="font-size:0.75rem;color:var(--text-secondary);margin-top:0.25rem;">
+                            ${firstSeen ? `First: ${firstSeen}` : ''} ${lastSeen ? `| Last: ${lastSeen}` : ''} | Sightings: ${sightings}
+                        </div>
+                        ${rulesHtml}
+                    </div>
+                </div>
+            `}).join('');
+        }
+        
+        function getSeverityColor(severity) {
+            switch ((severity || '').toLowerCase()) {
+                case 'critical': return 'var(--accent-red)';
+                case 'high': return '#ff6b6b';
+                case 'medium': return 'var(--accent-yellow)';
+                default: return 'var(--accent-blue)';
+            }
+        }
+        
+        async function loadThreatDatabase() {
+            const container = document.getElementById('threatDatabaseList');
+            container.innerHTML = '<div class="empty-state">Loading threat database...</div>';
+            
+            try {
+                const data = await safeFetchJson('/api/sdr/tscm/threats');
+                
+                if (!data.threat_database || data.threat_database.length === 0) {
+                    container.innerHTML = '<div class="empty-state">Threat database empty</div>';
+                    return;
+                }
+                
+                container.innerHTML = data.threat_database.map(t => `
+                    <div class="threat-db-item" style="padding: 0.5rem; border-bottom: 1px solid var(--border-color);">
+                        <div style="font-weight: bold;">${t.name}</div>
+                        <div style="font-size: 0.85rem; color: var(--text-secondary);">
+                            ${t.start_mhz?.toFixed(2)} - ${t.end_mhz?.toFixed(2)} MHz • ${t.category} • ${t.severity}
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary);">${t.description || ''}</div>
+                    </div>
+                `).join('');
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Failed: ${e.message}</div>`;
+            }
+        }
+        
+        // Drone detection functions (enhanced for TSCM tab)
+        async function scanDronesRf() {
+            const container = document.getElementById('droneDetectionResults');
+            container.innerHTML = '<div class="empty-state">Scanning RF bands (2.4/5.8 GHz)...</div>';
+            
+            try {
+                const data = await safeFetchJson('/api/sdr/drone/scan', { method: 'POST' });
+                renderDroneResults(data, 'RF');
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">RF scan failed: ${e.message}</div>`;
+            }
+        }
+        
+        async function scanDronesEmi() {
+            const container = document.getElementById('droneDetectionResults');
+            container.innerHTML = '<div class="empty-state">Scanning EMI (motor harmonics)...</div>';
+            
+            try {
+                const data = await safeFetchJson('/api/sdr/drone/emi', { method: 'POST' });
+                renderDroneResults(data, 'EMI');
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">EMI scan failed: ${e.message}</div>`;
+            }
+        }
+        
+        async function scanDronesFull() {
+            const container = document.getElementById('droneDetectionResults');
+            container.innerHTML = '<div class="empty-state">Running full scan (RF + EMI)...</div>';
+            
+            try {
+                const data = await safeFetchJson('/api/sdr/drone/scan/full', { method: 'POST' });
+                
+                if (data.error) {
+                    container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}</div>`;
+                    return;
+                }
+                
+                let html = '';
+                
+                // Combined detections
+                if (data.combined_detections && data.combined_detections.length > 0) {
+                    html += '<h4 style="margin: 0.5rem 0;">Combined Detection Results</h4>';
+                    html += data.combined_detections.map(d => `
+                        <div class="drone-detection" style="border-left: 3px solid ${d.confidence > 0.8 ? 'var(--accent-red)' : 'var(--accent-yellow)'}; padding: 0.5rem; margin: 0.25rem 0; background: var(--bg-tertiary); border-radius: 4px;">
+                            <div style="font-weight: bold;">🚁 ${d.description || 'Drone Detected'}</div>
+                            <div style="font-size: 0.85rem;">Method: ${d.detection_method} • Confidence: ${Math.round((d.confidence || 0) * 100)}%</div>
+                            <div style="font-size: 0.85rem;">Threat Level: <span style="color: ${d.threat_level === 'high' ? 'var(--accent-red)' : 'var(--accent-yellow)'}">${d.threat_level}</span></div>
+                        </div>
+                    `).join('');
+                }
+                
+                // Summary
+                html += `
+                    <div style="margin-top: 0.5rem; padding: 0.5rem; background: var(--bg-secondary); border-radius: 4px;">
+                        <strong>Summary:</strong> 
+                        RF signals: ${data.detection_summary?.rf_signals || 0} • 
+                        EMI signals: ${data.detection_summary?.emi_signals || 0} • 
+                        Confirmed: ${data.detection_summary?.confirmed_drones || 0}
+                    </div>
+                `;
+                
+                container.innerHTML = html || '<div class="empty-state">No drones detected</div>';
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">Full scan failed: ${e.message}</div>`;
+            }
+        }
+        
+        // Continuous drone monitoring
+        let droneMonitorRunning = false;
+        let dronePollInterval = null;
+        
+        async function toggleDroneMonitor() {
+            const btn = document.getElementById('droneMonitorBtn');
+            const status = document.getElementById('droneMonitorStatus');
+            
+            if (droneMonitorRunning) {
+                // Stop
+                try {
+                    const data = await safeFetchJson('/api/sdr/drone/stop', { method: 'POST' });
+                    droneMonitorRunning = false;
+                    btn.textContent = '🔄 Continuous';
+                    status.textContent = `Stopped (${data.total_scans || 0} scans, ${data.rf_signals_found || 0} RF, ${data.emi_signals_found || 0} EMI)`;
+                    status.style.color = 'var(--text-secondary)';
+                    if (dronePollInterval) { clearInterval(dronePollInterval); dronePollInterval = null; }
+                } catch (e) {
+                    status.textContent = 'Stop failed: ' + e.message;
+                }
+            } else {
+                // Start
+                try {
+                    const data = await safeFetchJson('/api/sdr/drone/start', { method: 'POST' });
+                    droneMonitorRunning = true;
+                    btn.textContent = '⏹️ Stop Monitor';
+                    status.textContent = `Running (${(data.bands || []).join(', ')})`;
+                    status.style.color = 'var(--accent-green)';
+                    // Poll for results
+                    dronePollInterval = setInterval(async () => {
+                        try {
+                            const signals = await safeFetchJson('/api/sdr/drone/signals');
+                            if (signals && signals.length > 0) {
+                                renderDroneResults({ signals: signals }, 'RF');
+                            }
+                        } catch (e) { /* ignore polling errors */ }
+                    }, 3000);
+                } catch (e) {
+                    status.textContent = 'Start failed: ' + e.message;
+                    status.style.color = 'var(--accent-red)';
+                }
+            }
+        }
+
+        function renderDroneResults(data, scanType) {
+            const container = document.getElementById('droneDetectionResults');
+            
+            if (data.error) {
+                container.innerHTML = `<div class="empty-state" style="color: var(--accent-red);">${data.error}<br><small>${data.hint || ''}</small></div>`;
+                return;
+            }
+            
+            const signals = scanType === 'EMI' ? data.emi_signals : data.signals;
+            
+            if (!signals || signals.length === 0) {
+                container.innerHTML = `<div class="empty-state">No ${scanType} signals detected</div>`;
+                return;
+            }
+            
+            container.innerHTML = signals.map(s => `
+                <div class="drone-signal" style="padding: 0.5rem; margin: 0.25rem 0; background: var(--bg-tertiary); border-radius: 4px;">
+                    <div style="font-weight: bold;">
+                        ${scanType === 'EMI' ? '⚡' : '📡'} ${s.esc_type || s.band || 'Signal'}
+                    </div>
+                    <div style="font-size: 0.85rem;">
+                        ${scanType === 'EMI' 
+                            ? `Fundamental: ${s.fundamental_khz} kHz • Harmonics: ${s.harmonics_detected} • Distance: ${s.estimated_distance}`
+                            : `Freq: ${(s.frequency_hz / 1000000).toFixed(2)} MHz • Power: ${s.power_db} dB`
+                        }
+                    </div>
+                </div>
+            `).join('');
         }
 
         // Event listeners
@@ -2334,6 +4265,10 @@
             fetchRayhunterStatus();
             setInterval(fetchRayhunterStatus, 5000);
             
+            // SDR status polling
+            fetchSdrStatus();
+            setInterval(fetchSdrStatus, 10000);
+            
             // Cleanup old devices
             setInterval(() => {
                 const cutoff = Date.now() - 300000;
@@ -2403,18 +4338,52 @@
                 btn.textContent = btn.classList.contains('active') ? 'ON' : 'OFF';
             });
             
-            // Test LLM
+            // Test LLM - first saves, then tests
             document.getElementById('testLlm')?.addEventListener('click', async () => {
                 const btn = document.getElementById('testLlm');
-                btn.textContent = 'Testing...';
+                const resultEl = document.getElementById('llmTestResult');
+                btn.textContent = 'Saving & Testing...';
+                resultEl.textContent = '';
                 try {
+                    // Save settings first so test reads the latest
+                    const settings = {
+                        llm: {
+                            enabled: true,
+                            provider: document.getElementById('llmProvider')?.value || 'llamacpp',
+                            endpoint: document.getElementById('llmEndpoint')?.value || '',
+                            model: document.getElementById('llmModel')?.value || 'llama3',
+                            api_key: document.getElementById('llmApiKey')?.value || ''
+                        }
+                    };
+                    await fetch('/api/settings', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(settings)
+                    });
+                    // Now test
                     const response = await fetch('/api/settings/llm/test', {method: 'POST'});
                     const data = await response.json();
-                    btn.textContent = data.success ? 'Connected!' : 'Failed';
-                    setTimeout(() => btn.textContent = 'Test Connection', 2000);
+                    if (data.success) {
+                        btn.textContent = 'Connected!';
+                        btn.style.background = 'var(--accent-green)';
+                        let msg = data.message || 'Connected';
+                        if (data.models && data.models.length > 0) {
+                            msg += ' | Models: ' + data.models.slice(0, 5).join(', ');
+                        }
+                        resultEl.textContent = msg;
+                        resultEl.style.color = 'var(--accent-green)';
+                    } else {
+                        btn.textContent = 'Failed';
+                        btn.style.background = 'var(--accent-red)';
+                        resultEl.textContent = data.error || 'Connection failed';
+                        resultEl.style.color = 'var(--accent-red)';
+                    }
+                    setTimeout(() => { btn.textContent = 'Test Connection'; btn.style.background = ''; }, 3000);
                 } catch (e) {
                     btn.textContent = 'Error';
-                    setTimeout(() => btn.textContent = 'Test Connection', 2000);
+                    resultEl.textContent = e.message;
+                    resultEl.style.color = 'var(--accent-red)';
+                    setTimeout(() => { btn.textContent = 'Test Connection'; btn.style.background = ''; }, 3000);
                 }
             });
             
@@ -2434,7 +4403,9 @@
                         llm: {
                             enabled: document.getElementById('aiToggle')?.classList.contains('active') || false,
                             provider: document.getElementById('llmProvider')?.value || 'llamacpp',
-                            endpoint: document.getElementById('llmEndpoint')?.value || 'http://localhost:11434'
+                            endpoint: document.getElementById('llmEndpoint')?.value || 'http://localhost:8080',
+                            model: document.getElementById('llmModel')?.value || 'llama3',
+                            api_key: document.getElementById('llmApiKey')?.value || ''
                         }
                     };
                     
@@ -2461,6 +4432,79 @@
             });
         }
         
+        // Load saved settings from config file into form
+        async function loadSavedSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                if (!response.ok) return;
+                const s = await response.json();
+                if (s.llm) {
+                    if (s.llm.enabled) {
+                        const btn = document.getElementById('aiToggle');
+                        if (btn) { btn.classList.add('active'); btn.textContent = 'ON'; }
+                    }
+                    if (s.llm.provider) {
+                        const sel = document.getElementById('llmProvider');
+                        if (sel) sel.value = s.llm.provider;
+                    }
+                    if (s.llm.endpoint) {
+                        const el = document.getElementById('llmEndpoint');
+                        if (el) el.value = s.llm.endpoint;
+                    }
+                    if (s.llm.model) {
+                        const el = document.getElementById('llmModel');
+                        if (el) el.value = s.llm.model;
+                    }
+                    // Show indicator if an API key is saved (we don't expose the actual key)
+                    if (s.llm.has_api_key) {
+                        const keyEl = document.getElementById('llmApiKey');
+                        if (keyEl && !keyEl.value) {
+                            keyEl.placeholder = '••••••••  (key saved)';
+                        }
+                    }
+                }
+            } catch (e) { /* ignore */ }
+        }
+        loadSavedSettings();
+
+        // About page population
+        async function loadAboutPage() {
+            try {
+                const status = await safeFetchJson('/api/status');
+                if (status) {
+                    document.getElementById('aboutVersion').textContent = 'v' + (status.version || '?');
+                    document.getElementById('aboutVersionDetail').textContent = status.version || '--';
+                    document.getElementById('aboutDevice').textContent = status.device_name || '--';
+                    document.getElementById('aboutDeviceName').textContent = status.device_name || '';
+                    const up = status.uptime_seconds || 0;
+                    const h = Math.floor(up / 3600);
+                    const m = Math.floor((up % 3600) / 60);
+                    document.getElementById('aboutUptime').textContent = h > 0 ? `${h}h ${m}m` : `${m}m`;
+                }
+            } catch (e) { /* ignore */ }
+            try {
+                const sdr = await safeFetchJson('/api/sdr/status');
+                if (sdr) {
+                    const caps = sdr.capabilities || {};
+                    const devs = sdr.devices || [];
+                    let html = '<ul style="padding-left:1.25rem;margin:0;">';
+                    if (devs.length > 0) {
+                        devs.forEach(d => { html += `<li><strong>${d.name}</strong> (${d.device_type})</li>`; });
+                    }
+                    html += `<li>RTL-SDR: ${caps.rtl_sdr ? '✅' : '❌'}</li>`;
+                    html += `<li>HackRF: ${caps.hackrf ? '✅' : '❌'}</li>`;
+                    html += `<li>LimeSDR: ${caps.limesdr ? '✅' : '❌'}</li>`;
+                    html += `<li>RTL-433: ${caps.rtl_433 ? '✅' : '❌'}</li>`;
+                    html += `<li>kalibrate: ${caps.kalibrate ? '✅' : '❌'}</li>`;
+                    html += '</ul>';
+                    document.getElementById('aboutHardware').innerHTML = html;
+                }
+            } catch (e) {
+                document.getElementById('aboutHardware').textContent = 'Could not load hardware info';
+            }
+        }
+        loadAboutPage();
+
         async function checkLlmStatus() {
             const statusEl = document.getElementById('llmStatus');
             if (!statusEl) return;
@@ -2802,9 +4846,319 @@
         
         // Close modal on escape key
         document.addEventListener('keydown', (e) => {
-            if (e.key === 'Escape' && document.getElementById('noteModal').classList.contains('active')) {
-                closeNoteModal();
+            if (e.key === 'Escape') {
+                if (document.getElementById('noteModal').classList.contains('active')) {
+                    closeNoteModal();
+                }
+                if (document.getElementById('contactModal').classList.contains('active')) {
+                    closeContactModal();
+                }
             }
+        });
+        
+        // ===== Contact Log Functions =====
+        
+        const contactState = {
+            contacts: [],
+            currentPage: 1,
+            pageSize: 50,
+            totalContacts: 0,
+            searchQuery: '',
+            sortField: 'last_seen',
+            sortDesc: true
+        };
+        
+        async function loadContacts() {
+            const offset = (contactState.currentPage - 1) * contactState.pageSize;
+            const search = contactState.searchQuery ? `&search=${encodeURIComponent(contactState.searchQuery)}` : '';
+            
+            try {
+                const response = await fetch(`/api/contacts?limit=${contactState.pageSize}&offset=${offset}${search}`);
+                const data = await response.json();
+                
+                contactState.contacts = data.contacts || [];
+                contactState.totalContacts = data.total || 0;
+                
+                renderContacts();
+                updateContactStats();
+                updatePagination();
+            } catch (e) {
+                console.error('Failed to load contacts:', e);
+                document.getElementById('contactsBody').innerHTML = 
+                    '<tr><td colspan="9" class="empty-state">Failed to load contacts</td></tr>';
+            }
+        }
+        
+        function renderContacts() {
+            const tbody = document.getElementById('contactsBody');
+            
+            if (contactState.contacts.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No contacts found</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = contactState.contacts.map(c => {
+                const typeClass = c.device_type === 'wifi' ? 'type-wifi' : 'type-ble';
+                const threatClass = c.threat_level ? `threat-${c.threat_level}` : '';
+                const firstSeen = new Date(c.first_seen).toLocaleString();
+                const lastSeen = new Date(c.last_seen).toLocaleString();
+                const name = c.device_name || c.ssid || '-';
+                
+                return `
+                    <tr>
+                        <td class="${typeClass}">${c.device_type.toUpperCase()}</td>
+                        <td><code>${c.mac_address}</code></td>
+                        <td>${c.vendor || '-'}</td>
+                        <td>${name}</td>
+                        <td>${c.sighting_count}</td>
+                        <td>${firstSeen}</td>
+                        <td>${lastSeen}</td>
+                        <td class="${threatClass}">${c.threat_level || '-'}</td>
+                        <td>
+                            <button class="action-btn" onclick="viewContact('${c.mac_address}')">View</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+        
+        async function updateContactStats() {
+            try {
+                const response = await fetch('/api/database/stats');
+                const stats = await response.json();
+                
+                document.getElementById('totalContacts').textContent = stats.total_contacts || contactState.totalContacts;
+                document.getElementById('contactCount').textContent = stats.total_contacts || contactState.totalContacts;
+                
+                // Count by type from current data
+                const wifi = contactState.contacts.filter(c => c.device_type === 'wifi').length;
+                const ble = contactState.contacts.filter(c => c.device_type === 'ble').length;
+                document.getElementById('wifiContacts').textContent = wifi;
+                document.getElementById('bleContacts').textContent = ble;
+                document.getElementById('aiDescriptions').textContent = stats.ai_descriptions || 0;
+            } catch (e) {
+                console.error('Failed to update stats:', e);
+            }
+        }
+        
+        function updatePagination() {
+            const totalPages = Math.ceil(contactState.totalContacts / contactState.pageSize);
+            document.getElementById('pageInfo').textContent = `Page ${contactState.currentPage} of ${totalPages || 1}`;
+            document.getElementById('prevPage').disabled = contactState.currentPage <= 1;
+            document.getElementById('nextPage').disabled = contactState.currentPage >= totalPages;
+        }
+        
+        function changePage(delta) {
+            contactState.currentPage += delta;
+            if (contactState.currentPage < 1) contactState.currentPage = 1;
+            loadContacts();
+        }
+        
+        function searchContacts() {
+            contactState.searchQuery = document.getElementById('contactSearch').value.trim();
+            contactState.currentPage = 1;
+            loadContacts();
+        }
+        
+        function sortContacts(field) {
+            if (contactState.sortField === field) {
+                contactState.sortDesc = !contactState.sortDesc;
+            } else {
+                contactState.sortField = field;
+                contactState.sortDesc = true;
+            }
+            
+            // Client-side sort
+            contactState.contacts.sort((a, b) => {
+                let aVal = a[field] || '';
+                let bVal = b[field] || '';
+                
+                if (field === 'sightings' || field === 'sighting_count') {
+                    aVal = a.sighting_count || 0;
+                    bVal = b.sighting_count || 0;
+                }
+                
+                if (typeof aVal === 'string') {
+                    return contactState.sortDesc ? bVal.localeCompare(aVal) : aVal.localeCompare(bVal);
+                }
+                return contactState.sortDesc ? bVal - aVal : aVal - bVal;
+            });
+            
+            renderContacts();
+        }
+        
+        async function viewContact(mac) {
+            document.getElementById('contactModal').classList.add('active');
+            document.getElementById('contactDetailContent').innerHTML = '<div class="empty-state">Loading...</div>';
+            
+            try {
+                const response = await fetch(`/api/contacts/${encodeURIComponent(mac)}`);
+                const detail = await response.json();
+                
+                if (detail.error) {
+                    document.getElementById('contactDetailContent').innerHTML = 
+                        `<div class="empty-state">${detail.error}</div>`;
+                    return;
+                }
+                
+                const firstSeen = new Date(detail.first_seen).toLocaleString();
+                const lastSeen = new Date(detail.last_seen).toLocaleString();
+                
+                let html = `
+                    <div class="contact-detail-grid">
+                        <div class="detail-card">
+                            <h4>MAC Address</h4>
+                            <p><code>${detail.mac_address}</code></p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Type</h4>
+                            <p>${detail.device_type.toUpperCase()}</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Vendor</h4>
+                            <p>${detail.vendor || 'Unknown'}</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Name</h4>
+                            <p>${detail.device_name || '-'}</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>First Seen</h4>
+                            <p>${firstSeen}</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Last Seen</h4>
+                            <p>${lastSeen}</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Times Seen</h4>
+                            <p>${detail.times_seen}</p>
+                        </div>
+                        <div class="detail-card">
+                            <h4>Baseline</h4>
+                            <p>${detail.is_baseline ? '✅ Yes' : '❌ No'}</p>
+                        </div>
+                    </div>
+                `;
+                
+                if (detail.ai_description) {
+                    html += `
+                        <div class="detail-card" style="margin-top: 1rem;">
+                            <h4>AI Analysis</h4>
+                            <p>${detail.ai_description}</p>
+                            ${detail.threat_level ? `<p><strong>Threat Level:</strong> <span class="threat-${detail.threat_level}">${detail.threat_level.toUpperCase()}</span></p>` : ''}
+                        </div>
+                    `;
+                }
+                
+                if (detail.sightings && detail.sightings.length > 0) {
+                    html += `
+                        <div class="sighting-timeline">
+                            <h4>📍 Sighting History (Recent ${detail.sightings.length})</h4>
+                            <div class="sighting-list">
+                                ${detail.sightings.map(s => {
+                                    const time = new Date(s.timestamp).toLocaleString();
+                                    const loc = (s.latitude && s.longitude) ? 
+                                        `📍 ${s.latitude.toFixed(5)}, ${s.longitude.toFixed(5)}` : '';
+                                    return `
+                                        <div class="sighting-item">
+                                            <span>${time}</span>
+                                            <span>RSSI: ${s.rssi} dBm</span>
+                                            ${s.channel ? `<span>Ch: ${s.channel}</span>` : ''}
+                                            <span>${loc}</span>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                if (detail.user_notes && detail.user_notes.length > 0) {
+                    html += `
+                        <div class="sighting-timeline">
+                            <h4>📝 User Notes</h4>
+                            <div class="sighting-list">
+                                ${detail.user_notes.map(n => `
+                                    <div class="sighting-item" style="flex-direction: column;">
+                                        <p>${n.note_text}</p>
+                                        <small>${n.note_source} • ${n.created_at}</small>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                }
+                
+                html += `
+                    <div style="margin-top: 1rem; display: flex; gap: 0.5rem;">
+                        <button class="action-btn" onclick="openNoteModal('${detail.mac_address}', '${detail.device_type}')">📝 Add Note</button>
+                        <button class="action-btn" onclick="analyzeContact('${detail.mac_address}')">🤖 AI Analyze</button>
+                    </div>
+                `;
+                
+                document.getElementById('contactDetailContent').innerHTML = html;
+            } catch (e) {
+                document.getElementById('contactDetailContent').innerHTML = 
+                    `<div class="empty-state">Error: ${e.message}</div>`;
+            }
+        }
+        
+        function closeContactModal() {
+            document.getElementById('contactModal').classList.remove('active');
+        }
+        
+        async function analyzeContact(mac) {
+            try {
+                const response = await fetch('/api/llm/analyze-device', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ mac })
+                });
+                const result = await response.json();
+                
+                if (result.analysis) {
+                    alert(`AI Analysis:\n\n${result.analysis}`);
+                } else if (result.assessment) {
+                    alert(`Assessment:\n\n${result.assessment}`);
+                } else if (result.error) {
+                    alert(`Error: ${result.error}`);
+                }
+            } catch (e) {
+                alert('Analysis failed: ' + e.message);
+            }
+        }
+        
+        async function exportContacts() {
+            try {
+                const response = await fetch('/api/contacts/export');
+                const blob = await response.blob();
+                
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `sigint-contacts-${new Date().toISOString().split('T')[0]}.json`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            } catch (e) {
+                alert('Export failed: ' + e.message);
+            }
+        }
+        
+        // Load contacts when tab is activated
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                if (btn.dataset.tab === 'contacts') {
+                    loadContacts();
+                }
+            });
+        });
+        
+        // Search on Enter
+        document.getElementById('contactSearch').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') searchContacts();
         });
     </script>
 </body>

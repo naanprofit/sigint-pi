@@ -288,7 +288,8 @@ impl Rtl433Scanner {
         
         debug!("rtl_433 command: rtl_433 {}", args.join(" "));
         
-        let mut child = Command::new("rtl_433")
+        let cmd = crate::sdr::resolve_sdr_command("rtl_433");
+        let mut child = Command::new(&cmd)
             .args(&args)
             .stdout(std::process::Stdio::piped())
             .stderr(std::process::Stdio::null())
