@@ -70,7 +70,12 @@ fi
 # Create RayHunter polling script
 echo -e "${BLUE}Creating RayHunter integration scripts...${NC}"
 
-cat > "$HOME/sigint-deck/rayhunter-poll.sh" << 'EOF'
+# Detect project directory
+SIGINT_DIR="$HOME/sigint-pi"
+[ -d "$HOME/sigint-deck" ] && SIGINT_DIR="$HOME/sigint-deck"
+mkdir -p "$SIGINT_DIR"
+
+cat > "$SIGINT_DIR/rayhunter-poll.sh" << 'EOF'
 #!/bin/bash
 # RayHunter Status Poller for SIGINT-Deck
 export PATH="$HOME/bin:$PATH"
@@ -96,10 +101,10 @@ PID=$(adb shell "pgrep rayhunter" 2>/dev/null | tr -d "\r\n")
 
 echo "{\"connected\":true,\"running\":$([ -n \"$PID\" ] && echo true || echo false),\"latest_file\":\"$LATEST\",\"last_analysis\":$LAST}"
 EOF
-chmod +x "$HOME/sigint-deck/rayhunter-poll.sh"
+chmod +x "$SIGINT_DIR/rayhunter-poll.sh"
 
 # Create ADB connection maintainer
-cat > "$HOME/sigint-deck/rayhunter-adb.sh" << 'EOF'
+cat > "$SIGINT_DIR/rayhunter-adb.sh" << 'EOF'
 #!/bin/bash
 # RayHunter ADB Connection Maintainer
 export PATH="$HOME/bin:$PATH"
@@ -118,7 +123,7 @@ while true; do
     sleep 5
 done
 EOF
-chmod +x "$HOME/sigint-deck/rayhunter-adb.sh"
+chmod +x "$SIGINT_DIR/rayhunter-adb.sh"
 
 # Create systemd user service
 mkdir -p "$HOME/.config/systemd/user"
@@ -129,7 +134,7 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$HOME/sigint-deck/rayhunter-adb.sh
+ExecStart=$SIGINT_DIR/rayhunter-adb.sh
 Restart=always
 RestartSec=30
 
