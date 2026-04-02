@@ -222,6 +222,19 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/contacts/{mac}", web::get().to(get_contact_detail))
             .route("/contacts/{mac}/timeline", web::get().to(get_contact_timeline))
             .route("/database/stats", web::get().to(get_database_stats))
+            // Device Silencing
+            .route("/devices/{mac}/silence", web::post().to(silence_device_alerts))
+            .route("/devices/{mac}/unsilence", web::post().to(unsilence_device_alerts))
+            .route("/devices/silenced", web::get().to(get_silenced_devices))
+            // Ham Radio - Morse Decoder
+            .route("/sdr/morse/start", web::post().to(start_morse_decoder))
+            .route("/sdr/morse/stop", web::post().to(stop_morse_decoder))
+            .route("/sdr/morse/status", web::get().to(get_morse_status))
+            // TTS Alerts (browser-based)
+            .route("/alerts/tts/config", web::get().to(get_tts_alert_config))
+            .route("/alerts/tts/config", web::post().to(set_tts_alert_config))
+            .route("/alerts/tts/pending", web::get().to(get_pending_tts_alerts))
+            .route("/tts/generate", web::post().to(generate_tts_wav))
             // Legal
             .route("/legal", web::get().to(get_legal))
             .route("/legal/accept", web::post().to(accept_legal))
@@ -5058,4 +5071,390 @@ async fn legal_status() -> impl Responder {
     HttpResponse::Ok().json(serde_json::json!({
         "accepted": accepted
     }))
+}
+
+// ============================================
+// Browser TTS Alert System
+// ============================================
+
+static TTS_ENABLED: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+static TTS_LAST_ALERT_ID: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
+
+#[derive(Deserialize)]
+struct TtsConfigRequest {
+    enabled: bool,
+}
+
+async fn get_tts_alert_config() -> impl Responder {
+    let enabled = *TTS_ENABLED.lock().unwrap();
+    HttpResponse::Ok().json(serde_json::json!({
+        "enabled": enabled,
+        "engine": "browser",
+        "piper_available": std::path::Path::new("/home/pi/sigint-pi/venv/bin/piper").exists(),
+        "model_available": std::path::Path::new("/home/pi/sigint-pi/models/piper/en_US-lessac-medium.onnx").exists(),
+    }))
+}
+
+async fn set_tts_alert_config(body: web::Json<TtsConfigRequest>) -> impl Responder {
+    *TTS_ENABLED.lock().unwrap() = body.enabled;
+    tracing::info!("TTS alerts {}", if body.enabled { "enabled" } else { "disabled" });
+    HttpResponse::Ok().json(serde_json::json!({
+        "enabled": body.enabled
+    }))
+}
+
+async fn get_pending_tts_alerts(
+    state: web::Data<Arc<AppState>>,
+) -> impl Responder {
+    let enabled = *TTS_ENABLED.lock().unwrap();
+    if !enabled {
+        return HttpResponse::Ok().json(serde_json::json!({"alerts": []}));
+    }
+
+    let alerts = state.alerts.read().await;
+    let last_id = {
+        let id = TTS_LAST_ALERT_ID.lock().unwrap();
+        *id
+    };
+
+    // Return alerts newer than last spoken, priority Critical/High only
+    let pending: Vec<serde_json::Value> = alerts.iter()
+        .filter(|a| a.id > last_id)
+        .filter(|a| {
+            let p = a.priority.to_lowercase();
+            p == "critical" || p == "high"
+        })
+        .map(|a| serde_json::json!({
+            "id": a.id,
+            "message": a.message,
+            "priority": a.priority,
+            "timestamp": a.timestamp,
+        }))
+        .collect();
+
+    // Update last seen ID
+    if let Some(max_id) = pending.iter().filter_map(|a| a["id"].as_u64()).max() {
+        *TTS_LAST_ALERT_ID.lock().unwrap() = max_id;
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "alerts": pending
+    }))
+}
+
+#[derive(Deserialize)]
+struct TtsGenerateRequest {
+    text: String,
+}
+
+async fn generate_tts_wav(body: web::Json<TtsGenerateRequest>) -> impl Responder {
+    let text = &body.text;
+    if text.is_empty() || text.len() > 500 {
+        return HttpResponse::BadRequest().json(serde_json::json!({"error": "text must be 1-500 chars"}));
+    }
+
+    // Try Piper TTS (generates WAV)
+    let piper_bin = "/home/pi/sigint-pi/venv/bin/piper";
+    let model = "/home/pi/sigint-pi/models/piper/en_US-lessac-medium.onnx";
+
+    if !std::path::Path::new(piper_bin).exists() || !std::path::Path::new(model).exists() {
+        return HttpResponse::ServiceUnavailable().json(serde_json::json!({
+            "error": "piper not available, use browser Web Speech API"
+        }));
+    }
+
+    let output_path = format!("/tmp/tts_{}.wav", std::process::id());
+    let result = tokio::process::Command::new(piper_bin)
+        .args(["--model", model, "--output_file", &output_path])
+        .stdin(std::process::Stdio::piped())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn();
+
+    match result {
+        Ok(mut child) => {
+            if let Some(mut stdin) = child.stdin.take() {
+                use tokio::io::AsyncWriteExt;
+                let _ = stdin.write_all(text.as_bytes()).await;
+                drop(stdin);
+            }
+            // Wait with timeout (Piper can be slow on Pi ARM)
+            match tokio::time::timeout(
+                std::time::Duration::from_secs(15),
+                child.wait()
+            ).await {
+                Ok(Ok(status)) if status.success() => {
+                    if let Ok(wav_data) = tokio::fs::read(&output_path).await {
+                        let _ = tokio::fs::remove_file(&output_path).await;
+                        return HttpResponse::Ok()
+                            .content_type("audio/wav")
+                            .body(wav_data);
+                    }
+                }
+                _ => {
+                    let _ = child.kill().await;
+                    let _ = tokio::fs::remove_file(&output_path).await;
+                }
+            }
+        }
+        Err(_) => {}
+    }
+
+    HttpResponse::ServiceUnavailable().json(serde_json::json!({
+        "error": "piper generation failed, use browser Web Speech API"
+    }))
+}
+
+// ============================================
+// Device Alert Silencing
+// ============================================
+
+async fn silence_device_alerts(path: web::Path<String>) -> impl Responder {
+    let mac = path.into_inner();
+    crate::alerts::silence_device(&mac);
+    tracing::info!("Silenced alerts for device: {}", mac);
+    HttpResponse::Ok().json(serde_json::json!({
+        "silenced": true,
+        "mac": mac.to_uppercase()
+    }))
+}
+
+async fn unsilence_device_alerts(path: web::Path<String>) -> impl Responder {
+    let mac = path.into_inner();
+    crate::alerts::unsilence_device(&mac);
+    tracing::info!("Unsilenced alerts for device: {}", mac);
+    HttpResponse::Ok().json(serde_json::json!({
+        "silenced": false,
+        "mac": mac.to_uppercase()
+    }))
+}
+
+async fn get_silenced_devices() -> impl Responder {
+    let devices = crate::alerts::get_silenced_devices();
+    HttpResponse::Ok().json(serde_json::json!({
+        "silenced_devices": devices
+    }))
+}
+
+// ============================================
+// Ham Radio - Morse Decoder
+// ============================================
+
+static MORSE_RUNNING: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+static MORSE_DECODED: Lazy<Mutex<Vec<serde_json::Value>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static MORSE_FREQ: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
+
+#[derive(Deserialize)]
+struct MorseStartRequest {
+    frequency_hz: u64,
+    #[serde(default = "default_wpm")]
+    wpm: u32,
+    #[serde(default = "default_tone_hz")]
+    tone_hz: u32,
+}
+
+fn default_wpm() -> u32 { 20 }
+fn default_tone_hz() -> u32 { 700 }
+
+async fn start_morse_decoder(body: web::Json<MorseStartRequest>) -> impl Responder {
+    let freq = body.frequency_hz;
+    let wpm = body.wpm;
+    let tone_hz = body.tone_hz;
+
+    if *MORSE_RUNNING.lock().unwrap() {
+        return HttpResponse::Conflict().json(serde_json::json!({"error": "Morse decoder already running"}));
+    }
+
+    *MORSE_RUNNING.lock().unwrap() = true;
+    *MORSE_FREQ.lock().unwrap() = freq;
+    MORSE_DECODED.lock().unwrap().clear();
+
+    // Start rtl_fm in CW mode piped through a tone detector
+    tokio::spawn(async move {
+        let rtl_fm = tokio::process::Command::new("rtl_fm")
+            .args([
+                "-f", &freq.to_string(),
+                "-M", "usb",
+                "-s", "12000",
+                "-g", "40",
+                "-l", "0",
+                "-"
+            ])
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::null())
+            .spawn();
+
+        match rtl_fm {
+            Ok(mut child) => {
+                if let Some(stdout) = child.stdout.take() {
+                    use tokio::io::AsyncReadExt;
+                    let mut reader = tokio::io::BufReader::new(stdout);
+                    let mut buf = vec![0u8; 2400]; // 100ms of 12kHz 16-bit audio
+                    let sample_rate = 12000.0_f64;
+                    let target_freq = tone_hz as f64;
+                    let dot_duration = 1.2 / wpm as f64;
+
+                    // Goertzel tone detection state
+                    let mut tone_on = false;
+                    let mut tone_start: f64 = 0.0;
+                    let mut silence_start: f64 = 0.0;
+                    let mut current_char = String::new();
+                    let mut decoded_text = String::new();
+                    let mut sample_count: u64 = 0;
+
+                    loop {
+                        if !*MORSE_RUNNING.lock().unwrap() { break; }
+
+                        match reader.read(&mut buf).await {
+                            Ok(0) => break,
+                            Ok(n) => {
+                                let samples = n / 2;
+                                sample_count += samples as u64;
+                                let time = sample_count as f64 / sample_rate;
+
+                                // Goertzel algorithm for tone detection
+                                let k = (0.5 + (samples as f64 * target_freq / sample_rate)) as usize;
+                                let w = 2.0 * std::f64::consts::PI * k as f64 / samples as f64;
+                                let coeff = 2.0 * w.cos();
+                                let mut s0: f64 = 0.0;
+                                let mut s1: f64 = 0.0;
+                                let mut s2: f64 = 0.0;
+
+                                for i in 0..samples {
+                                    let sample = if i * 2 + 1 < n {
+                                        i16::from_le_bytes([buf[i*2], buf[i*2+1]]) as f64 / 32768.0
+                                    } else { 0.0 };
+                                    s0 = coeff * s1 - s2 + sample;
+                                    s2 = s1;
+                                    s1 = s0;
+                                }
+
+                                let power = s1*s1 + s2*s2 - coeff*s1*s2;
+                                let magnitude = power.sqrt();
+                                let is_tone = magnitude > 0.05;
+
+                                if is_tone && !tone_on {
+                                    tone_on = true;
+                                    tone_start = time;
+                                    let silence_dur = time - silence_start;
+                                    // Word gap (7 units)
+                                    if silence_dur > dot_duration * 5.0 && !current_char.is_empty() {
+                                        if let Some(ch) = morse_to_char(&current_char) {
+                                            decoded_text.push(ch);
+                                        }
+                                        decoded_text.push(' ');
+                                        current_char.clear();
+                                    }
+                                    // Char gap (3 units)
+                                    else if silence_dur > dot_duration * 2.0 && !current_char.is_empty() {
+                                        if let Some(ch) = morse_to_char(&current_char) {
+                                            decoded_text.push(ch);
+                                        }
+                                        current_char.clear();
+                                    }
+                                } else if !is_tone && tone_on {
+                                    tone_on = false;
+                                    silence_start = time;
+                                    let tone_dur = time - tone_start;
+                                    if tone_dur > dot_duration * 2.0 {
+                                        current_char.push('-');
+                                    } else {
+                                        current_char.push('.');
+                                    }
+                                }
+
+                                // Periodically push decoded text
+                                if !decoded_text.is_empty() && sample_count % 24000 == 0 {
+                                    let now = std::time::SystemTime::now()
+                                        .duration_since(std::time::UNIX_EPOCH)
+                                        .unwrap_or_default().as_secs();
+                                    let mut decoded = MORSE_DECODED.lock().unwrap();
+                                    decoded.push(serde_json::json!({
+                                        "text": decoded_text.clone(),
+                                        "frequency_hz": freq,
+                                        "wpm": wpm,
+                                        "timestamp": now
+                                    }));
+                                    if decoded.len() > 100 { decoded.remove(0); }
+                                }
+                            }
+                            Err(_) => break,
+                        }
+                    }
+
+                    // Final flush
+                    if !current_char.is_empty() {
+                        if let Some(ch) = morse_to_char(&current_char) {
+                            decoded_text.push(ch);
+                        }
+                    }
+                    if !decoded_text.is_empty() {
+                        let now = std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default().as_secs();
+                        let mut decoded = MORSE_DECODED.lock().unwrap();
+                        decoded.push(serde_json::json!({
+                            "text": decoded_text,
+                            "frequency_hz": freq,
+                            "wpm": wpm,
+                            "timestamp": now
+                        }));
+                    }
+                }
+                let _ = child.kill().await;
+            }
+            Err(e) => {
+                tracing::error!("Failed to start rtl_fm for morse: {}", e);
+            }
+        }
+        *MORSE_RUNNING.lock().unwrap() = false;
+    });
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "running": true,
+        "frequency_hz": freq,
+        "wpm": wpm,
+        "tone_hz": tone_hz
+    }))
+}
+
+async fn stop_morse_decoder() -> impl Responder {
+    *MORSE_RUNNING.lock().unwrap() = false;
+    HttpResponse::Ok().json(serde_json::json!({"running": false}))
+}
+
+async fn get_morse_status() -> impl Responder {
+    let running = *MORSE_RUNNING.lock().unwrap();
+    let freq = *MORSE_FREQ.lock().unwrap();
+    let decoded = MORSE_DECODED.lock().unwrap().clone();
+    HttpResponse::Ok().json(serde_json::json!({
+        "running": running,
+        "frequency_hz": freq,
+        "decoded": decoded
+    }))
+}
+
+fn morse_to_char(code: &str) -> Option<char> {
+    match code {
+        ".-"    => Some('A'), "-..."  => Some('B'), "-.-."  => Some('C'),
+        "-.."   => Some('D'), "."     => Some('E'), "..-."  => Some('F'),
+        "--."   => Some('G'), "...."  => Some('H'), ".."    => Some('I'),
+        ".---"  => Some('J'), "-.-"   => Some('K'), ".-.."  => Some('L'),
+        "--"    => Some('M'), "-."    => Some('N'), "---"   => Some('O'),
+        ".--."  => Some('P'), "--.-"  => Some('Q'), ".-."   => Some('R'),
+        "..."   => Some('S'), "-"     => Some('T'), "..-"   => Some('U'),
+        "...-"  => Some('V'), ".--"   => Some('W'), "-..-"  => Some('X'),
+        "-.--"  => Some('Y'), "--.."  => Some('Z'),
+        "-----" => Some('0'), ".----" => Some('1'), "..---" => Some('2'),
+        "...--" => Some('3'), "....-" => Some('4'), "....." => Some('5'),
+        "-...." => Some('6'), "--..." => Some('7'), "---.." => Some('8'),
+        "----." => Some('9'),
+        ".-.-.-" => Some('.'), "--..--" => Some(','), "..--.." => Some('?'),
+        ".----." => Some('\''), "-.-.--" => Some('!'), "-..-." => Some('/'),
+        "-.--." => Some('('), "-.--.-" => Some(')'), ".-..." => Some('&'),
+        "---..." => Some(':'), "-.-.-." => Some(';'), "-...-" => Some('='),
+        ".-.-." => Some('+'), "-....-" => Some('-'), "..--.-" => Some('_'),
+        ".-..-." => Some('"'), "...-..-" => Some('$'), ".--.-." => Some('@'),
+        _ => None,
+    }
 }

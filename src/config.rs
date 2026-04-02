@@ -82,7 +82,7 @@ fn default_db_path() -> PathBuf { PathBuf::from("./sigint.db") }
 fn default_retention() -> u32 { 30 }
 fn default_smtp_port() -> u16 { 587 }
 fn default_bind_addr() -> String { "0.0.0.0".to_string() }
-fn default_web_port() -> u16 { 8080 }
+fn default_web_port() -> u16 { 8085 }
 fn default_influx_url() -> String { "http://localhost:8086".to_string() }
 fn default_influx_org() -> String { "sigint".to_string() }
 fn default_influx_bucket() -> String { "sigint".to_string() }
@@ -552,7 +552,7 @@ impl Default for MqttConfig {
 
 impl Default for WebConfig {
     fn default() -> Self {
-        Self { enabled: true, bind_address: "0.0.0.0".to_string(), port: 8080 }
+        Self { enabled: true, bind_address: "0.0.0.0".to_string(), port: 8085 }
     }
 }
 
@@ -664,7 +664,7 @@ impl Config {
             web: WebConfig {
                 enabled: true,
                 bind_address: "0.0.0.0".to_string(),
-                port: 8080,
+                port: 8085,
             },
             learning: LearningConfig {
                 enabled: true,

@@ -53,3 +53,4 @@ oui.txt
 *.pem
 *.key
 *.crt
+*.core

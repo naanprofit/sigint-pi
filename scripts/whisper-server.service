@@ -1,0 +1,18 @@
+[Unit]
+Description=Faster-Whisper STT Server for SIGINT-Pi
+After=network.target
+
+[Service]
+Type=simple
+ExecStart=/home/pi/sigint-pi/venv/bin/python /home/pi/sigint-pi/scripts/whisper_server.py
+WorkingDirectory=/home/pi/sigint-pi
+Environment=WHISPER_MODEL=tiny
+Environment=WHISPER_DEVICE=cpu
+Environment=WHISPER_COMPUTE=int8
+Environment=WHISPER_PORT=5000
+Environment=HF_HUB_DISABLE_XET=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=default.target

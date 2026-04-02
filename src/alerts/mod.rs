@@ -9,9 +9,31 @@ pub mod webhook;
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::broadcast;
 use tracing::{debug, error, info, warn};
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+
+/// Globally silenced device MACs - alerts suppressed for these
+pub static SILENCED_DEVICES: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| Mutex::new(HashSet::new()));
+
+pub fn is_device_silenced(mac: &str) -> bool {
+    SILENCED_DEVICES.lock().unwrap().contains(&mac.to_uppercase())
+}
+
+pub fn silence_device(mac: &str) {
+    SILENCED_DEVICES.lock().unwrap().insert(mac.to_uppercase());
+}
+
+pub fn unsilence_device(mac: &str) {
+    SILENCED_DEVICES.lock().unwrap().remove(&mac.to_uppercase());
+}
+
+pub fn get_silenced_devices() -> Vec<String> {
+    SILENCED_DEVICES.lock().unwrap().iter().cloned().collect()
+}
 
 use crate::config::Config;
 use crate::storage::Database;
@@ -205,6 +227,10 @@ impl AlertManagerState {
     }
 
     async fn check_wifi_device(&mut self, device: &WifiDevice) -> Result<()> {
+        // Check if device is silenced
+        if is_device_silenced(&device.mac_address) {
+            return Ok(());
+        }
         // Check if device is known
         let is_known = self.db.is_device_known(&device.mac_address, 1).await?;
         
@@ -249,6 +275,10 @@ impl AlertManagerState {
     }
 
     async fn check_ble_device(&mut self, device: &BleDevice) -> Result<()> {
+        // Check if device is silenced
+        if is_device_silenced(&device.mac_address) {
+            return Ok(());
+        }
         // Always alert on trackers
         if device.is_tracker() {
             let alert = Alert {

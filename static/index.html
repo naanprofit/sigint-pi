@@ -1754,9 +1754,6 @@
         <button class="tab-btn" data-tab="settings" tabindex="0">
             ⚙️ Settings
         </button>
-        <button class="tab-btn" data-tab="about" tabindex="0">
-            ℹ️ About
-        </button>
     </nav>
 
     <div class="tab-content active" id="tab-wifi">
@@ -2137,6 +2134,44 @@
                 </div>
                 <div id="presetSearchResults" class="preset-list" style="margin-top: 0.5rem;"></div>
             </div>
+
+            <!-- Morse Code Decoder -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📡 CW / Morse Decoder</h4>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
+                    Tune to a CW frequency on a ham band and decode Morse code in real-time. Audio is streamed to the browser.
+                </p>
+                <div class="radio-tuner">
+                    <div class="tuner-row">
+                        <input type="number" id="morseFreqInput" placeholder="Freq (Hz) e.g. 7030000" style="width: 160px;" class="spectrum-input">
+                        <select id="morsePresetSelect" class="spectrum-select" onchange="selectMorsePreset(this)">
+                            <option value="">-- Ham CW Presets --</option>
+                            <option value="1810000">160m CW (1.810 MHz)</option>
+                            <option value="3530000">80m CW (3.530 MHz)</option>
+                            <option value="7030000">40m CW (7.030 MHz)</option>
+                            <option value="10110000">30m CW (10.110 MHz)</option>
+                            <option value="14030000">20m CW (14.030 MHz)</option>
+                            <option value="18080000">17m CW (18.080 MHz)</option>
+                            <option value="21030000">15m CW (21.030 MHz)</option>
+                            <option value="24900000">12m CW (24.900 MHz)</option>
+                            <option value="28030000">10m CW (28.030 MHz)</option>
+                        </select>
+                        <input type="number" id="morseWpmInput" placeholder="WPM" value="20" style="width: 70px;" class="spectrum-input">
+                        <input type="number" id="morseToneInput" placeholder="Tone Hz" value="700" style="width: 85px;" class="spectrum-input">
+                    </div>
+                    <div class="tuner-row" style="margin-top: 0.5rem;">
+                        <button class="action-btn" onclick="startMorseDecoder()">▶️ Start Decoder</button>
+                        <button class="action-btn" onclick="stopMorseDecoder()">⏹️ Stop</button>
+                        <button class="action-btn" onclick="startMorseWithAudio()">🔊 Decode + Listen</button>
+                        <span id="morseStatus" style="font-size: 0.85rem; color: var(--text-secondary); margin-left: 0.5rem;">Stopped</span>
+                    </div>
+                </div>
+                <div id="morseOutput" style="margin-top: 0.75rem; padding: 0.75rem; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 6px; min-height: 60px; font-family: 'Courier New', monospace; font-size: 1rem; color: var(--accent-green); white-space: pre-wrap; max-height: 200px; overflow-y: auto;">
+                    Decoded text will appear here...
+                </div>
+            </div>
         </div>
     </div>
     
@@ -2275,6 +2310,10 @@
                     <button id="ninjaToggle" class="toggle-btn">OFF</button>
                 </div>
                 <div class="setting-item">
+                    <label>Browser TTS Alerts</label>
+                    <button id="browserTtsToggle" class="toggle-btn" onclick="toggleBrowserTts()">🔇 TTS OFF</button>
+                </div>
+                <div class="setting-item">
                     <label>PCAP Capture</label>
                     <button id="pcapToggle" class="toggle-btn">OFF</button>
                 </div>
@@ -2317,102 +2356,46 @@
         </div>
         
         <div class="settings-section">
+            <h3>Silenced Devices</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Devices below will not generate alerts. Silence from the WiFi or BLE device list.</p>
+            <div id="silencedDevicesList" style="font-size: 0.85rem; color: var(--text-secondary);">Loading...</div>
+            <button class="action-btn" onclick="loadSilencedDevices()" style="margin-top: 0.5rem;">🔄 Refresh</button>
+        </div>
+
+        <div class="settings-section">
             <h3>Configuration</h3>
             <button id="saveConfig" class="action-btn save-btn">Save Settings</button>
             <span id="saveStatus" style="margin-left: 1rem;"></span>
         </div>
-    </div>
 
-    <!-- About Tab -->
-    <div class="tab-content" id="tab-about">
-        <div style="max-width: 800px; margin: 0 auto; padding: 1rem;">
-            <div style="text-align: center; margin-bottom: 2rem;">
-                <h2 style="font-size: 1.8rem; margin-bottom: 0.25rem;">SIGINT-Pi</h2>
-                <div style="color: var(--accent-green); font-size: 1.1rem; font-weight: bold;" id="aboutVersion">v0.2.3</div>
-                <div style="color: var(--text-secondary); font-size: 0.85rem; margin-top: 0.25rem;">Portable Signals Intelligence &amp; Security Monitoring</div>
-                <div style="color: var(--text-secondary); font-size: 0.8rem; margin-top: 0.5rem;" id="aboutDeviceName">--</div>
-            </div>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--accent-red); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-                <h3 style="color: var(--accent-red); margin: 0 0 0.75rem 0; font-size: 1rem;">⚠️ RESEARCH &amp; ENTERTAINMENT USE ONLY</h3>
-                <p style="color: var(--text-primary); font-size: 0.85rem; line-height: 1.5; margin: 0 0 0.75rem 0;">
-                    <strong>This software is provided strictly for research, educational, and entertainment purposes only.</strong>
-                    It is an experimental research tool and is NOT designed, intended, tested, validated, or certified for use in any
-                    situation where human life, safety, health, or physical security depends on its correct operation.
-                </p>
-                <p style="color: var(--accent-red); font-size: 0.85rem; line-height: 1.5; margin: 0 0 0.75rem 0; font-weight: bold;">
-                    DO NOT RELY ON THIS SOFTWARE IN ANY LIFE-THREATENING, SAFETY-CRITICAL, OR EMERGENCY SITUATION.
-                </p>
-                <p style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; margin: 0 0 0.75rem 0;">
-                    This software may produce false positives, false negatives, inaccurate readings, missed detections, and erroneous
-                    analyses. RF detection, spectrum analysis, drone detection, IMSI catcher detection, TSCM sweeps, and all other
-                    features are experimental and have NOT been validated against any safety standard. Detection confidence levels,
-                    distance estimates, threat classifications, and AI-generated analyses are approximations only.
-                </p>
-            </div>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">Complete Assumption of Risk</h3>
-                <p style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.5; margin: 0 0 0.5rem 0;">
-                    By using this software, you unconditionally and irrevocably:
-                </p>
-                <ul style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.6; padding-left: 1.25rem; margin: 0 0 0.5rem 0;">
-                    <li><strong>Accept full and sole responsibility</strong> for any and all consequences of your use</li>
-                    <li><strong>Completely and forever absolve</strong> the developer(s), author(s), contributor(s), and distributor(s) from any and all claims, damages, and liabilities</li>
-                    <li><strong>Acknowledge</strong> that if you use this software outside your legal rights or justifications, you bear exclusive and total responsibility</li>
-                    <li><strong>Waive any and all claims</strong> regardless of legal theory, including negligence, strict liability, product liability, or breach of warranty</li>
-                </ul>
-                <p style="color: var(--text-secondary); font-size: 0.75rem; line-height: 1.5; margin: 0.5rem 0 0 0; font-style: italic;">
-                    Authorized use is limited to: security research, educational purposes, network administration on networks you own,
-                    counter-surveillance of your own property, licensed amateur radio operations, and TSCM by licensed professionals.
-                    See <a href="https://github.com/naanprofit/sigint-pi/blob/main/LEGAL.md" target="_blank" style="color:var(--accent-blue);">LEGAL.md</a> for full terms.
-                </p>
-            </div>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">Version Details</h3>
-                <table style="width: 100%; font-size: 0.8rem; color: var(--text-secondary);">
-                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Version</td><td style="padding: 4px 8px; color: var(--text-primary);" id="aboutVersionDetail">--</td></tr>
-                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Device</td><td style="padding: 4px 8px; color: var(--text-primary);" id="aboutDevice">--</td></tr>
-                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Uptime</td><td style="padding: 4px 8px; color: var(--text-primary);" id="aboutUptime">--</td></tr>
-                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">License</td><td style="padding: 4px 8px; color: var(--text-primary);">GPL-3.0-or-later</td></tr>
-                    <tr><td style="padding: 4px 8px; color: var(--text-secondary);">Repository</td><td style="padding: 4px 8px;"><a href="https://github.com/naanprofit/sigint-pi" target="_blank" style="color:var(--accent-blue);">github.com/naanprofit/sigint-pi</a></td></tr>
-                </table>
-            </div>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">v0.2.3 Changelog Highlights</h3>
-                <ul style="color: var(--text-secondary); font-size: 0.8rem; line-height: 1.6; padding-left: 1.25rem; margin: 0;">
-                    <li><strong>TSCM Threat Grouping</strong> &mdash; signals at the same frequency grouped as one emitter; consumer device false-positive suggestions</li>
-                    <li><strong>14 SDR Bug Fixes</strong> &mdash; rtl_power frequency format, EMI direct sampling, async cell tower scanning, hardware detection</li>
-                    <li><strong>Consumer Device Database</strong> &mdash; 50+ benign devices (baby monitors, doorbells, key fobs, etc.) for false-positive identification</li>
-                    <li><strong>Browser Audio Streaming</strong> &mdash; live FM/AM/SSB audio from SDR to browser via Web Audio API</li>
-                    <li><strong>Distance Estimation</strong> &mdash; free-space path loss model for all RF detections</li>
-                    <li><strong>RayHunter API Rewrite</strong> &mdash; direct HTTP API to EFF RayHunter with auto ADB forwarding</li>
-                    <li><strong>Military Drone Signatures</strong> &mdash; RF profiles from 9 countries including Shahed, Lancet, Bayraktar, Switchblade</li>
-                    <li><strong>Continuous Scanning</strong> &mdash; TSCM and drone monitors run until stopped with contact tracking</li>
-                    <li><strong>LLM API Key Support</strong> &mdash; OpenAI, Anthropic, Ollama, llama.cpp, LMStudio with Bearer token auth</li>
-                </ul>
-            </div>
-
-            <div style="background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 8px; padding: 1.25rem; margin-bottom: 1.5rem;">
-                <h3 style="color: var(--text-primary); margin: 0 0 0.75rem 0; font-size: 1rem;">Hardware Support</h3>
-                <div id="aboutHardware" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6;">
-                    Loading...
+        <div class="settings-section" style="border-top: 1px solid var(--border-color); padding-top: 1rem; margin-top: 1rem;">
+            <h3>About</h3>
+            <div style="display: flex; align-items: center; gap: 1rem; margin-bottom: 1rem;">
+                <div>
+                    <div style="font-size: 1.2rem; font-weight: bold;">SIGINT-Pi</div>
+                    <div style="color: var(--accent-green); font-weight: bold;" id="aboutVersion">--</div>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-secondary);">
+                    <span id="aboutDeviceName"></span> &bull; Uptime: <span id="aboutUptime">--</span>
                 </div>
             </div>
-
-            <div style="text-align: center; padding: 1rem; color: var(--text-secondary); font-size: 0.75rem;">
-                <p style="margin: 0.25rem 0;">Built with Rust, Actix, pcap, btleplug, and open-source SDR tools</p>
-                <p style="margin: 0.25rem 0;">
-                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/LEGAL.md" target="_blank" style="color:var(--accent-blue);">Legal</a> &bull;
-                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/CREDITS.md" target="_blank" style="color:var(--accent-blue);">Credits</a> &bull;
-                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/CHANGELOG.md" target="_blank" style="color:var(--accent-blue);">Changelog</a> &bull;
-                    <a href="https://github.com/naanprofit/sigint-pi/blob/main/KNOWN_ISSUES.md" target="_blank" style="color:var(--accent-blue);">Known Issues</a>
-                </p>
-                <p style="margin: 0.5rem 0 0 0; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.7;">
-                    &copy; 2026 naanprofit &bull; GPL-3.0-or-later
-                </p>
+            <table style="width: 100%; font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 1rem;">
+                <tr><td style="padding: 3px 8px;">Version</td><td style="padding: 3px 8px; color: var(--text-primary);" id="aboutVersionDetail">--</td></tr>
+                <tr><td style="padding: 3px 8px;">Device</td><td style="padding: 3px 8px; color: var(--text-primary);" id="aboutDevice">--</td></tr>
+                <tr><td style="padding: 3px 8px;">License</td><td style="padding: 3px 8px; color: var(--text-primary);">GPL-3.0-or-later</td></tr>
+                <tr><td style="padding: 3px 8px;">Repository</td><td style="padding: 3px 8px;"><a href="https://github.com/naanprofit/sigint-pi" target="_blank" style="color:var(--accent-blue);">github.com/naanprofit/sigint-pi</a></td></tr>
+            </table>
+            <div id="aboutHardware" style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 1rem;">Loading...</div>
+            <details style="margin-bottom: 1rem;">
+                <summary style="cursor: pointer; color: var(--accent-red); font-weight: bold; font-size: 0.9rem;">⚠️ Legal Disclaimer</summary>
+                <div style="padding: 0.75rem; margin-top: 0.5rem; background: rgba(210,50,50,0.1); border-radius: 6px; font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
+                    <p><strong>RESEARCH &amp; ENTERTAINMENT USE ONLY.</strong> This software is NOT designed for any safety-critical purpose. Do not rely on it in life-threatening or emergency situations.</p>
+                    <p style="margin-top: 0.5rem;">By using this software you accept full responsibility for all consequences. See <a href="https://github.com/naanprofit/sigint-pi/blob/main/LEGAL.md" target="_blank" style="color:var(--accent-blue);">LEGAL.md</a> for full terms.</p>
+                </div>
+            </details>
+            <div style="text-align: center; font-size: 0.7rem; color: var(--text-secondary); opacity: 0.7;">
+                &copy; 2026 naanprofit &bull; GPL-3.0-or-later &bull;
+                <a href="https://github.com/naanprofit/sigint-pi/blob/main/CHANGELOG.md" target="_blank" style="color:var(--accent-blue);">Changelog</a>
             </div>
         </div>
     </div>
@@ -2844,6 +2827,7 @@
                         <span class="channel-badge">CH${d.channel || '?'}</span>
                         <span class="rssi ${getRssiClass(d.rssi)}">${d.rssi} dBm</span>
                         <button class="note-btn" onclick="openNoteModal('${d.mac}', 'wifi', '${d.vendor || ''}', '${d.ssid || ''}', '')" title="Add note">📝</button>
+                        <button class="note-btn" onclick="silenceDevice('${d.mac}')" title="Silence alerts for this device">🔇</button>
                     </div>
                 </li>
             `}).join('');
@@ -2882,6 +2866,7 @@
                         ${d.tracker_info?.is_separated ? '<span class="badge separated">SEPARATED</span>' : ''}
                         <span class="rssi ${getRssiClass(d.rssi)}">${d.rssi} dBm</span>
                         <button class="note-btn" onclick="openNoteModal('${d.mac}', 'ble', '${d.vendor || ''}', '', '${(d.name || '').replace(/'/g, "\\'")}')" title="Add note">📝</button>
+                        <button class="note-btn" onclick="silenceDevice('${d.mac}')" title="Silence alerts for this device">🔇</button>
                     </div>
                 </li>
             `}).join('');
@@ -4281,7 +4266,247 @@
                 renderWifiDevices();
                 renderBleDevices();
             }, 60000);
+
+            // Browser TTS Alert System
+            initBrowserTts();
         });
+
+        // ============================================
+        // Browser TTS - speaks alerts through the browser
+        // ============================================
+        let browserTtsEnabled = false;
+        let lastSpokenAlertTime = 0;
+        const spokenAlertCache = new Set();
+
+        function initBrowserTts() {
+            // Check if Web Speech API is available
+            if (!('speechSynthesis' in window)) {
+                console.warn('Web Speech API not available');
+                return;
+            }
+            // Poll for TTS alerts from server
+            setInterval(pollTtsAlerts, 3000);
+            // Also check local alerts for new high-priority ones
+            setInterval(checkLocalAlerts, 5000);
+        }
+
+        function toggleBrowserTts() {
+            browserTtsEnabled = !browserTtsEnabled;
+            const btn = document.getElementById('browserTtsToggle');
+            if (btn) {
+                btn.textContent = browserTtsEnabled ? '🔊 TTS ON' : '🔇 TTS OFF';
+                btn.classList.toggle('active', browserTtsEnabled);
+            }
+            // Also tell server
+            fetch('/api/alerts/tts/config', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({enabled: browserTtsEnabled})
+            }).catch(() => {});
+            if (browserTtsEnabled) {
+                browserSpeak('Text to speech enabled');
+            }
+        }
+
+        function browserSpeak(text) {
+            if (!browserTtsEnabled || !('speechSynthesis' in window)) return;
+            // Try server-generated WAV first (higher quality Piper voice)
+            fetch('/api/tts/generate', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({text: text})
+            }).then(r => {
+                if (r.ok) return r.blob();
+                throw new Error('no wav');
+            }).then(blob => {
+                const url = URL.createObjectURL(blob);
+                const audio = new Audio(url);
+                audio.play().catch(() => {});
+                audio.onended = () => URL.revokeObjectURL(url);
+            }).catch(() => {
+                // Fallback: browser Web Speech API
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.rate = 1.1;
+                utterance.pitch = 0.9;
+                utterance.volume = 0.8;
+                speechSynthesis.speak(utterance);
+            });
+        }
+
+        async function pollTtsAlerts() {
+            if (!browserTtsEnabled) return;
+            try {
+                const r = await fetch('/api/alerts/tts/pending');
+                if (!r.ok) return;
+                const data = await r.json();
+                if (data.alerts && data.alerts.length > 0) {
+                    for (const alert of data.alerts) {
+                        const key = alert.id || alert.message;
+                        if (!spokenAlertCache.has(key)) {
+                            spokenAlertCache.add(key);
+                            browserSpeak(alert.message);
+                            // Keep cache bounded
+                            if (spokenAlertCache.size > 200) {
+                                const first = spokenAlertCache.values().next().value;
+                                spokenAlertCache.delete(first);
+                            }
+                        }
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function checkLocalAlerts() {
+            if (!browserTtsEnabled || !state.alerts) return;
+            const now = Date.now() / 1000;
+            for (const alert of state.alerts) {
+                if (!alert.timestamp || alert.timestamp < lastSpokenAlertTime) continue;
+                const priority = (alert.priority || '').toLowerCase();
+                if (priority === 'critical' || priority === 'high') {
+                    const key = `${alert.timestamp}_${alert.message}`;
+                    if (!spokenAlertCache.has(key)) {
+                        spokenAlertCache.add(key);
+                        browserSpeak(`${priority} alert: ${alert.message}`);
+                    }
+                }
+            }
+            lastSpokenAlertTime = now;
+        }
+
+        // Play alert sound (tone) through browser
+        function playAlertTone(type) {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                if (type === 'drone') {
+                    osc.type = 'square';
+                    osc.frequency.setValueAtTime(660, ctx.currentTime);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.2);
+                    osc.frequency.setValueAtTime(660, ctx.currentTime + 0.4);
+                } else if (type === 'tracker') {
+                    osc.type = 'triangle';
+                    osc.frequency.setValueAtTime(440, ctx.currentTime);
+                    osc.frequency.setValueAtTime(550, ctx.currentTime + 0.15);
+                    osc.frequency.setValueAtTime(440, ctx.currentTime + 0.3);
+                } else {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(523, ctx.currentTime);
+                }
+                osc.start();
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+                osc.stop(ctx.currentTime + 0.6);
+            } catch(e) {}
+        }
+
+        // ============================================
+        // Device Silencing
+        // ============================================
+        async function loadSilencedDevices() {
+            try {
+                const r = await fetch('/api/devices/silenced');
+                const data = await r.json();
+                const el = document.getElementById('silencedDevicesList');
+                if (!data.silenced_devices || data.silenced_devices.length === 0) {
+                    el.innerHTML = '<span style="color: var(--text-secondary);">No silenced devices</span>';
+                    return;
+                }
+                el.innerHTML = data.silenced_devices.map(mac =>
+                    `<div style="display:flex;align-items:center;gap:0.5rem;padding:3px 0;">
+                        <code style="font-size:0.85rem;">${mac}</code>
+                        <button class="action-btn" style="padding:2px 8px;font-size:0.75rem;" onclick="unsilenceDevice('${mac}')">🔔 Unsilence</button>
+                    </div>`
+                ).join('');
+            } catch(e) {
+                document.getElementById('silencedDevicesList').textContent = 'Error loading';
+            }
+        }
+
+        async function silenceDevice(mac) {
+            await fetch(`/api/devices/${encodeURIComponent(mac)}/silence`, { method: 'POST' });
+            loadSilencedDevices();
+        }
+
+        async function unsilenceDevice(mac) {
+            await fetch(`/api/devices/${encodeURIComponent(mac)}/unsilence`, { method: 'POST' });
+            loadSilencedDevices();
+        }
+
+        // ============================================
+        // Morse Code Decoder
+        // ============================================
+        let morsePollInterval = null;
+
+        function selectMorsePreset(sel) {
+            if (sel.value) document.getElementById('morseFreqInput').value = sel.value;
+        }
+
+        async function startMorseDecoder() {
+            const freq = parseInt(document.getElementById('morseFreqInput').value);
+            if (!freq || freq < 100000) { alert('Enter a valid frequency in Hz'); return; }
+            const wpm = parseInt(document.getElementById('morseWpmInput').value) || 20;
+            const tone = parseInt(document.getElementById('morseToneInput').value) || 700;
+            try {
+                const r = await fetch('/api/sdr/morse/start', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frequency_hz: freq, wpm: wpm, tone_hz: tone })
+                });
+                const data = await r.json();
+                if (data.error) { alert(data.error); return; }
+                document.getElementById('morseStatus').textContent = 'Decoding...';
+                document.getElementById('morseStatus').style.color = 'var(--accent-green)';
+                document.getElementById('morseOutput').textContent = '';
+                if (morsePollInterval) clearInterval(morsePollInterval);
+                morsePollInterval = setInterval(pollMorseStatus, 1000);
+            } catch(e) { alert('Failed: ' + e.message); }
+        }
+
+        async function startMorseWithAudio() {
+            const freq = parseInt(document.getElementById('morseFreqInput').value);
+            if (!freq || freq < 100000) { alert('Enter a valid frequency in Hz'); return; }
+            // Start decoder
+            await startMorseDecoder();
+            // Also tune radio in CW mode for audio
+            try {
+                await fetch('/api/sdr/radio/tune', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ frequency_hz: freq, modulation: 'cw', squelch: -60 })
+                });
+                startAudioStream(12000);
+            } catch(e) { console.error('Audio tune failed:', e); }
+        }
+
+        async function stopMorseDecoder() {
+            if (morsePollInterval) { clearInterval(morsePollInterval); morsePollInterval = null; }
+            await fetch('/api/sdr/morse/stop', { method: 'POST' }).catch(() => {});
+            stopAudioStream();
+            await fetch('/api/sdr/radio/stop', { method: 'POST' }).catch(() => {});
+            document.getElementById('morseStatus').textContent = 'Stopped';
+            document.getElementById('morseStatus').style.color = 'var(--text-secondary)';
+        }
+
+        async function pollMorseStatus() {
+            try {
+                const r = await fetch('/api/sdr/morse/status');
+                const data = await r.json();
+                if (!data.running) {
+                    document.getElementById('morseStatus').textContent = 'Stopped';
+                    document.getElementById('morseStatus').style.color = 'var(--text-secondary)';
+                    if (morsePollInterval) { clearInterval(morsePollInterval); morsePollInterval = null; }
+                    return;
+                }
+                const el = document.getElementById('morseOutput');
+                if (data.decoded && data.decoded.length > 0) {
+                    el.textContent = data.decoded.map(d => d.text).join('\n');
+                    el.scrollTop = el.scrollHeight;
+                }
+            } catch(e) {}
+        }
 
         // Settings functionality
         async function initSettings() {
@@ -4504,6 +4729,7 @@
             }
         }
         loadAboutPage();
+        loadSilencedDevices();
 
         async function checkLlmStatus() {
             const statusEl = document.getElementById('llmStatus');
