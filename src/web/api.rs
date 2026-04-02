@@ -239,6 +239,27 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/siem/export", web::get().to(siem_export_events))
             .route("/siem/forward/config", web::get().to(siem_get_forward_config))
             .route("/siem/forward/config", web::post().to(siem_set_forward_config))
+            // Sentinel Mode
+            .route("/sentinel/start", web::post().to(sentinel_start))
+            .route("/sentinel/stop", web::post().to(sentinel_stop))
+            .route("/sentinel/status", web::get().to(sentinel_status))
+            // Threat Watchlist
+            .route("/watchlist", web::get().to(watchlist_list))
+            .route("/watchlist", web::post().to(watchlist_add))
+            .route("/watchlist/{id}", web::delete().to(watchlist_remove))
+            // Advanced SDR - Multi-device & Antenna Array
+            .route("/sdr/devices/all", web::get().to(get_sdr_devices))
+            .route("/sdr/antenna/config", web::get().to(get_antenna_config))
+            .route("/sdr/antenna/add", web::post().to(add_antenna_position))
+            .route("/sdr/antenna/{id}", web::delete().to(delete_antenna_position))
+            // Sentinel Mode (continuous monitoring)
+            .route("/sentinel/start", web::post().to(sentinel_start))
+            .route("/sentinel/stop", web::post().to(sentinel_stop))
+            .route("/sentinel/status", web::get().to(sentinel_status))
+            // Threat Watchlist
+            .route("/watchlist", web::get().to(watchlist_list))
+            .route("/watchlist", web::post().to(watchlist_add))
+            .route("/watchlist/{id}", web::delete().to(watchlist_remove))
             // TTS Alerts (browser-based)
             .route("/alerts/tts/config", web::get().to(get_tts_alert_config))
             .route("/alerts/tts/config", web::post().to(set_tts_alert_config))
@@ -5483,6 +5504,7 @@ struct SiemQuery {
     severity: Option<String>,
     category: Option<String>,
     since: Option<String>,
+    until: Option<String>,
 }
 
 fn default_siem_limit() -> i64 { 100 }
@@ -5493,7 +5515,7 @@ async fn siem_get_events(
 ) -> impl Responder {
     match db.siem_search("", query.limit, query.offset,
                          query.severity.as_deref(), query.category.as_deref(),
-                         query.since.as_deref()).await {
+                         query.since.as_deref(), query.until.as_deref()).await {
         Ok(events) => HttpResponse::Ok().json(serde_json::json!({
             "events": events,
             "count": events.len(),
@@ -5547,6 +5569,7 @@ struct SiemSearchQuery {
     severity: Option<String>,
     category: Option<String>,
     since: Option<String>,
+    until: Option<String>,
 }
 
 async fn siem_search_events(
@@ -5555,7 +5578,7 @@ async fn siem_search_events(
 ) -> impl Responder {
     match db.siem_search(&query.q, query.limit, query.offset,
                          query.severity.as_deref(), query.category.as_deref(),
-                         query.since.as_deref()).await {
+                         query.since.as_deref(), query.until.as_deref()).await {
         Ok(events) => HttpResponse::Ok().json(serde_json::json!({
             "events": events,
             "count": events.len(),
@@ -5609,7 +5632,7 @@ async fn siem_export_events(
     let limit = query.limit.min(10000);
     match db.siem_search("", limit, 0,
                          query.severity.as_deref(), query.category.as_deref(),
-                         query.since.as_deref()).await {
+                         query.since.as_deref(), query.until.as_deref()).await {
         Ok(events) => {
             let ndjson: String = events.iter()
                 .map(|e| serde_json::to_string(e).unwrap_or_default())
@@ -5679,4 +5702,336 @@ async fn siem_set_forward_config(
             "error": format!("{}", e)
         })),
     }
+}
+
+// ============================================
+// Sentinel Mode - Continuous Threat Monitoring
+// ============================================
+
+static SENTINEL_RUNNING: Lazy<Mutex<bool>> = Lazy::new(|| Mutex::new(false));
+static SENTINEL_START_TIME: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
+static SENTINEL_SCAN_COUNT: Lazy<Mutex<u64>> = Lazy::new(|| Mutex::new(0));
+
+async fn sentinel_start(
+    db: web::Data<Arc<crate::storage::Database>>,
+) -> impl Responder {
+    {
+        let running = SENTINEL_RUNNING.lock().unwrap();
+        if *running {
+            return HttpResponse::Ok().json(serde_json::json!({"status": "already_running"}));
+        }
+    }
+
+    *SENTINEL_RUNNING.lock().unwrap() = true;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    *SENTINEL_START_TIME.lock().unwrap() = now;
+    *SENTINEL_SCAN_COUNT.lock().unwrap() = 0;
+
+    let _ = db.siem_insert("sentinel", "info", "system", None,
+        "Sentinel Mode activated - continuous threat monitoring enabled", None, None, None).await;
+
+    let caps = crate::sdr::SdrCapabilities::detect();
+
+    // Start drone monitor if SDR available
+    if caps.hackrf || caps.rtl_sdr {
+        if !*DRONE_MONITOR_RUNNING.lock().unwrap() {
+            tokio::spawn(async {
+                let client = reqwest::Client::new();
+                let _ = client.post("http://127.0.0.1:8085/api/sdr/drone/start").send().await;
+            });
+        }
+    }
+
+    // Start RTL-433
+    if !*RTL433_RUNNING.lock().unwrap() {
+        tokio::spawn(async {
+            let client = reqwest::Client::new();
+            let _ = client.post("http://127.0.0.1:8085/api/sdr/rtl433/start").send().await;
+        });
+    }
+
+    // Start TSCM
+    if !*TSCM_RUNNING.lock().unwrap() {
+        tokio::spawn(async {
+            let client = reqwest::Client::new();
+            let _ = client.post("http://127.0.0.1:8085/api/sdr/tscm/sweep").send().await;
+        });
+    }
+
+    // Sentinel watchlist scanning loop (every 30s)
+    let db_clone = db.get_ref().clone();
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        loop {
+            interval.tick().await;
+            if !*SENTINEL_RUNNING.lock().unwrap() { break; }
+            *SENTINEL_SCAN_COUNT.lock().unwrap() += 1;
+
+            let client = reqwest::Client::new();
+
+            // Check WiFi devices against watchlist and threat intel
+            if let Ok(resp) = client.get("http://127.0.0.1:8085/api/wifi/devices").send().await {
+                if let Ok(devices) = resp.json::<Vec<serde_json::Value>>().await {
+                    for dev in &devices {
+                        if let Some(mac) = dev.get("mac").and_then(|m| m.as_str()) {
+                            if let Ok(Some(entry)) = db_clone.watchlist_check_mac(mac).await {
+                                let _ = db_clone.siem_insert("sentinel", "critical", "watchlist_hit",
+                                    Some(mac), &format!("WATCHLIST HIT: {} - {}", mac, entry.threat_type),
+                                    None, None, None).await;
+                            }
+                            if let Some(threat) = crate::threat_intel::check_mac_threat(mac) {
+                                let _ = db_clone.siem_insert("sentinel", "high", "threat_intel_match",
+                                    Some(mac), &format!("Threat Intel: {} - {} ({})", mac, threat.vendor, threat.description),
+                                    None, None, None).await;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check BLE devices against watchlist
+            if let Ok(resp) = client.get("http://127.0.0.1:8085/api/ble/devices").send().await {
+                if let Ok(devices) = resp.json::<Vec<serde_json::Value>>().await {
+                    for dev in &devices {
+                        if let Some(mac) = dev.get("mac").and_then(|m| m.as_str()) {
+                            if let Ok(Some(entry)) = db_clone.watchlist_check_mac(mac).await {
+                                let _ = db_clone.siem_insert("sentinel", "critical", "watchlist_hit",
+                                    Some(mac), &format!("BLE WATCHLIST HIT: {} - {}", mac, entry.threat_type),
+                                    None, None, None).await;
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Restart monitors if they stopped
+            if !*TSCM_RUNNING.lock().unwrap() && *SENTINEL_RUNNING.lock().unwrap() {
+                let _ = client.post("http://127.0.0.1:8085/api/sdr/tscm/sweep").send().await;
+            }
+            if !*DRONE_MONITOR_RUNNING.lock().unwrap() && *SENTINEL_RUNNING.lock().unwrap() {
+                let _ = client.post("http://127.0.0.1:8085/api/sdr/drone/start").send().await;
+            }
+        }
+    });
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "started",
+        "monitors": { "wifi": true, "ble": true, "drone_rf": caps.hackrf || caps.rtl_sdr,
+            "tscm": caps.hackrf || caps.rtl_sdr, "rtl433": caps.rtl_433,
+            "watchlist": true, "threat_intel": true }
+    }))
+}
+
+async fn sentinel_stop(
+    db: web::Data<Arc<crate::storage::Database>>,
+) -> impl Responder {
+    *SENTINEL_RUNNING.lock().unwrap() = false;
+    let _ = db.siem_insert("sentinel", "info", "system", None,
+        "Sentinel Mode deactivated", None, None, None).await;
+    let client = reqwest::Client::new();
+    let _ = client.post("http://127.0.0.1:8085/api/sdr/drone/stop").send().await;
+    let _ = client.post("http://127.0.0.1:8085/api/sdr/tscm/stop").send().await;
+    let _ = client.post("http://127.0.0.1:8085/api/sdr/rtl433/stop").send().await;
+    HttpResponse::Ok().json(serde_json::json!({"status": "stopped"}))
+}
+
+async fn sentinel_status() -> impl Responder {
+    let running = *SENTINEL_RUNNING.lock().unwrap();
+    let start = *SENTINEL_START_TIME.lock().unwrap();
+    let scans = *SENTINEL_SCAN_COUNT.lock().unwrap();
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_secs();
+    HttpResponse::Ok().json(serde_json::json!({
+        "running": running,
+        "uptime_seconds": if running && start > 0 { now - start } else { 0 },
+        "scan_cycles": scans,
+        "monitors": { "wifi": true, "ble": true,
+            "drone_rf": *DRONE_MONITOR_RUNNING.lock().unwrap(),
+            "tscm": *TSCM_RUNNING.lock().unwrap(),
+            "rtl433": *RTL433_RUNNING.lock().unwrap() }
+    }))
+}
+
+// ============================================
+// Threat Watchlist
+// ============================================
+
+#[derive(Deserialize)]
+struct WatchlistAddRequest {
+    mac_address: Option<String>,
+    signature: Option<String>,
+    threat_type: String,
+    description: Option<String>,
+}
+
+async fn watchlist_list(db: web::Data<Arc<crate::storage::Database>>) -> impl Responder {
+    match db.watchlist_list().await {
+        Ok(entries) => HttpResponse::Ok().json(serde_json::json!({"watchlist": entries})),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+async fn watchlist_add(
+    db: web::Data<Arc<crate::storage::Database>>,
+    body: web::Json<WatchlistAddRequest>,
+) -> impl Responder {
+    match db.watchlist_add(body.mac_address.as_deref(), body.signature.as_deref(),
+        &body.threat_type, body.description.as_deref(), "manual").await {
+        Ok(id) => {
+            let _ = db.siem_insert("watchlist", "info", "watchlist_update", body.mac_address.as_deref(),
+                &format!("Added to watchlist: {} ({})",
+                    body.mac_address.as_deref().or(body.signature.as_deref()).unwrap_or("?"), body.threat_type),
+                None, None, None).await;
+            HttpResponse::Ok().json(serde_json::json!({"id": id}))
+        }
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+async fn watchlist_remove(
+    db: web::Data<Arc<crate::storage::Database>>,
+    path: web::Path<i64>,
+) -> impl Responder {
+    match db.watchlist_remove(path.into_inner()).await {
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({"removed": true})),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+// ============================================
+// Advanced SDR - Multi-device & Antenna Array
+// ============================================
+
+async fn get_sdr_devices() -> impl Responder {
+    let caps = crate::sdr::SdrCapabilities::detect();
+    let devices: Vec<serde_json::Value> = caps.devices.iter().map(|d| {
+        serde_json::json!({
+            "device_type": format!("{:?}", d.device_type),
+            "index": d.index,
+            "name": d.name,
+            "serial": d.serial,
+            "label": d.device_type.label(),
+            "supports_tx": d.device_type.supports_tx(),
+            "supports_df": d.device_type.supports_direction_finding(),
+            "channels": d.device_type.channel_count(),
+            "approx_price_usd": d.device_type.approx_price_usd(),
+        })
+    }).collect();
+
+    let cheaper_alternatives: Vec<serde_json::Value> = vec![
+        serde_json::json!({
+            "device": "RTL-SDR Blog V4", "price_usd": 30, "freq_range": "500 kHz - 1766 MHz",
+            "notes": "Best budget RX-only SDR. 8-bit ADC. Great for monitoring, ADS-B, trunking.",
+            "buy": "https://www.rtl-sdr.com/buy-rtl-sdr-dvb-t-dongles/"
+        }),
+        serde_json::json!({
+            "device": "Airspy Mini", "price_usd": 100, "freq_range": "24 - 1700 MHz",
+            "notes": "12-bit ADC, 6 MHz bandwidth. Much better sensitivity than RTL-SDR. RX-only.",
+            "buy": "https://airspy.com/airspy-mini/"
+        }),
+        serde_json::json!({
+            "device": "SDRplay RSP1B", "price_usd": 110, "freq_range": "1 kHz - 2 GHz",
+            "notes": "14-bit ADC, 10 MHz bandwidth. Best value wideband receiver. RX-only.",
+            "buy": "https://www.sdrplay.com/rsp1b/"
+        }),
+        serde_json::json!({
+            "device": "KrakenSDR", "price_usd": 150, "freq_range": "24 - 1766 MHz",
+            "notes": "5x coherent RTL-SDR. Direction finding, passive radar. Best value for DF arrays.",
+            "buy": "https://www.crowdsupply.com/krakenrf/krakensdr"
+        }),
+        serde_json::json!({
+            "device": "ADALM-PLUTO", "price_usd": 150, "freq_range": "325 - 3800 MHz (hackable to 70-6000 MHz)",
+            "notes": "Full duplex TX/RX. 12-bit ADC. Cheaper than HackRF for TX applications.",
+            "buy": "https://www.analog.com/en/resources/evaluation-hardware-and-software/evaluation-boards-kits/adalm-pluto.html"
+        }),
+        serde_json::json!({
+            "device": "Airspy R2", "price_usd": 170, "freq_range": "24 - 1700 MHz",
+            "notes": "12-bit ADC, 10 MHz bandwidth. Professional-grade RX sensitivity.",
+            "buy": "https://airspy.com/airspy-r2/"
+        }),
+    ];
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "detected_devices": devices,
+        "device_count": devices.len(),
+        "has_direction_finding": devices.iter().any(|d| d["supports_df"].as_bool().unwrap_or(false)),
+        "has_tx": devices.iter().any(|d| d["supports_tx"].as_bool().unwrap_or(false)),
+        "cheaper_alternatives": cheaper_alternatives,
+        "capabilities": {
+            "rtl_sdr": caps.rtl_sdr,
+            "hackrf": caps.hackrf,
+            "rtl_433": caps.rtl_433,
+            "limesdr": caps.limesdr,
+        }
+    }))
+}
+
+async fn get_antenna_config(
+    db: web::Data<Arc<crate::storage::Database>>,
+) -> impl Responder {
+    let antennas = sqlx::query("SELECT a.*, d.device_type, d.serial, d.label as device_label FROM antenna_positions a LEFT JOIN sdr_devices d ON a.sdr_device_id = d.id ORDER BY a.id")
+        .fetch_all(db.pool()).await;
+    let arrays = sqlx::query("SELECT * FROM sdr_array_configs ORDER BY created_at DESC")
+        .fetch_all(db.pool()).await;
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "antennas": antennas.unwrap_or_default().iter().map(|r| {
+            use sqlx::Row;
+            serde_json::json!({
+                "id": r.get::<i64, _>("id"),
+                "sdr_device_id": r.get::<Option<i64>, _>("sdr_device_id"),
+                "label": r.get::<String, _>("label"),
+                "x_meters": r.get::<f64, _>("x_meters"),
+                "y_meters": r.get::<f64, _>("y_meters"),
+                "z_meters": r.get::<f64, _>("z_meters"),
+                "bearing_degrees": r.get::<f64, _>("bearing_degrees"),
+                "antenna_type": r.get::<String, _>("antenna_type"),
+                "gain_dbi": r.get::<f64, _>("gain_dbi"),
+            })
+        }).collect::<Vec<_>>(),
+        "arrays": arrays.unwrap_or_default().iter().map(|r| {
+            use sqlx::Row;
+            serde_json::json!({
+                "id": r.get::<i64, _>("id"),
+                "name": r.get::<String, _>("name"),
+                "coherent": r.get::<i32, _>("coherent") != 0,
+                "active": r.get::<i32, _>("active") != 0,
+            })
+        }).collect::<Vec<_>>(),
+    }))
+}
+
+#[derive(Deserialize)]
+struct AntennaAddRequest {
+    sdr_device_id: Option<i64>,
+    label: String,
+    x_meters: f64,
+    y_meters: f64,
+    z_meters: f64,
+    bearing_degrees: f64,
+    antenna_type: String,
+    gain_dbi: f64,
+}
+
+async fn add_antenna_position(
+    db: web::Data<Arc<crate::storage::Database>>,
+    body: web::Json<AntennaAddRequest>,
+) -> impl Responder {
+    let result = sqlx::query(
+        "INSERT INTO antenna_positions (sdr_device_id, label, x_meters, y_meters, z_meters, bearing_degrees, antenna_type, gain_dbi) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+    ).bind(body.sdr_device_id).bind(&body.label).bind(body.x_meters).bind(body.y_meters)
+     .bind(body.z_meters).bind(body.bearing_degrees).bind(&body.antenna_type).bind(body.gain_dbi)
+     .execute(db.pool()).await;
+    match result {
+        Ok(r) => HttpResponse::Ok().json(serde_json::json!({"id": r.last_insert_rowid()})),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+async fn delete_antenna_position(
+    db: web::Data<Arc<crate::storage::Database>>,
+    path: web::Path<i64>,
+) -> impl Responder {
+    let _ = sqlx::query("DELETE FROM antenna_positions WHERE id = ?")
+        .bind(path.into_inner()).execute(db.pool()).await;
+    HttpResponse::Ok().json(serde_json::json!({"removed": true}))
 }

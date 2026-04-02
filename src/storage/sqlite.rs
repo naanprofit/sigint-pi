@@ -874,6 +874,59 @@ pub struct ContactDetail {
     pub user_notes: Vec<serde_json::Value>,
 }
 
+// ===== Threat Watchlist =====
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct WatchlistEntry {
+    pub id: i64,
+    pub mac_address: Option<String>,
+    pub signature: Option<String>,
+    pub threat_type: String,
+    pub description: Option<String>,
+    pub source: String,
+    pub active: bool,
+    pub created_at: String,
+}
+
+impl Database {
+    pub async fn watchlist_add(&self, mac: Option<&str>, sig: Option<&str>,
+                                threat_type: &str, description: Option<&str>, source: &str) -> Result<i64> {
+        let result = sqlx::query(
+            "INSERT INTO threat_watchlist (mac_address, signature, threat_type, description, source) VALUES (?, ?, ?, ?, ?)"
+        ).bind(mac).bind(sig).bind(threat_type).bind(description).bind(source)
+        .execute(&self.pool).await?;
+        Ok(result.last_insert_rowid())
+    }
+
+    pub async fn watchlist_remove(&self, id: i64) -> Result<()> {
+        sqlx::query("DELETE FROM threat_watchlist WHERE id = ?").bind(id)
+            .execute(&self.pool).await?;
+        Ok(())
+    }
+
+    pub async fn watchlist_list(&self) -> Result<Vec<WatchlistEntry>> {
+        let rows = sqlx::query("SELECT * FROM threat_watchlist WHERE active = 1 ORDER BY created_at DESC")
+            .fetch_all(&self.pool).await?;
+        Ok(rows.iter().map(|r| WatchlistEntry {
+            id: r.get("id"), mac_address: r.get("mac_address"), signature: r.get("signature"),
+            threat_type: r.get("threat_type"), description: r.get("description"),
+            source: r.get("source"), active: r.get::<i32, _>("active") != 0,
+            created_at: r.get("created_at"),
+        }).collect())
+    }
+
+    pub async fn watchlist_check_mac(&self, mac: &str) -> Result<Option<WatchlistEntry>> {
+        let row = sqlx::query("SELECT * FROM threat_watchlist WHERE mac_address = ? AND active = 1 LIMIT 1")
+            .bind(mac.to_uppercase())
+            .fetch_optional(&self.pool).await?;
+        Ok(row.map(|r| WatchlistEntry {
+            id: r.get("id"), mac_address: r.get("mac_address"), signature: r.get("signature"),
+            threat_type: r.get("threat_type"), description: r.get("description"),
+            source: r.get("source"), active: true, created_at: r.get("created_at"),
+        }))
+    }
+}
+
 // ===== SIEM Operations =====
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
@@ -906,7 +959,7 @@ impl Database {
 
     pub async fn siem_search(&self, query: &str, limit: i64, offset: i64,
                               severity: Option<&str>, category: Option<&str>,
-                              since: Option<&str>) -> Result<Vec<SiemEvent>> {
+                              since: Option<&str>, until: Option<&str>) -> Result<Vec<SiemEvent>> {
         let mut sql = String::from(
             "SELECT e.id, e.timestamp, e.source, e.severity, e.category, e.device_mac, e.message, e.raw_data, e.latitude, e.longitude
              FROM siem_events e"
@@ -931,6 +984,9 @@ impl Database {
         }
         if let Some(ts) = since {
             conditions.push(format!("e.timestamp >= '{}'", ts.replace('\'', "''")));
+        }
+        if let Some(ts) = until {
+            conditions.push(format!("e.timestamp <= '{}'", ts.replace('\'', "''")));
         }
 
         if !conditions.is_empty() {

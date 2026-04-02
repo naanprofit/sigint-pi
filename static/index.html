@@ -2334,6 +2334,7 @@
                 <div class="sdr-section-header">
                     <h4>🔍 Search Events</h4>
                 </div>
+                <!-- Row 1: text search + filters -->
                 <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
                     <input type="text" id="siemSearchInput" placeholder="Full-text search (e.g. drone, AirTag, deauth)..." style="flex: 2; min-width: 200px;" class="spectrum-input" onkeydown="if(event.key==='Enter')searchSiem()">
                     <select id="siemSevFilter" class="spectrum-select" style="width:100px;">
@@ -2344,12 +2345,29 @@
                         <option value="low">Low</option>
                         <option value="info">Info</option>
                     </select>
-                    <select id="siemCatFilter" class="spectrum-select" style="width:120px;" id="siemCatFilter">
+                    <select id="siemCatFilter" class="spectrum-select" style="width:120px;">
                         <option value="">All Categories</option>
                     </select>
-                    <input type="datetime-local" id="siemSinceFilter" class="spectrum-input" style="width:180px;">
+                </div>
+                <!-- Row 2: time presets + date range -->
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem; align-items: center;">
+                    <span style="font-size:0.75rem; color:var(--text-secondary);">Time:</span>
+                    <button class="action-btn" onclick="siemTimePreset('1h')" id="siemPreset1h" style="font-size:0.75rem; padding:3px 8px;">Last Hour</button>
+                    <button class="action-btn" onclick="siemTimePreset('24h')" id="siemPreset24h" style="font-size:0.75rem; padding:3px 8px;">Last 24h</button>
+                    <button class="action-btn" onclick="siemTimePreset('7d')" id="siemPreset7d" style="font-size:0.75rem; padding:3px 8px;">Last 7d</button>
+                    <button class="action-btn" onclick="siemTimePreset('30d')" id="siemPreset30d" style="font-size:0.75rem; padding:3px 8px;">Last 30d</button>
+                    <button class="action-btn" onclick="siemTimePreset('all')" id="siemPresetAll" style="font-size:0.75rem; padding:3px 8px;">All Time</button>
+                    <span style="font-size:0.75rem; color:var(--text-secondary); margin-left:0.5rem;">Range:</span>
+                    <input type="datetime-local" id="siemSinceFilter" class="spectrum-input" style="width:170px; font-size:0.75rem;" title="From" onchange="clearSiemPresetHighlight()">
+                    <span style="font-size:0.75rem; color:var(--text-secondary);">to</span>
+                    <input type="datetime-local" id="siemUntilFilter" class="spectrum-input" style="width:170px; font-size:0.75rem;" title="To" onchange="clearSiemPresetHighlight()">
+                </div>
+                <!-- Row 3: action buttons + watch -->
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
                     <button class="action-btn" onclick="searchSiem()">🔍 Search</button>
                     <button class="action-btn" onclick="exportSiem()">📥 Export NDJSON</button>
+                    <button class="action-btn" id="siemWatchBtn" onclick="toggleSiemWatch()" style="min-width:90px;">👁️ Watch</button>
+                    <span id="siemWatchStatus" style="font-size:0.75rem; color:var(--text-secondary);"></span>
                 </div>
             </div>
 
@@ -4532,6 +4550,77 @@
             } catch(e) { console.error('SIEM stats error:', e); }
         }
 
+        let siemWatchInterval = null;
+        let siemActivePreset = null;
+
+        function siemTimePreset(preset) {
+            const now = new Date();
+            let since = null;
+            if (preset === '1h') since = new Date(now - 3600 * 1000);
+            else if (preset === '24h') since = new Date(now - 24 * 3600 * 1000);
+            else if (preset === '7d') since = new Date(now - 7 * 24 * 3600 * 1000);
+            else if (preset === '30d') since = new Date(now - 30 * 24 * 3600 * 1000);
+
+            document.getElementById('siemUntilFilter').value = '';
+            if (since) {
+                const pad = (n) => String(n).padStart(2, '0');
+                document.getElementById('siemSinceFilter').value =
+                    `${since.getFullYear()}-${pad(since.getMonth()+1)}-${pad(since.getDate())}T${pad(since.getHours())}:${pad(since.getMinutes())}`;
+            } else {
+                document.getElementById('siemSinceFilter').value = '';
+            }
+
+            siemActivePreset = preset;
+            ['1h','24h','7d','30d','all'].forEach(p => {
+                const btn = document.getElementById('siemPreset' + p.charAt(0).toUpperCase() + p.slice(1));
+                if (btn) btn.style.background = p === preset ? 'var(--accent-blue)' : '';
+            });
+            // Fix capitalization for button IDs
+            document.querySelectorAll('[id^="siemPreset"]').forEach(b => b.style.background = '');
+            const activeBtn = document.getElementById('siemPreset' + ({
+                '1h':'1h','24h':'24h','7d':'7d','30d':'30d','all':'All'
+            }[preset] || ''));
+            if (activeBtn) activeBtn.style.background = 'var(--accent-blue)';
+
+            searchSiem();
+        }
+
+        function clearSiemPresetHighlight() {
+            siemActivePreset = null;
+            document.querySelectorAll('[id^="siemPreset"]').forEach(b => b.style.background = '');
+        }
+
+        function toggleSiemWatch() {
+            const btn = document.getElementById('siemWatchBtn');
+            const status = document.getElementById('siemWatchStatus');
+            if (siemWatchInterval) {
+                clearInterval(siemWatchInterval);
+                siemWatchInterval = null;
+                btn.textContent = '👁️ Watch';
+                btn.style.background = '';
+                status.textContent = '';
+            } else {
+                // If a time preset is active, keep refreshing with a rolling window
+                siemWatchInterval = setInterval(() => {
+                    if (siemActivePreset && siemActivePreset !== 'all') {
+                        siemTimePreset(siemActivePreset);
+                    } else {
+                        loadSiemEvents();
+                    }
+                    status.textContent = 'Updated ' + new Date().toLocaleTimeString();
+                }, 5000);
+                btn.textContent = '⏹️ Stop';
+                btn.style.background = 'var(--accent-red)';
+                status.textContent = 'Watching (5s refresh)...';
+                // Immediately refresh
+                if (siemActivePreset && siemActivePreset !== 'all') {
+                    siemTimePreset(siemActivePreset);
+                } else {
+                    loadSiemEvents();
+                }
+            }
+        }
+
         async function searchSiem() {
             siemOffset = 0;
             await loadSiemEvents();
@@ -4542,6 +4631,7 @@
             const sev = document.getElementById('siemSevFilter').value;
             const cat = document.getElementById('siemCatFilter').value;
             const since = document.getElementById('siemSinceFilter').value;
+            const until = document.getElementById('siemUntilFilter').value;
 
             let url;
             if (q) {
@@ -4552,6 +4642,7 @@
             if (sev) url += `&severity=${sev}`;
             if (cat) url += `&category=${cat}`;
             if (since) url += `&since=${encodeURIComponent(since)}`;
+            if (until) url += `&until=${encodeURIComponent(until)}`;
 
             try {
                 const r = await fetch(url);

@@ -37,7 +37,87 @@ pub enum SdrDevice {
     RtlSdr,
     HackRf,
     LimeSdr,
+    Airspy,
+    AirspyMini,
+    AirspyHfPlus,
+    SdrPlay,
+    KrakenSdr,    // 5x coherent RTL-SDR for direction finding
+    KerberosSdr,  // 4x coherent RTL-SDR for direction finding
+    PlutoSdr,     // ADALM-PLUTO
     Unknown,
+}
+
+impl SdrDevice {
+    pub fn label(&self) -> &str {
+        match self {
+            Self::RtlSdr => "RTL-SDR",
+            Self::HackRf => "HackRF One",
+            Self::LimeSdr => "LimeSDR",
+            Self::Airspy => "Airspy R2",
+            Self::AirspyMini => "Airspy Mini",
+            Self::AirspyHfPlus => "Airspy HF+ Discovery",
+            Self::SdrPlay => "SDRplay RSP",
+            Self::KrakenSdr => "KrakenSDR (5ch coherent)",
+            Self::KerberosSdr => "KerberosSDR (4ch coherent)",
+            Self::PlutoSdr => "ADALM-PLUTO",
+            Self::Unknown => "Unknown SDR",
+        }
+    }
+
+    pub fn supports_tx(&self) -> bool {
+        matches!(self, Self::HackRf | Self::LimeSdr | Self::PlutoSdr)
+    }
+
+    pub fn supports_direction_finding(&self) -> bool {
+        matches!(self, Self::KrakenSdr | Self::KerberosSdr)
+    }
+
+    pub fn channel_count(&self) -> u32 {
+        match self {
+            Self::KrakenSdr => 5,
+            Self::KerberosSdr => 4,
+            _ => 1,
+        }
+    }
+
+    pub fn approx_price_usd(&self) -> u32 {
+        match self {
+            Self::RtlSdr => 30,
+            Self::HackRf => 350,
+            Self::LimeSdr => 300,
+            Self::Airspy => 170,
+            Self::AirspyMini => 100,
+            Self::AirspyHfPlus => 170,
+            Self::SdrPlay => 110,
+            Self::KrakenSdr => 150,
+            Self::KerberosSdr => 120,
+            Self::PlutoSdr => 150,
+            Self::Unknown => 0,
+        }
+    }
+}
+
+/// Antenna position for array direction finding
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AntennaPosition {
+    pub device_index: u32,
+    pub device_serial: Option<String>,
+    pub label: String,
+    pub x_meters: f64,
+    pub y_meters: f64,
+    pub z_meters: f64,
+    pub bearing_degrees: f64,
+    pub antenna_type: String,
+}
+
+/// SDR array configuration for multi-device setups
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SdrArrayConfig {
+    pub name: String,
+    pub antennas: Vec<AntennaPosition>,
+    pub center_freq_hz: u64,
+    pub sample_rate: u32,
+    pub coherent: bool,
 }
 
 /// Check which SDR tools are available
@@ -153,10 +233,57 @@ pub fn resolve_sdr_command(cmd: &str) -> String {
 fn detect_sdr_devices() -> Vec<SdrDeviceInfo> {
     let mut devices = Vec::new();
     
-    // Check RTL-SDR devices
-    if let Ok(output) = Command::new("rtl_test").arg("-t").output() {
-        let stdout = String::from_utf8_lossy(&output.stderr);
-        if stdout.contains("Found") && !stdout.contains("No supported") {
+    // Detect ALL RTL-SDR devices (rtl_test -t lists each with an index)
+    let rtl_test_cmd = resolve_sdr_command("rtl_test");
+    if let Ok(output) = Command::new(&rtl_test_cmd).arg("-t").output() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        // Parse lines like "  0:  Realtek, RTL2838UHIDIR, SN: 00000001"
+        let mut rtl_count = 0;
+        for line in stderr.lines() {
+            if let Some(idx_str) = line.trim().strip_suffix(":") {
+                // skip
+            }
+            // Match "  N:  Vendor, Product, SN: serial"
+            let trimmed = line.trim();
+            if trimmed.len() > 2 && trimmed.chars().next().map_or(false, |c| c.is_ascii_digit()) && trimmed.contains(':') {
+                let parts: Vec<&str> = trimmed.splitn(2, ':').collect();
+                if parts.len() == 2 {
+                    let idx = parts[0].trim().parse::<u32>().unwrap_or(rtl_count);
+                    let detail = parts[1].trim();
+                    let serial = detail.split("SN:").nth(1).map(|s| s.trim().to_string());
+                    let name = detail.split(',').next().unwrap_or("RTL-SDR").trim();
+
+                    // Check if this might be a KrakenSDR/KerberosSDR (multiple RTL-SDRs with matching serials)
+                    devices.push(SdrDeviceInfo {
+                        device_type: SdrDevice::RtlSdr,
+                        index: idx,
+                        name: format!("RTL-SDR #{} ({})", idx, name),
+                        serial,
+                    });
+                    rtl_count += 1;
+                }
+            }
+        }
+
+        // If we found 5 RTL-SDRs, likely a KrakenSDR
+        if rtl_count == 5 {
+            devices.push(SdrDeviceInfo {
+                device_type: SdrDevice::KrakenSdr,
+                index: 0,
+                name: "KrakenSDR (5-channel coherent)".to_string(),
+                serial: None,
+            });
+        } else if rtl_count == 4 {
+            devices.push(SdrDeviceInfo {
+                device_type: SdrDevice::KerberosSdr,
+                index: 0,
+                name: "KerberosSDR (4-channel coherent)".to_string(),
+                serial: None,
+            });
+        }
+
+        // Fallback: if "Found N device(s)" but no parseable lines
+        if rtl_count == 0 && stderr.contains("Found") && !stderr.contains("No supported") {
             devices.push(SdrDeviceInfo {
                 device_type: SdrDevice::RtlSdr,
                 index: 0,
@@ -166,10 +293,34 @@ fn detect_sdr_devices() -> Vec<SdrDeviceInfo> {
         }
     }
     
-    // Check HackRF
-    if let Ok(output) = Command::new("hackrf_info").output() {
+    // Detect ALL HackRF devices
+    let hackrf_cmd = resolve_sdr_command("hackrf_info");
+    if let Ok(output) = Command::new(&hackrf_cmd).output() {
         let stdout = String::from_utf8_lossy(&output.stdout);
-        if stdout.contains("Serial number") {
+        let mut hackrf_idx = 0;
+        let mut current_serial: Option<String> = None;
+        for line in stdout.lines() {
+            if line.contains("Serial number") {
+                current_serial = line.split(':').nth(1).map(|s| s.trim().to_string());
+            }
+            if line.contains("Board ID") || (line.contains("Serial number") && current_serial.is_some()) {
+                // Each "Serial number" block = one HackRF
+                if line.contains("Board ID") {
+                    let name = if line.contains("Jawbreaker") { "HackRF Jawbreaker" }
+                        else if line.contains("rad1o") { "rad1o" }
+                        else { "HackRF One" };
+                    devices.push(SdrDeviceInfo {
+                        device_type: SdrDevice::HackRf,
+                        index: hackrf_idx,
+                        name: format!("{} #{}", name, hackrf_idx),
+                        serial: current_serial.take(),
+                    });
+                    hackrf_idx += 1;
+                }
+            }
+        }
+        // Fallback for single HackRF with simpler output
+        if hackrf_idx == 0 && stdout.contains("Serial number") {
             let serial = stdout.lines()
                 .find(|l| l.contains("Serial number"))
                 .and_then(|l| l.split(':').nth(1))
@@ -183,6 +334,65 @@ fn detect_sdr_devices() -> Vec<SdrDeviceInfo> {
         }
     }
     
+    // Detect Airspy devices
+    if let Ok(output) = Command::new("airspy_info").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("S/N") || stdout.contains("Board ID") {
+            let serial = stdout.lines().find(|l| l.contains("S/N"))
+                .and_then(|l| l.split(':').nth(1)).map(|s| s.trim().to_string());
+            let dev_type = if stdout.contains("Mini") { SdrDevice::AirspyMini }
+                else { SdrDevice::Airspy };
+            let dev_name = dev_type.label().to_string();
+            devices.push(SdrDeviceInfo {
+                device_type: dev_type,
+                index: 0,
+                name: dev_name,
+                serial,
+            });
+        }
+    }
+
+    // Detect Airspy HF+ Discovery
+    if let Ok(output) = Command::new("airspyhf_info").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("S/N") {
+            let serial = stdout.lines().find(|l| l.contains("S/N"))
+                .and_then(|l| l.split(':').nth(1)).map(|s| s.trim().to_string());
+            devices.push(SdrDeviceInfo {
+                device_type: SdrDevice::AirspyHfPlus,
+                index: 0,
+                name: "Airspy HF+ Discovery".to_string(),
+                serial,
+            });
+        }
+    }
+
+    // Detect SDRplay devices
+    if let Ok(output) = Command::new("sdrplay_apiService").arg("--version").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if !stdout.is_empty() {
+            devices.push(SdrDeviceInfo {
+                device_type: SdrDevice::SdrPlay,
+                index: 0,
+                name: "SDRplay RSP".to_string(),
+                serial: None,
+            });
+        }
+    }
+
+    // Detect ADALM-PLUTO
+    if let Ok(output) = Command::new("iio_info").arg("-s").output() {
+        let stdout = String::from_utf8_lossy(&output.stdout);
+        if stdout.contains("PlutoSDR") || stdout.contains("ADALM-PLUTO") {
+            devices.push(SdrDeviceInfo {
+                device_type: SdrDevice::PlutoSdr,
+                index: 0,
+                name: "ADALM-PLUTO".to_string(),
+                serial: None,
+            });
+        }
+    }
+
     // Check LimeSDR
     if let Ok(output) = Command::new("LimeUtil").arg("--find").output() {
         let stdout = String::from_utf8_lossy(&output.stdout);

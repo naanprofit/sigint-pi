@@ -1127,9 +1127,9 @@
                 
                 <div class="about-content-overlay">
                     <div class="info-box main-title">
-                        <h1>SIGINT-Deck</h1>
+                        <h1>SIGINT-Pi</h1>
                         <p>Portable Signals Intelligence Platform</p>
-                        <p class="version" id="aboutVersionMain">v0.2.2 | by sigkill</p>
+                        <p class="version" id="aboutVersionMain">v0.3.0 | by sigkill</p>
                     </div>
 
                     <div class="info-box system-info">
@@ -1137,7 +1137,7 @@
                         <div class="info-grid">
                             <div class="info-item">
                                 <span class="info-label">App Version</span>
-                                <span class="info-value" id="aboutVersion">0.2.2</span>
+                                <span class="info-value" id="aboutVersion">0.3.0</span>
                             </div>
                             <div class="info-item">
                                 <span class="info-label">Platform</span>
@@ -1267,21 +1267,49 @@
                     </div>
 
                     <div class="info-box disclaimer-box">
-                        <h3>⚠️ LEGAL DISCLAIMER</h3>
+                        <h3>⚠️ LEGAL DISCLAIMER &amp; LICENSE</h3>
                         <p>
-                            <strong>AUTHORIZED USE ONLY.</strong> This tool is for security research 
-                            and educational purposes. Monitoring wireless communications without 
-                            authorization is ILLEGAL in most jurisdictions.
+                            <strong>RESEARCH &amp; ENTERTAINMENT USE ONLY.</strong> This software is provided strictly
+                            for research, educational, and entertainment purposes only. It is an experimental research
+                            tool and is NOT designed, intended, tested, validated, or certified for use in any situation
+                            where human life, safety, health, or physical security depends on its correct operation.
+                        </p>
+                        <p style="color: var(--accent-red); font-weight: bold;">
+                            DO NOT RELY ON THIS SOFTWARE IN ANY LIFE-THREATENING, SAFETY-CRITICAL, OR EMERGENCY SITUATION.
                         </p>
                         <p>
-                            You are solely responsible for ensuring compliance with all applicable 
-                            local, state, federal, and international laws.
+                            This software may produce false positives, false negatives, inaccurate readings, missed
+                            detections, and erroneous analyses. RF detection, spectrum analysis, drone detection, IMSI
+                            catcher detection, TSCM sweeps, and all other features are experimental and have NOT been
+                            validated against any safety standard.
                         </p>
-                        <div class="hardware-notice">
+                        <p>
+                            <strong>COMPLETE ASSUMPTION OF RISK:</strong> By using this software, you unconditionally
+                            accept full and sole responsibility for any and all consequences of your use, completely
+                            and forever absolve the developer(s) from any and all claims, damages, and liabilities,
+                            and waive any and all claims regardless of legal theory.
+                        </p>
+                        <p>
+                            Authorized use is limited to: security research, educational purposes, network administration
+                            on networks you own, counter-surveillance of your own property, licensed amateur radio
+                            operations, and TSCM by licensed professionals.
+                        </p>
+                        <p style="margin-top: 0.75rem; font-size: 0.85rem;">
+                            <strong>License:</strong> GPL-3.0-or-later<br>
+                            <strong>Repository:</strong> <a href="https://github.com/naanprofit/sigint-pi" target="_blank" style="color:var(--accent-blue);">github.com/naanprofit/sigint-pi</a><br>
+                            <strong>Full Legal Terms:</strong> <a href="https://github.com/naanprofit/sigint-pi/blob/main/LEGAL.md" target="_blank" style="color:var(--accent-blue);">LEGAL.md</a>
+                        </p>
+                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
+                            &copy; 2026 naanprofit &bull; GPL-3.0-or-later
+                        </p>
+                        <div class="hardware-notice" style="margin-top: 1rem;">
                             <h4>Hardware Requirements</h4>
                             <ul>
-                                <li><strong>WiFi Monitor Mode:</strong> Requires external USB WiFi adapter (e.g., Alfa AWUS036ACHM)</li>
-                                <li><strong>GPS:</strong> Requires external USB GPS receiver</li>
+                                <li><strong>WiFi Monitor Mode:</strong> Requires external USB WiFi adapter (e.g., Alfa AWUS036ACHM, RT5572)</li>
+                                <li><strong>SDR:</strong> HackRF One or RTL-SDR for spectrum analysis, drone detection, TSCM</li>
+                                <li><strong>GPS:</strong> Requires external USB GPS receiver (u-blox recommended)</li>
+                                <li><strong>BLE:</strong> Built-in Bluetooth adapter or external USB dongle</li>
+                                <li><strong>RayHunter:</strong> Orbic MDM9207 phone with RayHunter firmware for IMSI catcher detection</li>
                                 <li><strong>Portable Operation:</strong> Use a powered USB hub for stable power delivery</li>
                             </ul>
                         </div>
@@ -1584,12 +1612,14 @@
         // Load system info
         async function loadSystemInfo() {
             try {
-                const response = await fetch('/api/system/info');
+                const response = await fetch('/api/status');
                 const info = await response.json();
-                document.getElementById('aboutVersion').textContent = info.version || '0.2.2';
-                document.getElementById('aboutVersionMain').textContent = `v${info.version || '0.2.2'} | by sigkill`;
-                document.getElementById('aboutPlatform').textContent = info.platform || 'Unknown';
-                document.getElementById('aboutUptime').textContent = formatUptime(info.uptime_secs || 0);
+                const ver = info.version || '0.3.0';
+                document.getElementById('aboutVersion').textContent = ver;
+                document.getElementById('aboutVersionMain').textContent = `v${ver} | by sigkill`;
+                document.getElementById('aboutPlatform').textContent = info.device_name || 'SIGINT-Pi';
+                document.getElementById('aboutDeviceId').textContent = info.device_name || '--';
+                document.getElementById('aboutUptime').textContent = formatUptime(info.uptime_seconds || 0);
             } catch (e) {
                 console.error('Failed to load system info:', e);
             }

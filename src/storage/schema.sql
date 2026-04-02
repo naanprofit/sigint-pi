@@ -287,6 +287,60 @@ CREATE TRIGGER IF NOT EXISTS siem_ad AFTER DELETE ON siem_events BEGIN
     VALUES ('delete', old.id, old.message, old.source, old.category, old.device_mac, old.raw_data);
 END;
 
+-- SDR device registry and antenna array config
+CREATE TABLE IF NOT EXISTS sdr_devices (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_type TEXT NOT NULL,
+    device_index INTEGER NOT NULL DEFAULT 0,
+    serial TEXT,
+    label TEXT,
+    role TEXT DEFAULT 'general',
+    enabled INTEGER DEFAULT 1,
+    last_seen DATETIME DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(device_type, device_index)
+);
+
+CREATE TABLE IF NOT EXISTS antenna_positions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sdr_device_id INTEGER REFERENCES sdr_devices(id),
+    label TEXT NOT NULL,
+    x_meters REAL DEFAULT 0.0,
+    y_meters REAL DEFAULT 0.0,
+    z_meters REAL DEFAULT 0.0,
+    bearing_degrees REAL DEFAULT 0.0,
+    antenna_type TEXT DEFAULT 'omnidirectional',
+    gain_dbi REAL DEFAULT 0.0,
+    freq_min_hz INTEGER,
+    freq_max_hz INTEGER,
+    notes TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sdr_array_configs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    description TEXT,
+    center_freq_hz INTEGER,
+    sample_rate INTEGER DEFAULT 2400000,
+    coherent INTEGER DEFAULT 0,
+    active INTEGER DEFAULT 0,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Known bad actor watchlist
+CREATE TABLE IF NOT EXISTS threat_watchlist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mac_address TEXT,
+    signature TEXT,
+    threat_type TEXT NOT NULL DEFAULT 'unknown',
+    description TEXT,
+    source TEXT DEFAULT 'manual',
+    active INTEGER DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_watchlist_mac ON threat_watchlist(mac_address);
+CREATE INDEX IF NOT EXISTS idx_watchlist_sig ON threat_watchlist(signature);
+
 -- SIEM forwarding config
 CREATE TABLE IF NOT EXISTS siem_forward_config (
     id INTEGER PRIMARY KEY,
