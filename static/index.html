@@ -2311,6 +2311,68 @@
                     Configure multiple SDR receivers as a direction-finding array. Position antennas around a protected area to triangulate drone RF sources.
                 </p>
 
+                <!-- Quick Setup Presets -->
+                <details open style="margin-bottom:0.75rem;">
+                    <summary style="cursor:pointer;color:var(--accent-blue);font-size:0.85rem;font-weight:bold;">⚡ Quick Setup Presets</summary>
+                    <div style="display:flex; gap:0.5rem; flex-wrap:wrap; margin-top:0.5rem;">
+                        <button class="action-btn" onclick="applyPreset('4sector')" style="font-size:0.8rem;">🧭 4-Sector (N/S/E/W)</button>
+                        <button class="action-btn" onclick="applyPreset('4sector_dual')" style="font-size:0.8rem;">📡 4-Sector Dual (RTL+HackRF)</button>
+                        <button class="action-btn" onclick="applyPreset('kraken_center')" style="font-size:0.8rem;">🐙 KrakenSDR Center Array</button>
+                        <button class="action-btn" onclick="applyPreset('full_8dev')" style="font-size:0.8rem;">🏗️ Full 8-Device + Kraken</button>
+                    </div>
+                    <div style="margin-top:0.5rem; font-size:0.75rem; color:var(--text-secondary);">
+                        <strong>4-Sector:</strong> 4 antennas at N/S/E/W, one device per sector<br>
+                        <strong>4-Sector Dual:</strong> 8 antennas, 2 per sector (RTL-SDR for EMI + HackRF for controller packets)<br>
+                        <strong>KrakenSDR Center:</strong> 5-element coherent DF array at center<br>
+                        <strong>Full 8-Device + Kraken:</strong> Complete recommended setup -- 4 sector pairs + central KrakenSDR DF node
+                    </div>
+                </details>
+
+                <!-- Recommended Setup Guide -->
+                <details style="margin-bottom:0.75rem;">
+                    <summary style="cursor:pointer;color:var(--accent-blue);font-size:0.85rem;font-weight:bold;">📋 Recommended Setup Guide</summary>
+                    <div style="margin-top:0.5rem; font-size:0.8rem; line-height:1.6; color:var(--text-primary);">
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
+                            <strong style="color:var(--accent-blue);">Layer 1: Fixed Sector Sentries (your 4x RTL-SDR + 4x HackRF)</strong>
+                            <div style="margin-top:0.25rem;">
+                                Per direction (N/S/E/W):
+                                <ul style="margin:0.25rem 0 0 1rem; padding:0;">
+                                    <li><strong>RTL-SDR + wideband LPDA</strong> -- continuous EMI baseline, anomaly detection, motor harmonics (24-30 MHz direct sampling), switching noise</li>
+                                    <li><strong>HackRF + band-targeted directional</strong> -- 2.4/5.8 GHz panel for controller links, sub-GHz yagi for telemetry (433/868/915 MHz)</li>
+                                </ul>
+                                Mount both antennas per sector: same azimuth, 1-3 ft vertical separation, short feedlines with ferrite chokes.
+                            </div>
+                        </div>
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
+                            <strong style="color:var(--accent-green);">Layer 2: Central KrakenSDR DF Node ($749 + $249 antenna set)</strong>
+                            <div style="margin-top:0.25rem;">
+                                1x KrakenSDR (5-channel coherent RTL-SDR) with matched Krakentenna set at center of protected area.
+                                Provides real RF bearing estimation via phase-difference measurement across synchronized antennas.
+                                <br><strong>Key difference:</strong> Sectors say "east is hottest." Kraken says "bearing 073 degrees."
+                            </div>
+                        </div>
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
+                            <strong style="color:var(--accent-yellow);">Altitude Coverage: Ground to 800 ft</strong>
+                            <div style="margin-top:0.25rem;">
+                                At 0.25 mi range, 800 ft = ~30 deg elevation. At 0.5 mi, ~13.5 deg.
+                                Avoid ultra-narrow vertical beamwidth antennas. Use:
+                                <ul style="margin:0.25rem 0 0 1rem; padding:0;">
+                                    <li>RTL side: wideband LPDA (wide vertical pattern)</li>
+                                    <li>HackRF side: moderate-gain panel or yagi (not ultra-thin elevation)</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;">
+                            <strong style="color:var(--accent-red);">Fiber-Optic Drone Detection</strong>
+                            <div style="margin-top:0.25rem;">
+                                Fiber-optic drones have no RF control link to intercept. Detection relies on incidental EMI from motors, ESCs, switching regulators.
+                                RTL-SDR EMI baselining can detect anomalous spikes, but <strong>EMI alone is not a reliable primary method</strong>.
+                                Best approach: fused alert pipeline (EMI anomaly + repeat detection + optional acoustic/thermal cue).
+                            </div>
+                        </div>
+                    </div>
+                </details>
+
                 <!-- Detected SDR Devices -->
                 <div style="margin-bottom:0.75rem;">
                     <h5 style="margin:0.5rem 0 0.25rem;color:var(--text-primary);">Detected SDR Devices</h5>
@@ -4597,6 +4659,61 @@
                 showNotification('Antenna removed', 'success');
                 await loadAntennaConfig();
             } catch (e) { showNotification('Error: ' + e.message, 'error'); }
+        }
+
+        async function applyPreset(preset) {
+            // Clear existing antennas
+            for (const a of antennasCache) {
+                await fetch(`/api/sdr/antenna/${a.id}`, { method: 'DELETE' });
+            }
+
+            const addAnt = async (label, x, y, z, bearing, type, gain) => {
+                await fetch('/api/sdr/antenna/add', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ label, x_meters: x, y_meters: y, z_meters: z, bearing_degrees: bearing, antenna_type: type, gain_dbi: gain, sdr_device_id: null })
+                });
+            };
+
+            const R = 10; // default radius in meters from center
+
+            if (preset === '4sector') {
+                await addAnt('North RTL-SDR', 0, R, 3, 0, 'directional', 6);
+                await addAnt('East RTL-SDR', R, 0, 3, 90, 'directional', 6);
+                await addAnt('South RTL-SDR', 0, -R, 3, 180, 'directional', 6);
+                await addAnt('West RTL-SDR', -R, 0, 3, 270, 'directional', 6);
+                showNotification('4-Sector preset applied (4 antennas)', 'success');
+            } else if (preset === '4sector_dual') {
+                // Per sector: RTL-SDR (LPDA, EMI watch) + HackRF (panel/yagi, controller capture)
+                for (const [dir, bng, x, y] of [['North',0,0,R],['East',90,R,0],['South',180,0,-R],['West',270,-R,0]]) {
+                    await addAnt(`${dir} RTL-SDR (EMI/LPDA)`, x, y, 3, bng, 'directional', 6);
+                    await addAnt(`${dir} HackRF (Controller)`, x*0.95, y*0.95, 3.5, bng, 'patch', 9);
+                }
+                showNotification('4-Sector Dual preset applied (8 antennas: 4x RTL EMI + 4x HackRF controller)', 'success');
+            } else if (preset === 'kraken_center') {
+                // 5-element uniform circular array, ~0.5m radius
+                const kr = 0.5;
+                for (let i = 0; i < 5; i++) {
+                    const ang = i * 72;
+                    const rad = ang * Math.PI / 180;
+                    await addAnt(`Kraken Ch${i}`, +(kr * Math.sin(rad)).toFixed(2), +(kr * Math.cos(rad)).toFixed(2), 3, ang, 'omnidirectional', 2);
+                }
+                showNotification('KrakenSDR 5-element DF array preset applied', 'success');
+            } else if (preset === 'full_8dev') {
+                // 4 sector pairs + central Kraken
+                for (const [dir, bng, x, y] of [['North',0,0,R],['East',90,R,0],['South',180,0,-R],['West',270,-R,0]]) {
+                    await addAnt(`${dir} RTL-SDR (EMI/LPDA)`, x, y, 3, bng, 'directional', 6);
+                    await addAnt(`${dir} HackRF (Controller)`, x*0.95, y*0.95, 3.5, bng, 'patch', 9);
+                }
+                const kr = 0.5;
+                for (let i = 0; i < 5; i++) {
+                    const ang = i * 72;
+                    const rad = ang * Math.PI / 180;
+                    await addAnt(`Kraken Ch${i} (DF)`, +(kr * Math.sin(rad)).toFixed(2), +(kr * Math.cos(rad)).toFixed(2), 4, ang, 'omnidirectional', 2);
+                }
+                showNotification('Full 8-device + KrakenSDR preset applied (13 antennas)', 'success');
+            }
+
+            await loadAntennaConfig();
         }
 
         // Event listeners
