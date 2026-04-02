@@ -2300,6 +2300,109 @@
                     <div class="empty-state">Run a scan to detect nearby drones</div>
                 </div>
             </div>
+
+            <!-- Advanced SDR: Multi-Device & Antenna Array -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📐 Advanced SDR - Antenna Array & Direction Finding</h4>
+                    <button class="action-btn" onclick="loadSdrDevices()">🔄 Detect Devices</button>
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem;">
+                    Configure multiple SDR receivers as a direction-finding array. Position antennas around a protected area to triangulate drone RF sources.
+                </p>
+
+                <!-- Detected SDR Devices -->
+                <div style="margin-bottom:0.75rem;">
+                    <h5 style="margin:0.5rem 0 0.25rem;color:var(--text-primary);">Detected SDR Devices</h5>
+                    <div id="sdrAllDevices" style="font-size:0.8rem;">
+                        <div class="empty-state">Click Detect Devices to scan</div>
+                    </div>
+                </div>
+
+                <!-- Direction Finding Status -->
+                <div id="sdrDfStatus" style="display:none; margin-bottom:0.75rem; padding:0.5rem; background:var(--bg-tertiary); border-radius:6px; border-left:3px solid var(--accent-blue);">
+                    <strong style="color:var(--accent-blue);">Direction Finding:</strong>
+                    <span id="sdrDfCapability" style="font-size:0.85rem;"></span>
+                </div>
+
+                <!-- Antenna Position Map -->
+                <div style="margin-bottom:0.75rem;">
+                    <h5 style="margin:0.5rem 0 0.25rem;color:var(--text-primary);">Antenna Positions</h5>
+                    <div style="display:flex; gap:1rem; flex-wrap:wrap;">
+                        <!-- Visual map -->
+                        <div style="position:relative; width:280px; height:280px; background:var(--bg-tertiary); border-radius:8px; border:1px solid var(--border-color); flex-shrink:0;">
+                            <canvas id="antennaMapCanvas" width="280" height="280" style="width:100%;height:100%;"></canvas>
+                            <div style="position:absolute;top:4px;left:8px;font-size:0.65rem;color:var(--text-secondary);">N</div>
+                            <div style="position:absolute;bottom:4px;left:8px;font-size:0.65rem;color:var(--text-secondary);">S</div>
+                            <div style="position:absolute;top:50%;right:4px;font-size:0.65rem;color:var(--text-secondary);transform:translateY(-50%);">E</div>
+                            <div style="position:absolute;top:50%;left:4px;font-size:0.65rem;color:var(--text-secondary);transform:translateY(-50%);">W</div>
+                        </div>
+                        <!-- Antenna list -->
+                        <div style="flex:1; min-width:200px;">
+                            <div id="antennaList" style="max-height:240px; overflow-y:auto; font-size:0.8rem;">
+                                <div class="empty-state">No antennas configured</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Add Antenna Form -->
+                <details style="margin-bottom:0.75rem;">
+                    <summary style="cursor:pointer;color:var(--accent-blue);font-size:0.85rem;font-weight:bold;">+ Add Antenna Position</summary>
+                    <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap:0.4rem; margin-top:0.5rem; font-size:0.8rem;">
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">Label</label>
+                            <input type="text" id="antLabel" class="spectrum-input" placeholder="e.g. North Roof" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">X (meters east)</label>
+                            <input type="number" id="antX" class="spectrum-input" value="0" step="0.1" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">Y (meters north)</label>
+                            <input type="number" id="antY" class="spectrum-input" value="0" step="0.1" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">Z (meters up)</label>
+                            <input type="number" id="antZ" class="spectrum-input" value="0" step="0.1" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">Bearing (degrees)</label>
+                            <input type="number" id="antBearing" class="spectrum-input" value="0" min="0" max="360" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">Gain (dBi)</label>
+                            <input type="number" id="antGain" class="spectrum-input" value="2" step="0.5" style="width:100%;">
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">Type</label>
+                            <select id="antType" class="spectrum-select" style="width:100%;">
+                                <option value="omnidirectional">Omnidirectional</option>
+                                <option value="directional">Directional (Yagi)</option>
+                                <option value="patch">Patch</option>
+                                <option value="dipole">Dipole</option>
+                                <option value="discone">Discone</option>
+                                <option value="helical">Helical</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="color:var(--text-secondary);font-size:0.7rem;">SDR Device</label>
+                            <select id="antDevice" class="spectrum-select" style="width:100%;">
+                                <option value="">Unassigned</option>
+                            </select>
+                        </div>
+                    </div>
+                    <button class="action-btn" onclick="addAntennaPosition()" style="margin-top:0.5rem;">📍 Add Antenna</button>
+                </details>
+
+                <!-- Cheaper Alternatives -->
+                <details style="margin-bottom:0.5rem;">
+                    <summary style="cursor:pointer;color:var(--accent-blue);font-size:0.85rem;font-weight:bold;">💰 Budget SDR Alternatives to HackRF ($350)</summary>
+                    <div id="sdrAlternatives" style="margin-top:0.5rem; font-size:0.8rem;">
+                        <div class="empty-state">Loading...</div>
+                    </div>
+                </details>
+            </div>
         </div>
     </div>
     
@@ -4273,6 +4376,227 @@
                     </div>
                 </div>
             `).join('');
+        }
+
+        // ============================================
+        // Advanced SDR - Multi-Device & Antenna Array
+        // ============================================
+
+        let sdrDevicesCache = [];
+        let antennasCache = [];
+
+        async function loadSdrDevices() {
+            const container = document.getElementById('sdrAllDevices');
+            container.innerHTML = '<div class="empty-state">Scanning for SDR hardware...</div>';
+            try {
+                const data = await safeFetchJson('/api/sdr/devices/all');
+                sdrDevicesCache = data.detected_devices || [];
+
+                // Update DF status
+                const dfStatus = document.getElementById('sdrDfStatus');
+                if (data.has_direction_finding) {
+                    dfStatus.style.display = 'block';
+                    document.getElementById('sdrDfCapability').textContent = 'Coherent array detected - direction finding available';
+                    dfStatus.style.borderColor = 'var(--accent-green)';
+                } else if (data.device_count > 1) {
+                    dfStatus.style.display = 'block';
+                    document.getElementById('sdrDfCapability').textContent =
+                        `${data.device_count} devices detected - RSSI-based triangulation available (coherent array recommended for precise DF)`;
+                } else {
+                    dfStatus.style.display = 'block';
+                    document.getElementById('sdrDfCapability').innerHTML =
+                        'Single device - add more SDRs for direction finding. <span style="color:var(--accent-yellow);">Min 3 receivers recommended for triangulation.</span>';
+                }
+
+                // Render device list
+                if (sdrDevicesCache.length === 0) {
+                    container.innerHTML = '<div class="empty-state">No SDR devices detected. Plug in an RTL-SDR, HackRF, or other supported receiver.</div>';
+                } else {
+                    container.innerHTML = sdrDevicesCache.map((d, i) => `
+                        <div style="display:flex;align-items:center;gap:0.5rem;padding:6px 8px;border-bottom:1px solid var(--border-color);">
+                            <span style="font-size:1.1rem;">${d.supports_df ? '📐' : d.supports_tx ? '📡' : '📻'}</span>
+                            <div style="flex:1;">
+                                <div style="font-weight:bold;color:var(--text-primary);">${d.name}</div>
+                                <div style="font-size:0.75rem;color:var(--text-secondary);">
+                                    ${d.label} | Index: ${d.index}${d.serial ? ' | SN: ' + d.serial : ''} | ~$${d.approx_price_usd}
+                                    ${d.supports_df ? ' | <span style="color:var(--accent-green);">Direction Finding</span>' : ''}
+                                    ${d.supports_tx ? ' | <span style="color:var(--accent-blue);">TX capable</span>' : ''}
+                                    ${d.channels > 1 ? ' | ' + d.channels + ' channels' : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Populate device dropdown for antenna assignment
+                const devSelect = document.getElementById('antDevice');
+                devSelect.innerHTML = '<option value="">Unassigned</option>' +
+                    sdrDevicesCache.map((d, i) => `<option value="${i}">${d.name}</option>`).join('');
+
+                // Load alternatives
+                if (data.cheaper_alternatives) {
+                    document.getElementById('sdrAlternatives').innerHTML = data.cheaper_alternatives.map(a => `
+                        <div style="padding:6px 8px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <strong>${a.device}</strong> <span style="color:var(--accent-green);">$${a.price_usd}</span>
+                                <div style="font-size:0.75rem;color:var(--text-secondary);">${a.freq_range} - ${a.notes}</div>
+                            </div>
+                            <a href="${a.buy}" target="_blank" style="color:var(--accent-blue);font-size:0.75rem;white-space:nowrap;">Buy &rarr;</a>
+                        </div>
+                    `).join('');
+                }
+
+                // Load antenna config
+                await loadAntennaConfig();
+            } catch (e) {
+                container.innerHTML = `<div class="empty-state" style="color:var(--accent-red);">Error: ${e.message}</div>`;
+            }
+        }
+
+        async function loadAntennaConfig() {
+            try {
+                const data = await safeFetchJson('/api/sdr/antenna/config');
+                antennasCache = data.antennas || [];
+                renderAntennaList();
+                drawAntennaMap();
+            } catch (e) { console.error('Antenna config error:', e); }
+        }
+
+        function renderAntennaList() {
+            const el = document.getElementById('antennaList');
+            if (antennasCache.length === 0) {
+                el.innerHTML = '<div class="empty-state">No antennas configured. Add positions to enable direction finding.</div>';
+                return;
+            }
+            el.innerHTML = antennasCache.map(a => `
+                <div style="display:flex;align-items:center;gap:0.5rem;padding:5px 8px;border-bottom:1px solid var(--border-color);">
+                    <span style="font-size:0.9rem;">📍</span>
+                    <div style="flex:1;">
+                        <div style="font-weight:bold;color:var(--text-primary);font-size:0.8rem;">${a.label}</div>
+                        <div style="font-size:0.7rem;color:var(--text-secondary);">
+                            X:${a.x_meters}m Y:${a.y_meters}m Z:${a.z_meters}m | ${a.bearing_degrees}&deg; | ${a.antenna_type} | ${a.gain_dbi} dBi
+                        </div>
+                    </div>
+                    <button class="action-btn" onclick="removeAntenna(${a.id})" style="font-size:0.7rem;padding:2px 6px;background:var(--accent-red);">✕</button>
+                </div>
+            `).join('');
+        }
+
+        function drawAntennaMap() {
+            const canvas = document.getElementById('antennaMapCanvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const w = canvas.width, h = canvas.height;
+            const cx = w / 2, cy = h / 2;
+
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(100,100,100,0.2)';
+            ctx.lineWidth = 0.5;
+            for (let r = 30; r < cx; r += 30) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, r, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, h); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(w, cy); ctx.stroke();
+
+            // Center point (protected area)
+            ctx.fillStyle = '#44aaff';
+            ctx.beginPath(); ctx.arc(cx, cy, 5, 0, Math.PI * 2); ctx.fill();
+            ctx.fillStyle = 'rgba(68,170,255,0.15)';
+            ctx.beginPath(); ctx.arc(cx, cy, 25, 0, Math.PI * 2); ctx.fill();
+
+            if (antennasCache.length === 0) {
+                ctx.fillStyle = 'rgba(150,150,150,0.5)';
+                ctx.font = '11px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Add antennas to map', cx, cy + 45);
+                return;
+            }
+
+            // Scale: find max extent
+            let maxDist = 1;
+            antennasCache.forEach(a => {
+                maxDist = Math.max(maxDist, Math.abs(a.x_meters), Math.abs(a.y_meters));
+            });
+            const scale = (cx - 20) / (maxDist * 1.2);
+
+            // Draw antennas
+            antennasCache.forEach((a, i) => {
+                const px = cx + a.x_meters * scale;
+                const py = cy - a.y_meters * scale; // Y is north = up
+                const colors = ['#ff4444', '#44ff44', '#ffaa00', '#ff44ff', '#44ffff', '#ffffff'];
+                const col = colors[i % colors.length];
+
+                // Bearing line
+                if (a.antenna_type !== 'omnidirectional') {
+                    const bRad = (a.bearing_degrees - 90) * Math.PI / 180;
+                    ctx.strokeStyle = col;
+                    ctx.lineWidth = 1.5;
+                    ctx.setLineDash([4, 3]);
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(px + Math.cos(bRad) * 40, py + Math.sin(bRad) * 40);
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+
+                // Antenna dot
+                ctx.fillStyle = col;
+                ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+                ctx.strokeStyle = '#000'; ctx.lineWidth = 1;
+                ctx.beginPath(); ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.stroke();
+
+                // Label
+                ctx.fillStyle = col;
+                ctx.font = 'bold 9px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(a.label, px, py - 10);
+            });
+
+            // Distance legend
+            ctx.fillStyle = 'rgba(150,150,150,0.6)';
+            ctx.font = '9px sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`${maxDist.toFixed(1)}m`, w - 5, h - 5);
+        }
+
+        async function addAntennaPosition() {
+            const label = document.getElementById('antLabel').value.trim();
+            if (!label) { showNotification('Label is required', 'error'); return; }
+            const body = {
+                label,
+                x_meters: parseFloat(document.getElementById('antX').value) || 0,
+                y_meters: parseFloat(document.getElementById('antY').value) || 0,
+                z_meters: parseFloat(document.getElementById('antZ').value) || 0,
+                bearing_degrees: parseFloat(document.getElementById('antBearing').value) || 0,
+                antenna_type: document.getElementById('antType').value,
+                gain_dbi: parseFloat(document.getElementById('antGain').value) || 2,
+                sdr_device_id: document.getElementById('antDevice').value ? parseInt(document.getElementById('antDevice').value) : null,
+            };
+            try {
+                const r = await fetch('/api/sdr/antenna/add', {
+                    method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+                });
+                const data = await r.json();
+                if (data.id) {
+                    showNotification(`Antenna "${label}" added`, 'success');
+                    document.getElementById('antLabel').value = '';
+                    await loadAntennaConfig();
+                } else {
+                    showNotification('Failed: ' + (data.error || 'unknown'), 'error');
+                }
+            } catch (e) { showNotification('Error: ' + e.message, 'error'); }
+        }
+
+        async function removeAntenna(id) {
+            try {
+                await fetch(`/api/sdr/antenna/${id}`, { method: 'DELETE' });
+                showNotification('Antenna removed', 'success');
+                await loadAntennaConfig();
+            } catch (e) { showNotification('Error: ' + e.message, 'error'); }
         }
 
         // Event listeners
