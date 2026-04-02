@@ -16,6 +16,7 @@ pub mod rtl433;
 pub mod spectrum;
 pub mod cellular;
 pub mod drone;
+pub mod drone_signatures;
 pub mod trunked;
 pub mod tscm;
 pub mod environmental;

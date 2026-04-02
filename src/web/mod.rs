@@ -34,7 +34,7 @@ pub(crate) fn find_static_dir() -> Option<PathBuf> {
         // 3. /app/static (container)
         Some(PathBuf::from("/app/static")),
         // 4. ~/sigint-deck/static (user install)
-        dirs::home_dir().map(|h| h.join("sigint-pi").join("static")),
+        dirs::home_dir().map(|h| h.join("sigint-deck").join("static")),
     ];
     
     for candidate in candidates.into_iter().flatten() {
@@ -78,7 +78,18 @@ pub async fn start_server(
     // Spawn event handler to update state from scan events
     let state_clone = state.clone();
     tokio::spawn(async move {
-        while let Ok(event) = event_rx.recv().await {
+        loop {
+            let event = match event_rx.recv().await {
+                Ok(event) => event,
+                Err(broadcast::error::RecvError::Lagged(n)) => {
+                    tracing::warn!("Web state handler lagged {} events, resuming", n);
+                    continue;
+                }
+                Err(broadcast::error::RecvError::Closed) => {
+                    tracing::info!("Event channel closed, stopping web state handler");
+                    break;
+                }
+            };
             match event {
                 ScanEvent::WifiDevice(device) => {
                     let mut devices = state_clone.wifi_devices.write().await;
@@ -110,6 +121,21 @@ pub async fn start_server(
                     // Keep only recent devices (last 5 minutes)
                     let cutoff = now - 300;
                     devices.retain(|d| d.last_seen > cutoff);
+
+                    // Check if this WiFi device is a drone (OUI or SSID match)
+                    if let Some((mfr, method)) = crate::sdr::drone_signatures::check_wifi_device_is_drone(
+                        &device.mac_address,
+                        device.ssid.as_deref(),
+                    ) {
+                        crate::web::api::register_drone_wifi(
+                            &device.mac_address,
+                            device.ssid.as_deref(),
+                            device.rssi,
+                            device.channel,
+                            mfr,
+                            method,
+                        );
+                    }
                 }
                 ScanEvent::BleDevice(device) => {
                     let mut devices = state_clone.ble_devices.write().await;

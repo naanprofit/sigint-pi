@@ -2880,10 +2880,108 @@ fn parse_kal_line(line: &str, band: &str) -> Option<serde_json::Value> {
 }
 
 static DRONE_SIGNALS: Lazy<Mutex<Vec<serde_json::Value>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static DETECTED_DRONES: Lazy<Mutex<Vec<serde_json::Value>>> = Lazy::new(|| Mutex::new(Vec::new()));
+static DRONE_COOLDOWN: Lazy<Mutex<std::collections::HashMap<String, u64>>> = Lazy::new(|| Mutex::new(std::collections::HashMap::new()));
+
+pub fn register_drone_wifi(
+    mac: &str,
+    ssid: Option<&str>,
+    rssi: i32,
+    channel: u8,
+    manufacturer: crate::sdr::drone_signatures::DroneManufacturer,
+    method: crate::sdr::drone_signatures::WifiDetectionMethod,
+) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    {
+        let mut cooldown = DRONE_COOLDOWN.lock().unwrap();
+        if let Some(&last) = cooldown.get(mac) {
+            if now - last < 120 {
+                let mut drones = DETECTED_DRONES.lock().unwrap();
+                if let Some(d) = drones.iter_mut().find(|d| d.get("mac").and_then(|v| v.as_str()) == Some(mac)) {
+                    d["last_seen"] = serde_json::json!(now);
+                    d["rssi"] = serde_json::json!(rssi);
+                }
+                return;
+            }
+        }
+        cooldown.insert(mac.to_string(), now);
+    }
+    let mfr_label = manufacturer.label();
+    let method_str = format!("{:?}", method);
+    let threat = if rssi > -30 { "HIGH" } else if rssi > -50 { "MEDIUM" } else { "LOW" };
+    let entry = serde_json::json!({
+        "mac": mac, "ssid": ssid, "rssi": rssi, "channel": channel,
+        "manufacturer": mfr_label, "detection_method": method_str,
+        "threat_level": threat, "source": "wifi",
+        "first_seen": now, "last_seen": now,
+    });
+    {
+        let mut drones = DETECTED_DRONES.lock().unwrap();
+        if let Some(d) = drones.iter_mut().find(|d| d.get("mac").and_then(|v| v.as_str()) == Some(mac)) {
+            *d = entry.clone();
+        } else {
+            drones.push(entry.clone());
+        }
+        if drones.len() > 100 { drones.remove(0); }
+    }
+    tracing::warn!("DRONE DETECTED via WiFi: {} ({}) MAC={} RSSI={} CH={} method={}", mfr_label, ssid.unwrap_or("-"), mac, rssi, channel, method_str);
+}
+
+pub fn register_drone_ble(
+    mac: &str,
+    name: Option<&str>,
+    rssi: i32,
+    manufacturer: crate::sdr::drone_signatures::DroneManufacturer,
+    _remote_id: Option<&crate::sdr::drone_signatures::RemoteIdData>,
+) {
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    {
+        let mut cooldown = DRONE_COOLDOWN.lock().unwrap();
+        if let Some(&last) = cooldown.get(mac) {
+            if now - last < 120 {
+                let mut drones = DETECTED_DRONES.lock().unwrap();
+                if let Some(d) = drones.iter_mut().find(|d| d.get("mac").and_then(|v| v.as_str()) == Some(mac)) {
+                    d["last_seen"] = serde_json::json!(now);
+                    d["rssi"] = serde_json::json!(rssi);
+                }
+                return;
+            }
+        }
+        cooldown.insert(mac.to_string(), now);
+    }
+    let mfr_label = manufacturer.label();
+    let entry = serde_json::json!({
+        "mac": mac, "name": name, "rssi": rssi,
+        "manufacturer": mfr_label, "detection_method": "BLE",
+        "threat_level": if rssi > -40 { "HIGH" } else if rssi > -60 { "MEDIUM" } else { "LOW" },
+        "source": "ble", "first_seen": now, "last_seen": now,
+    });
+    {
+        let mut drones = DETECTED_DRONES.lock().unwrap();
+        if let Some(d) = drones.iter_mut().find(|d| d.get("mac").and_then(|v| v.as_str()) == Some(mac)) {
+            *d = entry.clone();
+        } else {
+            drones.push(entry.clone());
+        }
+        if drones.len() > 100 { drones.remove(0); }
+    }
+    tracing::warn!("DRONE DETECTED via BLE: {} name={} MAC={} RSSI={}", mfr_label, name.unwrap_or("-"), mac, rssi);
+}
 
 async fn get_drone_signals() -> impl Responder {
-    let signals = DRONE_SIGNALS.lock().unwrap();
-    HttpResponse::Ok().json(&*signals)
+    let rf_signals = DRONE_SIGNALS.lock().unwrap().clone();
+    let wifi_ble_drones = DETECTED_DRONES.lock().unwrap().clone();
+    HttpResponse::Ok().json(serde_json::json!({
+        "rf_signals": rf_signals,
+        "wifi_ble_detections": wifi_ble_drones,
+        "total": rf_signals.len() + wifi_ble_drones.len(),
+    }))
 }
 
 async fn scan_drones() -> impl Responder {
