@@ -230,6 +230,15 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/sdr/morse/start", web::post().to(start_morse_decoder))
             .route("/sdr/morse/stop", web::post().to(stop_morse_decoder))
             .route("/sdr/morse/status", web::get().to(get_morse_status))
+            // SIEM Log
+            .route("/siem/events", web::get().to(siem_get_events))
+            .route("/siem/events", web::post().to(siem_add_event))
+            .route("/siem/search", web::get().to(siem_search_events))
+            .route("/siem/stats", web::get().to(siem_get_stats))
+            .route("/siem/prune", web::post().to(siem_prune_logs))
+            .route("/siem/export", web::get().to(siem_export_events))
+            .route("/siem/forward/config", web::get().to(siem_get_forward_config))
+            .route("/siem/forward/config", web::post().to(siem_set_forward_config))
             // TTS Alerts (browser-based)
             .route("/alerts/tts/config", web::get().to(get_tts_alert_config))
             .route("/alerts/tts/config", web::post().to(set_tts_alert_config))
@@ -5456,5 +5465,218 @@ fn morse_to_char(code: &str) -> Option<char> {
         ".-.-." => Some('+'), "-....-" => Some('-'), "..--.-" => Some('_'),
         ".-..-." => Some('"'), "...-..-" => Some('$'), ".--.-." => Some('@'),
         _ => None,
+    }
+}
+
+// ============================================
+// SIEM - Security Information & Event Management
+// ============================================
+
+const SIEM_MAX_BYTES: i64 = 4 * 1024 * 1024 * 1024; // 4GB rolling budget
+
+#[derive(Deserialize)]
+struct SiemQuery {
+    #[serde(default = "default_siem_limit")]
+    limit: i64,
+    #[serde(default)]
+    offset: i64,
+    severity: Option<String>,
+    category: Option<String>,
+    since: Option<String>,
+}
+
+fn default_siem_limit() -> i64 { 100 }
+
+async fn siem_get_events(
+    db: web::Data<Arc<crate::storage::Database>>,
+    query: web::Query<SiemQuery>,
+) -> impl Responder {
+    match db.siem_search("", query.limit, query.offset,
+                         query.severity.as_deref(), query.category.as_deref(),
+                         query.since.as_deref()).await {
+        Ok(events) => HttpResponse::Ok().json(serde_json::json!({
+            "events": events,
+            "count": events.len(),
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("Failed to query events: {}", e)
+        })),
+    }
+}
+
+#[derive(Deserialize)]
+struct SiemAddRequest {
+    source: String,
+    #[serde(default = "default_info")]
+    severity: String,
+    #[serde(default = "default_general")]
+    category: String,
+    device_mac: Option<String>,
+    message: String,
+    raw_data: Option<String>,
+}
+
+fn default_info() -> String { "info".to_string() }
+fn default_general() -> String { "general".to_string() }
+
+async fn siem_add_event(
+    db: web::Data<Arc<crate::storage::Database>>,
+    body: web::Json<SiemAddRequest>,
+) -> impl Responder {
+    match db.siem_insert(&body.source, &body.severity, &body.category,
+                         body.device_mac.as_deref(), &body.message,
+                         body.raw_data.as_deref(), None, None).await {
+        Ok(id) => {
+            // Auto-prune if over budget
+            let _ = db.siem_prune(SIEM_MAX_BYTES).await;
+            HttpResponse::Ok().json(serde_json::json!({"id": id}))
+        }
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("{}", e)
+        })),
+    }
+}
+
+#[derive(Deserialize)]
+struct SiemSearchQuery {
+    q: String,
+    #[serde(default = "default_siem_limit")]
+    limit: i64,
+    #[serde(default)]
+    offset: i64,
+    severity: Option<String>,
+    category: Option<String>,
+    since: Option<String>,
+}
+
+async fn siem_search_events(
+    db: web::Data<Arc<crate::storage::Database>>,
+    query: web::Query<SiemSearchQuery>,
+) -> impl Responder {
+    match db.siem_search(&query.q, query.limit, query.offset,
+                         query.severity.as_deref(), query.category.as_deref(),
+                         query.since.as_deref()).await {
+        Ok(events) => HttpResponse::Ok().json(serde_json::json!({
+            "events": events,
+            "count": events.len(),
+            "query": query.q,
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("{}", e)
+        })),
+    }
+}
+
+async fn siem_get_stats(
+    db: web::Data<Arc<crate::storage::Database>>,
+) -> impl Responder {
+    let (count, db_size) = db.siem_count().await.unwrap_or((0, 0));
+    let severity_counts = db.siem_severity_counts().await.unwrap_or_default();
+    let category_counts = db.siem_category_counts().await.unwrap_or_default();
+    let sources = db.siem_recent_sources().await.unwrap_or_default();
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "total_events": count,
+        "db_size_bytes": db_size,
+        "db_size_mb": db_size as f64 / (1024.0 * 1024.0),
+        "budget_bytes": SIEM_MAX_BYTES,
+        "budget_gb": 4,
+        "budget_used_pct": if SIEM_MAX_BYTES > 0 { (db_size as f64 / SIEM_MAX_BYTES as f64 * 100.0) } else { 0.0 },
+        "severity_counts": severity_counts.iter().map(|(s,c)| serde_json::json!({"severity": s, "count": c})).collect::<Vec<_>>(),
+        "category_counts": category_counts.iter().map(|(s,c)| serde_json::json!({"category": s, "count": c})).collect::<Vec<_>>(),
+        "sources": sources,
+    }))
+}
+
+async fn siem_prune_logs(
+    db: web::Data<Arc<crate::storage::Database>>,
+) -> impl Responder {
+    match db.siem_prune(SIEM_MAX_BYTES).await {
+        Ok(deleted) => HttpResponse::Ok().json(serde_json::json!({
+            "pruned": deleted,
+            "budget_gb": 4,
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("{}", e)
+        })),
+    }
+}
+
+async fn siem_export_events(
+    db: web::Data<Arc<crate::storage::Database>>,
+    query: web::Query<SiemQuery>,
+) -> impl Responder {
+    let limit = query.limit.min(10000);
+    match db.siem_search("", limit, 0,
+                         query.severity.as_deref(), query.category.as_deref(),
+                         query.since.as_deref()).await {
+        Ok(events) => {
+            let ndjson: String = events.iter()
+                .map(|e| serde_json::to_string(e).unwrap_or_default())
+                .collect::<Vec<_>>()
+                .join("\n");
+            HttpResponse::Ok()
+                .content_type("application/x-ndjson")
+                .insert_header(("Content-Disposition", "attachment; filename=\"siem_events.ndjson\""))
+                .body(ndjson)
+        }
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("{}", e)
+        })),
+    }
+}
+
+async fn siem_get_forward_config(
+    db: web::Data<Arc<crate::storage::Database>>,
+) -> impl Responder {
+    let row = sqlx::query("SELECT enabled, forward_type, endpoint FROM siem_forward_config WHERE id = 1")
+        .fetch_optional(db.pool()).await;
+    match row {
+        Ok(Some(r)) => {
+            use sqlx::Row;
+            HttpResponse::Ok().json(serde_json::json!({
+                "enabled": r.get::<i32, _>("enabled") != 0,
+                "forward_type": r.get::<String, _>("forward_type"),
+                "endpoint": r.get::<String, _>("endpoint"),
+            }))
+        }
+        _ => HttpResponse::Ok().json(serde_json::json!({
+            "enabled": false,
+            "forward_type": "syslog",
+            "endpoint": "",
+        })),
+    }
+}
+
+#[derive(Deserialize)]
+struct SiemForwardRequest {
+    enabled: bool,
+    forward_type: String,
+    endpoint: String,
+}
+
+async fn siem_set_forward_config(
+    db: web::Data<Arc<crate::storage::Database>>,
+    body: web::Json<SiemForwardRequest>,
+) -> impl Responder {
+    let result = sqlx::query(
+        "INSERT OR REPLACE INTO siem_forward_config (id, enabled, forward_type, endpoint, updated_at)
+         VALUES (1, ?, ?, ?, CURRENT_TIMESTAMP)"
+    )
+    .bind(body.enabled as i32)
+    .bind(&body.forward_type)
+    .bind(&body.endpoint)
+    .execute(db.pool()).await;
+
+    match result {
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({
+            "saved": true,
+            "enabled": body.enabled,
+            "forward_type": body.forward_type,
+            "endpoint": body.endpoint,
+        })),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": format!("{}", e)
+        })),
     }
 }

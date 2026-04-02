@@ -385,6 +385,17 @@ impl AlertManagerState {
             alert.device_mac.as_deref(),
         ).await?;
 
+        // Log to SIEM
+        let _ = self.db.siem_insert(
+            "alert_manager",
+            &format!("{:?}", alert.priority).to_lowercase(),
+            &format!("{:?}", alert.alert_type),
+            alert.device_mac.as_deref(),
+            &alert.title,
+            Some(&alert.message),
+            None, None,
+        ).await;
+
         info!("Sending alert: {} (priority: {:?})", alert.title, alert.priority);
 
         // Route alert based on type AND priority

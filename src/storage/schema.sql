@@ -244,3 +244,55 @@ CREATE TABLE IF NOT EXISTS device_discoveries (
 CREATE INDEX IF NOT EXISTS idx_discovery_mac ON device_discoveries(mac_address);
 CREATE INDEX IF NOT EXISTS idx_discovery_time ON device_discoveries(discovered_at);
 CREATE INDEX IF NOT EXISTS idx_discovery_location ON device_discoveries(latitude, longitude);
+
+-- SIEM Event Log (structured security events with rolling 4GB budget)
+CREATE TABLE IF NOT EXISTS siem_events (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    source TEXT NOT NULL,
+    severity TEXT NOT NULL DEFAULT 'info',
+    category TEXT NOT NULL DEFAULT 'general',
+    device_mac TEXT,
+    message TEXT NOT NULL,
+    raw_data TEXT,
+    latitude REAL,
+    longitude REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_siem_time ON siem_events(timestamp);
+CREATE INDEX IF NOT EXISTS idx_siem_severity ON siem_events(severity);
+CREATE INDEX IF NOT EXISTS idx_siem_category ON siem_events(category);
+CREATE INDEX IF NOT EXISTS idx_siem_source ON siem_events(source);
+CREATE INDEX IF NOT EXISTS idx_siem_mac ON siem_events(device_mac);
+
+-- FTS5 virtual table for full-text search over SIEM events
+CREATE VIRTUAL TABLE IF NOT EXISTS siem_events_fts USING fts5(
+    message,
+    source,
+    category,
+    device_mac,
+    raw_data,
+    content='siem_events',
+    content_rowid='id'
+);
+
+-- Triggers to keep FTS index in sync
+CREATE TRIGGER IF NOT EXISTS siem_ai AFTER INSERT ON siem_events BEGIN
+    INSERT INTO siem_events_fts(rowid, message, source, category, device_mac, raw_data)
+    VALUES (new.id, new.message, new.source, new.category, new.device_mac, new.raw_data);
+END;
+
+CREATE TRIGGER IF NOT EXISTS siem_ad AFTER DELETE ON siem_events BEGIN
+    INSERT INTO siem_events_fts(siem_events_fts, rowid, message, source, category, device_mac, raw_data)
+    VALUES ('delete', old.id, old.message, old.source, old.category, old.device_mac, old.raw_data);
+END;
+
+-- SIEM forwarding config
+CREATE TABLE IF NOT EXISTS siem_forward_config (
+    id INTEGER PRIMARY KEY,
+    enabled INTEGER DEFAULT 0,
+    forward_type TEXT NOT NULL DEFAULT 'syslog',
+    endpoint TEXT,
+    api_key TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

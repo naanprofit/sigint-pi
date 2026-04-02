@@ -41,6 +41,10 @@ impl Database {
         Ok(Self { pool })
     }
 
+    pub fn pool(&self) -> &Pool<Sqlite> {
+        &self.pool
+    }
+
     pub async fn migrate(&self) -> Result<()> {
         sqlx::query(include_str!("schema.sql"))
             .execute(&self.pool)
@@ -868,4 +872,148 @@ pub struct ContactDetail {
     pub threat_level: Option<String>,
     pub sightings: Vec<SightingRecord>,
     pub user_notes: Vec<serde_json::Value>,
+}
+
+// ===== SIEM Operations =====
+
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct SiemEvent {
+    pub id: i64,
+    pub timestamp: String,
+    pub source: String,
+    pub severity: String,
+    pub category: String,
+    pub device_mac: Option<String>,
+    pub message: String,
+    pub raw_data: Option<String>,
+    pub latitude: Option<f64>,
+    pub longitude: Option<f64>,
+}
+
+impl Database {
+    pub async fn siem_insert(&self, source: &str, severity: &str, category: &str,
+                             device_mac: Option<&str>, message: &str, raw_data: Option<&str>,
+                             lat: Option<f64>, lon: Option<f64>) -> Result<i64> {
+        let result = sqlx::query(
+            "INSERT INTO siem_events (source, severity, category, device_mac, message, raw_data, latitude, longitude)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        )
+        .bind(source).bind(severity).bind(category).bind(device_mac)
+        .bind(message).bind(raw_data).bind(lat).bind(lon)
+        .execute(&self.pool).await?;
+        Ok(result.last_insert_rowid())
+    }
+
+    pub async fn siem_search(&self, query: &str, limit: i64, offset: i64,
+                              severity: Option<&str>, category: Option<&str>,
+                              since: Option<&str>) -> Result<Vec<SiemEvent>> {
+        let mut sql = String::from(
+            "SELECT e.id, e.timestamp, e.source, e.severity, e.category, e.device_mac, e.message, e.raw_data, e.latitude, e.longitude
+             FROM siem_events e"
+        );
+        let mut conditions = Vec::new();
+        let mut use_fts = false;
+
+        if !query.is_empty() {
+            sql = format!(
+                "SELECT e.id, e.timestamp, e.source, e.severity, e.category, e.device_mac, e.message, e.raw_data, e.latitude, e.longitude
+                 FROM siem_events e JOIN siem_events_fts f ON e.id = f.rowid
+                 WHERE siem_events_fts MATCH ?1"
+            );
+            use_fts = true;
+        }
+
+        if let Some(sev) = severity {
+            conditions.push(format!("e.severity = '{}'", sev.replace('\'', "''")));
+        }
+        if let Some(cat) = category {
+            conditions.push(format!("e.category = '{}'", cat.replace('\'', "''")));
+        }
+        if let Some(ts) = since {
+            conditions.push(format!("e.timestamp >= '{}'", ts.replace('\'', "''")));
+        }
+
+        if !conditions.is_empty() {
+            let joiner = if use_fts { " AND " } else { " WHERE " };
+            sql.push_str(joiner);
+            sql.push_str(&conditions.join(" AND "));
+        }
+
+        if use_fts {
+            sql.push_str(" ORDER BY e.timestamp DESC LIMIT ?2 OFFSET ?3");
+        } else {
+            sql.push_str(" ORDER BY e.timestamp DESC LIMIT ?1 OFFSET ?2");
+        }
+
+        let rows = if use_fts {
+            sqlx::query(&sql)
+                .bind(query).bind(limit).bind(offset)
+                .fetch_all(&self.pool).await?
+        } else {
+            sqlx::query(&sql)
+                .bind(limit).bind(offset)
+                .fetch_all(&self.pool).await?
+        };
+
+        let mut events = Vec::new();
+        for row in rows {
+            events.push(SiemEvent {
+                id: row.get("id"),
+                timestamp: row.get("timestamp"),
+                source: row.get("source"),
+                severity: row.get("severity"),
+                category: row.get("category"),
+                device_mac: row.get("device_mac"),
+                message: row.get("message"),
+                raw_data: row.get("raw_data"),
+                latitude: row.get("latitude"),
+                longitude: row.get("longitude"),
+            });
+        }
+        Ok(events)
+    }
+
+    pub async fn siem_count(&self) -> Result<(i64, i64)> {
+        let count: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM siem_events")
+            .fetch_one(&self.pool).await?;
+        // Estimate size: ~500 bytes per event average
+        let page_count: i64 = sqlx::query_scalar("PRAGMA page_count")
+            .fetch_one(&self.pool).await.unwrap_or(0);
+        let page_size: i64 = sqlx::query_scalar("PRAGMA page_size")
+            .fetch_one(&self.pool).await.unwrap_or(4096);
+        let db_size = page_count * page_size;
+        Ok((count, db_size))
+    }
+
+    pub async fn siem_prune(&self, max_bytes: i64) -> Result<u64> {
+        let (count, db_size) = self.siem_count().await?;
+        if db_size <= max_bytes || count == 0 { return Ok(0); }
+        // Delete oldest 10% of events
+        let delete_count = (count / 10).max(100);
+        let result = sqlx::query(
+            "DELETE FROM siem_events WHERE id IN (SELECT id FROM siem_events ORDER BY timestamp ASC LIMIT ?)"
+        ).bind(delete_count).execute(&self.pool).await?;
+        // Rebuild FTS index after bulk delete
+        let _ = sqlx::query("INSERT INTO siem_events_fts(siem_events_fts) VALUES('rebuild')")
+            .execute(&self.pool).await;
+        Ok(result.rows_affected())
+    }
+
+    pub async fn siem_severity_counts(&self) -> Result<Vec<(String, i64)>> {
+        let rows = sqlx::query("SELECT severity, COUNT(*) as cnt FROM siem_events GROUP BY severity ORDER BY cnt DESC")
+            .fetch_all(&self.pool).await?;
+        Ok(rows.iter().map(|r| (r.get::<String, _>("severity"), r.get::<i64, _>("cnt"))).collect())
+    }
+
+    pub async fn siem_category_counts(&self) -> Result<Vec<(String, i64)>> {
+        let rows = sqlx::query("SELECT category, COUNT(*) as cnt FROM siem_events GROUP BY category ORDER BY cnt DESC")
+            .fetch_all(&self.pool).await?;
+        Ok(rows.iter().map(|r| (r.get::<String, _>("category"), r.get::<i64, _>("cnt"))).collect())
+    }
+
+    pub async fn siem_recent_sources(&self) -> Result<Vec<String>> {
+        let rows = sqlx::query("SELECT DISTINCT source FROM siem_events ORDER BY source")
+            .fetch_all(&self.pool).await?;
+        Ok(rows.iter().map(|r| r.get::<String, _>("source")).collect())
+    }
 }

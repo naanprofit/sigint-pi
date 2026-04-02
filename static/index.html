@@ -1751,6 +1751,9 @@
         <button class="tab-btn" data-tab="tscm" tabindex="0">
             🔍 TSCM <span class="badge-count" id="tscmBadge">--</span>
         </button>
+        <button class="tab-btn" data-tab="siem" tabindex="0">
+            🛡️ SIEM
+        </button>
         <button class="tab-btn" data-tab="settings" tabindex="0">
             ⚙️ Settings
         </button>
@@ -2301,6 +2304,90 @@
     </div>
     
     <!-- Settings Tab -->
+    <!-- SIEM Tab -->
+    <div class="tab-content" id="tab-siem">
+        <div class="sdr-panel">
+            <div class="sdr-header">
+                <div class="sdr-logo">🛡️</div>
+                <div class="sdr-title">
+                    <h3>SIEM - Security Event Log</h3>
+                    <span class="sdr-subtitle">Search, analyze, and export security events (4GB rolling budget)</span>
+                </div>
+            </div>
+
+            <!-- Stats -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📊 Overview</h4>
+                    <button class="action-btn" onclick="loadSiemStats()">🔄 Refresh</button>
+                </div>
+                <div id="siemStats" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 0.5rem;">
+                    <div class="status-card"><span class="status-label">Total Events</span><span class="status-value" id="siemTotalEvents">--</span></div>
+                    <div class="status-card"><span class="status-label">DB Size</span><span class="status-value" id="siemDbSize">--</span></div>
+                    <div class="status-card"><span class="status-label">Budget Used</span><span class="status-value" id="siemBudgetPct">--</span></div>
+                </div>
+                <div id="siemSeverityBars" style="margin-top: 0.75rem;"></div>
+            </div>
+
+            <!-- Search -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>🔍 Search Events</h4>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.5rem;">
+                    <input type="text" id="siemSearchInput" placeholder="Full-text search (e.g. drone, AirTag, deauth)..." style="flex: 2; min-width: 200px;" class="spectrum-input" onkeydown="if(event.key==='Enter')searchSiem()">
+                    <select id="siemSevFilter" class="spectrum-select" style="width:100px;">
+                        <option value="">All Severity</option>
+                        <option value="critical">Critical</option>
+                        <option value="high">High</option>
+                        <option value="medium">Medium</option>
+                        <option value="low">Low</option>
+                        <option value="info">Info</option>
+                    </select>
+                    <select id="siemCatFilter" class="spectrum-select" style="width:120px;" id="siemCatFilter">
+                        <option value="">All Categories</option>
+                    </select>
+                    <input type="datetime-local" id="siemSinceFilter" class="spectrum-input" style="width:180px;">
+                    <button class="action-btn" onclick="searchSiem()">🔍 Search</button>
+                    <button class="action-btn" onclick="exportSiem()">📥 Export NDJSON</button>
+                </div>
+            </div>
+
+            <!-- Event Log -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📜 Events</h4>
+                    <span style="font-size:0.8rem;color:var(--text-secondary);" id="siemResultCount"></span>
+                </div>
+                <div id="siemEventList" style="max-height: 500px; overflow-y: auto; font-size: 0.8rem;">
+                    <div class="empty-state">Search or load events to view</div>
+                </div>
+                <div style="margin-top: 0.5rem; display: flex; gap: 0.5rem;">
+                    <button class="action-btn" id="siemPrevBtn" onclick="siemPaginate(-1)" disabled>← Prev</button>
+                    <button class="action-btn" id="siemNextBtn" onclick="siemPaginate(1)">Next →</button>
+                </div>
+            </div>
+
+            <!-- Forwarding -->
+            <div class="sdr-section">
+                <div class="sdr-section-header">
+                    <h4>📤 Log Forwarding</h4>
+                </div>
+                <p style="font-size:0.8rem; color:var(--text-secondary); margin-bottom:0.5rem;">Forward SIEM events to an external collector (syslog, webhook, or file).</p>
+                <div style="display:flex; gap:0.5rem; flex-wrap:wrap; align-items:center;">
+                    <select id="siemForwardType" class="spectrum-select" style="width:100px;">
+                        <option value="syslog">Syslog</option>
+                        <option value="webhook">Webhook</option>
+                        <option value="file">File</option>
+                    </select>
+                    <input type="text" id="siemForwardEndpoint" placeholder="e.g. udp://192.168.1.10:514 or https://..." style="flex:1; min-width:200px;" class="spectrum-input">
+                    <button class="action-btn" onclick="saveSiemForward()">💾 Save</button>
+                    <span id="siemForwardStatus" style="font-size:0.8rem; color:var(--text-secondary);"></span>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="tab-content" id="tab-settings">
         <div class="settings-section">
             <h3>Quick Settings</h3>
@@ -4403,6 +4490,141 @@
         }
 
         // ============================================
+        // SIEM
+        // ============================================
+        let siemOffset = 0;
+        const siemLimit = 50;
+
+        async function loadSiemStats() {
+            try {
+                const r = await fetch('/api/siem/stats');
+                const data = await r.json();
+                document.getElementById('siemTotalEvents').textContent = (data.total_events || 0).toLocaleString();
+                document.getElementById('siemDbSize').textContent = (data.db_size_mb || 0).toFixed(1) + ' MB';
+                document.getElementById('siemBudgetPct').textContent = (data.budget_used_pct || 0).toFixed(1) + '%';
+
+                // Severity bars
+                const sevEl = document.getElementById('siemSeverityBars');
+                if (data.severity_counts && data.severity_counts.length > 0) {
+                    const maxC = Math.max(...data.severity_counts.map(s => s.count));
+                    const colors = {critical:'#ff4444', high:'#ff8800', medium:'#ffcc00', low:'#44aaff', info:'#888'};
+                    sevEl.innerHTML = data.severity_counts.map(s => {
+                        const pct = maxC > 0 ? (s.count / maxC * 100) : 0;
+                        const col = colors[s.severity] || '#666';
+                        return `<div style="display:flex;align-items:center;gap:0.5rem;margin:2px 0;">
+                            <span style="width:60px;font-size:0.75rem;color:${col};text-transform:uppercase;">${s.severity}</span>
+                            <div style="flex:1;height:12px;background:var(--bg-primary);border-radius:3px;overflow:hidden;">
+                                <div style="width:${pct}%;height:100%;background:${col};"></div>
+                            </div>
+                            <span style="font-size:0.75rem;color:var(--text-secondary);width:50px;text-align:right;">${s.count}</span>
+                        </div>`;
+                    }).join('');
+                }
+
+                // Populate category filter
+                const catSel = document.getElementById('siemCatFilter');
+                if (data.category_counts) {
+                    const currentVal = catSel.value;
+                    catSel.innerHTML = '<option value="">All Categories</option>' +
+                        data.category_counts.map(c => `<option value="${c.category}">${c.category} (${c.count})</option>`).join('');
+                    catSel.value = currentVal;
+                }
+            } catch(e) { console.error('SIEM stats error:', e); }
+        }
+
+        async function searchSiem() {
+            siemOffset = 0;
+            await loadSiemEvents();
+        }
+
+        async function loadSiemEvents() {
+            const q = document.getElementById('siemSearchInput').value.trim();
+            const sev = document.getElementById('siemSevFilter').value;
+            const cat = document.getElementById('siemCatFilter').value;
+            const since = document.getElementById('siemSinceFilter').value;
+
+            let url;
+            if (q) {
+                url = `/api/siem/search?q=${encodeURIComponent(q)}&limit=${siemLimit}&offset=${siemOffset}`;
+            } else {
+                url = `/api/siem/events?limit=${siemLimit}&offset=${siemOffset}`;
+            }
+            if (sev) url += `&severity=${sev}`;
+            if (cat) url += `&category=${cat}`;
+            if (since) url += `&since=${encodeURIComponent(since)}`;
+
+            try {
+                const r = await fetch(url);
+                const data = await r.json();
+                const events = data.events || [];
+                document.getElementById('siemResultCount').textContent = `Showing ${events.length} events (offset ${siemOffset})`;
+                document.getElementById('siemPrevBtn').disabled = siemOffset === 0;
+                document.getElementById('siemNextBtn').disabled = events.length < siemLimit;
+
+                const el = document.getElementById('siemEventList');
+                if (events.length === 0) {
+                    el.innerHTML = '<div class="empty-state">No events found</div>';
+                    return;
+                }
+                const sevColors = {critical:'#ff4444', high:'#ff8800', medium:'#ffcc00', low:'#44aaff', info:'#888'};
+                el.innerHTML = events.map(ev => {
+                    const col = sevColors[ev.severity] || '#666';
+                    const ts = ev.timestamp ? new Date(ev.timestamp + 'Z').toLocaleString() : '';
+                    const mac = ev.device_mac ? `<code style="font-size:0.75rem;">${ev.device_mac}</code>` : '';
+                    return `<div style="padding:6px 8px;border-bottom:1px solid var(--border-color);display:flex;gap:0.5rem;align-items:flex-start;">
+                        <span style="color:${col};font-weight:bold;font-size:0.7rem;text-transform:uppercase;min-width:50px;">${ev.severity}</span>
+                        <span style="color:var(--text-secondary);font-size:0.7rem;min-width:130px;">${ts}</span>
+                        <span style="color:var(--accent-blue);font-size:0.7rem;min-width:80px;">${ev.source}</span>
+                        <span style="color:var(--text-secondary);font-size:0.7rem;min-width:80px;">${ev.category}</span>
+                        <div style="flex:1;">
+                            <div style="color:var(--text-primary);font-size:0.8rem;">${ev.message}</div>
+                            ${mac ? '<div style="margin-top:2px;">' + mac + '</div>' : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch(e) { console.error('SIEM load error:', e); }
+        }
+
+        function siemPaginate(dir) {
+            siemOffset = Math.max(0, siemOffset + dir * siemLimit);
+            loadSiemEvents();
+        }
+
+        async function exportSiem() {
+            const sev = document.getElementById('siemSevFilter').value;
+            const cat = document.getElementById('siemCatFilter').value;
+            const since = document.getElementById('siemSinceFilter').value;
+            let url = '/api/siem/export?limit=10000';
+            if (sev) url += `&severity=${sev}`;
+            if (cat) url += `&category=${cat}`;
+            if (since) url += `&since=${encodeURIComponent(since)}`;
+            window.open(url, '_blank');
+        }
+
+        async function saveSiemForward() {
+            const ftype = document.getElementById('siemForwardType').value;
+            const endpoint = document.getElementById('siemForwardEndpoint').value;
+            try {
+                const r = await fetch('/api/siem/forward/config', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ enabled: !!endpoint, forward_type: ftype, endpoint: endpoint })
+                });
+                const data = await r.json();
+                document.getElementById('siemForwardStatus').textContent = data.saved ? '✅ Saved' : '❌ Error';
+            } catch(e) { document.getElementById('siemForwardStatus').textContent = '❌ Failed'; }
+        }
+
+        async function loadSiemForwardConfig() {
+            try {
+                const r = await fetch('/api/siem/forward/config');
+                const data = await r.json();
+                document.getElementById('siemForwardType').value = data.forward_type || 'syslog';
+                document.getElementById('siemForwardEndpoint').value = data.endpoint || '';
+            } catch(e) {}
+        }
+
+        // ============================================
         // Device Silencing
         // ============================================
         async function loadSilencedDevices() {
@@ -4730,6 +4952,9 @@
         }
         loadAboutPage();
         loadSilencedDevices();
+        loadSiemStats();
+        loadSiemForwardConfig();
+        loadSiemEvents();
 
         async function checkLlmStatus() {
             const statusEl = document.getElementById('llmStatus');
