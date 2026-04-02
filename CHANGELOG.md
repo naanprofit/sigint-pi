@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.3.0] - 2026-04-02
+
+### Added
+- **SIEM Security Event Log**: Full security information and event management system using SQLite FTS5 full-text search. 4GB rolling log budget with auto-pruning. `siem_events` table with severity/category/source filtering. NDJSON export. Log forwarding config (syslog/webhook/file). New SIEM tab in web UI.
+- **SIEM Time Presets & Watch Mode**: Last Hour, Last 24h, Last 7d, Last 30d quick-filter buttons. Custom date range picker (from/to). Watch mode auto-refreshes every 5s with rolling time window.
+- **Sentinel Mode**: Continuous threat monitoring toggle. Starts all SDR monitors (drone, TSCM, RTL-433). 30s watchlist scanning loop checks WiFi/BLE devices against threat watchlist and threat intel database. Auto-restarts stopped monitors. Logs all hits to SIEM.
+- **Threat Watchlist**: `threat_watchlist` table for known bad actors. MAC address and RF signature matching. Manual add/remove via API. Auto-checked during Sentinel scans.
+- **Device Alert Silencing**: Click mute button on any WiFi/BLE device to suppress future alerts. Global `SILENCED_DEVICES` set in alerts module. `/api/devices/{mac}/silence` endpoints. Persists across sessions.
+- **CW/Morse Decoder**: Goertzel tone detection for CW signals. Ham band presets (160m through 10m). `rtl_fm` USB demodulation mode. Morse-to-text lookup table. Browser audio streaming for live monitoring.
+- **Browser TTS Alerts**: Web Speech API primary, Piper WAV fallback at `/api/tts/generate`. Polls `/api/alerts/tts/pending` every 3s. Auto-speaks critical/high priority alerts. Toggle in settings.
+- **Whisper STT Server**: faster-whisper tiny model HTTP server on port 5000. Accepts audio via base64 JSON or multipart upload. Systemd user service for Pi.
+- **Multi-Device SDR Detection**: Detects ALL RTL-SDR devices with indices (parses `rtl_test` output). Detects ALL HackRF devices with serials. Auto-identifies KrakenSDR (5x RTL-SDR) and KerberosSDR (4x RTL-SDR) coherent arrays.
+- **New SDR Device Support**: Airspy R2, Airspy Mini, Airspy HF+ Discovery, SDRplay RSP, KrakenSDR (5ch coherent), KerberosSDR (4ch coherent), ADALM-PLUTO. Each with label, TX capability, direction-finding support, channel count, and price info.
+- **Antenna Array Mapping**: `sdr_devices`, `antenna_positions`, `sdr_array_configs` database tables. API endpoints for adding/removing antenna positions with X/Y/Z coordinates, bearing, type, and gain. Direction-finding capability detection for coherent arrays.
+- **Cheaper SDR Alternatives Guide**: Built-in recommendations with pricing: RTL-SDR V4 ($30), Airspy Mini ($100), SDRplay RSP1B ($110), KrakenSDR ($150), ADALM-PLUTO ($150), Airspy R2 ($170). Shown in `/api/sdr/devices/all` response.
+- **MCP Tools**: `silence_device`, `unsilence_device`, `get_silenced_devices`, `morse_decoder_start/stop/status`, `tune_ham_radio`, `siem_search`, `siem_stats`, `siem_add_event`.
+
+### Changed
+- **Settings/About Unified**: Removed separate About tab. Merged version info, hardware status, and legal disclaimer into Settings tab. Collapsible legal section with full GPL-3.0-or-later terms, assumption of risk text, and repo links.
+- **Default Port**: Standardized on port 8085 (was 8080) across config defaults.
+- **Settings Page**: Fixed version to v0.3.0, corrected platform name to "SIGINT-Pi", expanded hardware requirements list (SDR, RayHunter, Flipper Zero, BLE), fixed `/api/status` endpoint (was using non-existent `/api/system/info`).
+
+### Deployment Notes
+- Binary size: ~15MB (ARM64)
+- Cross-compiled on macOS via Docker (`rust:latest` + `gcc-aarch64-linux-gnu`)
+- Tested on Raspberry Pi (464MB RAM, 1.5GB swap required for native builds)
+- Requires: libdbus, libssl, libpcap
+
 ## [0.2.3] - 2026-04-01
 
 ### Fixed
