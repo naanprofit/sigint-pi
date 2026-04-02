@@ -1302,6 +1302,14 @@
                         <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem;">
                             &copy; 2026 naanprofit &bull; GPL-3.0-or-later
                         </p>
+                        <p id="easter-egg-hint" style="margin-top:1rem;font-size:0.7rem;color:var(--text-tertiary,#333);cursor:default;user-select:none;" onclick="this.clickCount=(this.clickCount||0)+1;if(this.clickCount>=5){document.getElementById('training-ops-link').style.display='block';}" title="...">
+                            . . .
+                        </p>
+                        <div id="training-ops-link" style="display:none;margin-top:0.5rem;padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;border:1px solid var(--accent-green);">
+                            <span style="font-size:0.85rem;color:var(--accent-green);">&#127918; SIGINT Training Ops</span><br>
+                            <span style="font-size:0.75rem;color:var(--text-secondary);">Side-scroller training game. Run on Steam Deck:</span><br>
+                            <code style="font-size:0.75rem;color:var(--accent-blue);">~/sigint-game/run_game.sh</code>
+                        </div>
                         <div class="hardware-notice" style="margin-top: 1rem;">
                             <h4>Hardware Requirements</h4>
                             <ul>
