@@ -540,25 +540,27 @@ async fn get_wifi_mode(
 ) -> impl Responder {
     let interface = &config.wifi.interface;
     
-    // Run iwconfig to get current mode
-    let output = std::process::Command::new("iwconfig")
-        .arg(interface)
-        .output();
-    
-    let (mode, is_up) = match output {
-        Ok(out) => {
-            let stdout = String::from_utf8_lossy(&out.stdout);
-            let mode = if stdout.contains("Mode:Monitor") {
-                "monitor"
-            } else if stdout.contains("Mode:Managed") {
-                "managed"
-            } else {
-                "unknown"
-            };
-            let is_up = !stdout.contains("Not-Associated") && !stdout.contains("off/any");
-            (mode, is_up)
+    // Try iw first (always available via sudo), fall back to iwconfig
+    let (iw_ok, iw_out) = run_cmd("sudo", &["iw", "dev", interface, "info"]);
+    let (mode, is_up) = if iw_ok {
+        let mode = if iw_out.contains("type monitor") { "monitor" }
+            else if iw_out.contains("type managed") { "managed" }
+            else { "unknown" };
+        let is_up = iw_out.contains("channel");
+        (mode, is_up)
+    } else {
+        // Fallback to iwconfig
+        match std::process::Command::new("iwconfig").arg(interface).output() {
+            Ok(out) => {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                let mode = if stdout.contains("Mode:Monitor") { "monitor" }
+                    else if stdout.contains("Mode:Managed") { "managed" }
+                    else { "unknown" };
+                let is_up = !stdout.contains("Not-Associated") && !stdout.contains("off/any");
+                (mode, is_up)
+            }
+            Err(_) => ("error", false),
         }
-        Err(_) => ("error", false),
     };
     
     HttpResponse::Ok().json(serde_json::json!({
@@ -674,11 +676,17 @@ async fn set_wifi_mode(
         }));
     }
 
-    // Verify mode was actually set
-    let (_, verify_out) = run_cmd("iwconfig", &[interface]);
-    let actual_mode = if verify_out.contains("Mode:Monitor") { "monitor" }
-        else if verify_out.contains("Mode:Managed") { "managed" }
-        else { "unknown" };
+    // Verify mode was actually set (try iw first, fall back to iwconfig)
+    let (v_ok, verify_out) = run_cmd("sudo", &["iw", "dev", interface, "info"]);
+    let actual_mode = if !v_ok {
+        // Fallback to iwconfig
+        let (_, iw_out) = run_cmd("iwconfig", &[interface]);
+        if iw_out.contains("Mode:Monitor") { "monitor" }
+        else if iw_out.contains("Mode:Managed") { "managed" }
+        else { "unknown" }
+    } else if verify_out.contains("type monitor") { "monitor" }
+    else if verify_out.contains("type managed") { "managed" }
+    else { "unknown" };
     steps.push(serde_json::json!({"step": "verify", "cmd": format!("iwconfig {}", interface), "actual_mode": actual_mode, "output": verify_out}));
 
     let success = actual_mode == mode;
