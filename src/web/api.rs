@@ -573,6 +573,19 @@ struct WifiModeRequest {
     mode: String, // "monitor" or "managed"
 }
 
+/// Run a command and return (success, combined stdout+stderr)
+fn run_cmd(cmd: &str, args: &[&str]) -> (bool, String) {
+    match std::process::Command::new(cmd).args(args).output() {
+        Ok(out) => {
+            let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+            let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+            let combined = format!("{}{}", stdout.trim(), if stderr.is_empty() { String::new() } else { format!(" | {}", stderr.trim()) });
+            (out.status.success(), combined)
+        }
+        Err(e) => (false, format!("Command not found or failed to execute: {}", e)),
+    }
+}
+
 /// Set WiFi interface mode (requires sudo)
 async fn set_wifi_mode(
     config: web::Data<Arc<Config>>,
@@ -580,59 +593,102 @@ async fn set_wifi_mode(
 ) -> impl Responder {
     let interface = &config.wifi.interface;
     let mode = body.mode.to_lowercase();
-    
+    let mut steps: Vec<serde_json::Value> = Vec::new();
+
     if mode != "monitor" && mode != "managed" {
         return HttpResponse::BadRequest().json(serde_json::json!({
             "success": false,
             "error": "Mode must be 'monitor' or 'managed'"
         }));
     }
-    
-    // Run commands to change mode
-    // 1. Bring interface down
-    let down_result = std::process::Command::new("sudo")
-        .args(["ip", "link", "set", interface, "down"])
-        .output();
-    
-    if down_result.is_err() {
-        return HttpResponse::InternalServerError().json(serde_json::json!({
+
+    // Check interface exists
+    let (ok, out) = run_cmd("ip", &["link", "show", interface]);
+    steps.push(serde_json::json!({"step": "check_interface", "cmd": format!("ip link show {}", interface), "ok": ok, "output": out}));
+    if !ok {
+        return HttpResponse::Ok().json(serde_json::json!({
             "success": false,
-            "error": "Failed to bring interface down"
+            "error": format!("Interface '{}' not found. Plug in a USB WiFi adapter that supports monitor mode.", interface),
+            "steps": steps
         }));
     }
-    
-    // 2. Set mode
-    let mode_result = std::process::Command::new("sudo")
-        .args(["iw", "dev", interface, "set", "type", &mode])
-        .output();
-    
-    if let Err(e) = mode_result {
-        // Try to bring interface back up
-        let _ = std::process::Command::new("sudo")
-            .args(["ip", "link", "set", interface, "up"])
-            .output();
-        return HttpResponse::InternalServerError().json(serde_json::json!({
+
+    // Check if adapter supports monitor mode (get phy for this interface, then check supported modes)
+    let (_, phy_out) = run_cmd("sudo", &["iw", "dev", interface, "info"]);
+    let phy_name = phy_out.lines()
+        .find(|l| l.contains("wiphy"))
+        .and_then(|l| l.split_whitespace().last())
+        .map(|n| format!("phy{}", n))
+        .unwrap_or_default();
+    let (ok, out) = if !phy_name.is_empty() {
+        run_cmd("sudo", &["iw", &phy_name, "info"])
+    } else {
+        run_cmd("sudo", &["iw", "list"])
+    };
+    let supports_monitor = out.contains("* monitor");
+    steps.push(serde_json::json!({"step": "check_monitor_support", "cmd": format!("iw {} info", if phy_name.is_empty() { "list".to_string() } else { phy_name }), "ok": ok, "supports_monitor": supports_monitor}));
+    if !supports_monitor {
+        return HttpResponse::Ok().json(serde_json::json!({
             "success": false,
-            "error": format!("Failed to set mode: {}", e)
+            "error": format!("Interface '{}' does not support monitor mode. Use an adapter like Alfa AWUS036ACHM or RT5572.", interface),
+            "steps": steps
         }));
     }
-    
-    // 3. Bring interface up
-    let up_result = std::process::Command::new("sudo")
-        .args(["ip", "link", "set", interface, "up"])
-        .output();
-    
-    if up_result.is_err() {
-        return HttpResponse::InternalServerError().json(serde_json::json!({
+
+    // Release interface from NetworkManager if present (safe, won't kill SSH)
+    let (nm_ok, nm_out) = run_cmd("sudo", &["nmcli", "device", "set", interface, "managed", "no"]);
+    steps.push(serde_json::json!({"step": "release_interface", "cmd": format!("nmcli device set {} managed no", interface), "ok": nm_ok, "output": nm_out}));
+
+    // Bring interface down
+    let (ok, out) = run_cmd("sudo", &["ip", "link", "set", interface, "down"]);
+    steps.push(serde_json::json!({"step": "interface_down", "cmd": format!("sudo ip link set {} down", interface), "ok": ok, "output": out}));
+    if !ok {
+        return HttpResponse::Ok().json(serde_json::json!({
             "success": false,
-            "error": "Failed to bring interface up"
+            "error": format!("Failed to bring {} down: {}. Is sudo passwordless? Add 'deck ALL=(ALL) NOPASSWD: /usr/sbin/iw,/usr/sbin/ip,/usr/sbin/airmon-ng' to /etc/sudoers.d/sigint", interface, out),
+            "steps": steps
         }));
     }
-    
+
+    // Set mode
+    let (ok, out) = run_cmd("sudo", &["iw", "dev", interface, "set", "type", &mode]);
+    steps.push(serde_json::json!({"step": "set_mode", "cmd": format!("sudo iw dev {} set type {}", interface, mode), "ok": ok, "output": out}));
+    if !ok {
+        // Bring interface back up before returning error
+        let (_, _) = run_cmd("sudo", &["ip", "link", "set", interface, "up"]);
+        return HttpResponse::Ok().json(serde_json::json!({
+            "success": false,
+            "error": format!("Failed to set {} mode on {}: {}", mode, interface, out),
+            "steps": steps
+        }));
+    }
+
+    // Bring interface up
+    let (ok, out) = run_cmd("sudo", &["ip", "link", "set", interface, "up"]);
+    steps.push(serde_json::json!({"step": "interface_up", "cmd": format!("sudo ip link set {} up", interface), "ok": ok, "output": out}));
+    if !ok {
+        return HttpResponse::Ok().json(serde_json::json!({
+            "success": false,
+            "error": format!("Mode set but failed to bring {} up: {}", interface, out),
+            "steps": steps
+        }));
+    }
+
+    // Verify mode was actually set
+    let (_, verify_out) = run_cmd("iwconfig", &[interface]);
+    let actual_mode = if verify_out.contains("Mode:Monitor") { "monitor" }
+        else if verify_out.contains("Mode:Managed") { "managed" }
+        else { "unknown" };
+    steps.push(serde_json::json!({"step": "verify", "cmd": format!("iwconfig {}", interface), "actual_mode": actual_mode, "output": verify_out}));
+
+    let success = actual_mode == mode;
     HttpResponse::Ok().json(serde_json::json!({
-        "success": true,
+        "success": success,
         "interface": interface,
-        "mode": mode
+        "mode": actual_mode,
+        "requested_mode": mode,
+        "error": if !success { Some(format!("Mode is '{}' after switch attempt, expected '{}'", actual_mode, mode)) } else { None::<String> },
+        "steps": steps
     }))
 }
 

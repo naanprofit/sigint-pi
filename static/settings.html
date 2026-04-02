@@ -1364,11 +1364,18 @@
 
         async function toggleWifiMode() {
             const btn = document.getElementById('wifiModeToggle');
+            const statusEl = document.getElementById('wifiModeStatus');
             const currentMode = btn.dataset.currentMode || 'managed';
             const newMode = currentMode === 'monitor' ? 'managed' : 'monitor';
             
             btn.disabled = true;
             btn.textContent = 'Switching...';
+            statusEl.textContent = `Switching to ${newMode} mode...`;
+            statusEl.style.color = 'var(--accent-yellow)';
+            
+            // Remove any previous diagnostics
+            const oldDiag = document.getElementById('wifiModeDiag');
+            if (oldDiag) oldDiag.remove();
             
             try {
                 const response = await fetch('/api/wifi/mode', {
@@ -1380,13 +1387,28 @@
                 
                 if (data.success) {
                     showNotification(`Switched to ${newMode} mode`, 'success');
-                    // Reload mode status
                     await loadWifiMode();
                 } else {
                     showNotification(`Failed: ${data.error}`, 'error');
+                    statusEl.innerHTML = `<span style="color:var(--accent-red);">Failed: ${data.error}</span>`;
+                    
+                    // Show step-by-step diagnostics
+                    if (data.steps && data.steps.length > 0) {
+                        const diagEl = document.createElement('div');
+                        diagEl.id = 'wifiModeDiag';
+                        diagEl.style.cssText = 'margin-top:0.5rem;padding:0.5rem;background:var(--bg-secondary);border-radius:6px;font-size:0.75rem;font-family:monospace;max-height:200px;overflow-y:auto;';
+                        diagEl.innerHTML = '<strong style="color:var(--accent-red);">Diagnostics:</strong><br>' +
+                            data.steps.map(s => {
+                                const icon = s.ok ? '✅' : '❌';
+                                const out = s.output ? `<br><span style="color:var(--text-secondary);margin-left:1.5rem;word-break:break-all;">${s.output}</span>` : '';
+                                return `${icon} <code>${s.cmd || s.step}</code>${out}`;
+                            }).join('<br>');
+                        statusEl.parentElement.appendChild(diagEl);
+                    }
                 }
             } catch (e) {
-                showNotification('Failed to toggle mode', 'error');
+                showNotification('Failed to toggle mode: ' + e.message, 'error');
+                statusEl.innerHTML = '<span style="color:var(--accent-red);">Request failed - is the server running?</span>';
             }
             
             btn.disabled = false;
