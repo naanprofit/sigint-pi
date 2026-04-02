@@ -1,20 +1,129 @@
 # Drone Detection System
 
 SIGINT-Deck provides comprehensive drone detection using multiple complementary methods:
+- **WiFi Detection** - OUI matching, SSID patterns, vendor-specific IEs, DJI DroneID
+- **BLE Detection** - Open Drone ID (ASTM F3411-22a), manufacturer-specific advertisements
+- **WiFi RemoteID** - NAN action frames, beacon-embedded RemoteID
 - **RF Signal Detection** - Control links, video transmitters, telemetry
 - **EMI Harmonic Detection** - Motor/ESC electronic noise signatures
-- **Combined Detection** - Correlation of both methods for high-confidence identification
+- **Combined Detection** - Correlation of all methods for high-confidence identification
 
 ---
 
 ## Detection Methods Overview
 
-| Method | Frequency Range | Detects | Hardware Required |
-|--------|-----------------|---------|-------------------|
-| RF 2.4 GHz | 2400-2500 MHz | Control links (DJI, WiFi drones) | HackRF |
-| RF 5.8 GHz | 5650-5950 MHz | FPV video transmitters | HackRF |
-| RF 915 MHz | 868-928 MHz | Long-range links (Crossfire, ELRS) | RTL-SDR or HackRF |
-| EMI | 5-500 kHz | Motor/ESC PWM harmonics | RTL-SDR (direct sampling) |
+| Method | Hardware | Detects | Confidence |
+|--------|----------|---------|------------|
+| WiFi OUI Match | wlan (monitor mode) | DJI, Parrot, Autel by MAC prefix | HIGH |
+| WiFi SSID Pattern | wlan (monitor mode) | 30+ drone SSID patterns (DJI, Tello, ANAFI, etc.) | HIGH |
+| WiFi NAN RemoteID | wlan (monitor mode) | ASTM F3411 compliant drones (DJI, Parrot) | HIGH |
+| WiFi Beacon RemoteID | wlan (monitor mode) | Skydio, Autel, Parrot | HIGH |
+| DJI DroneID (vendor IE) | wlan (monitor mode) | DJI serial, GPS, pilot location | HIGH |
+| BLE Open Drone ID | Bluetooth (hci0) | Any ASTM F3411 drone (UUID 0xFFFA) | HIGH |
+| RF 2.4 GHz | HackRF | Control links (DJI OcuSync, WiFi, ELRS) | MEDIUM |
+| RF 5.8 GHz | HackRF | FPV video (analog/digital) | HIGH |
+| RF 868/915 MHz | RTL-SDR or HackRF | Long-range links (Crossfire, ELRS) | HIGH |
+| RF Military bands | RTL-SDR + HackRF | Military drone datalinks | MEDIUM |
+| EMI Harmonics | RTL-SDR (direct sampling) | Motor/ESC PWM signatures | MEDIUM |
+
+---
+
+## Supported Manufacturers
+
+### Consumer/Commercial Drones
+
+| Manufacturer | WiFi OUI | SSID Patterns | BLE ODID | RF Signatures |
+|-------------|----------|---------------|----------|---------------|
+| **DJI** | 10 OUIs (60:60:1F, 34:D2:62, 48:1C:B9, E4:7A:2C, 58:B8:58, 04:A8:5A, 8C:58:23, 0C:9A:E6, 88:29:85, 4C:43:F6) | DJI-*, TELLO-*, Spark-*, RC400L, RC230, RC-N1/N2 | Yes (company ID 0x038F) | OcuSync 2/3/4, Lightbridge, O3 |
+| **Parrot** | 4 OUIs (90:03:B7, A0:14:3D, 00:12:1C, 00:26:7E) | ANAFI-*, Bebop2-*, DISCO-*, Mambo-* | Yes | WiFi 802.11 |
+| **Autel** | 1 OUI (60:C7:98) | Autel-*, EVO-*, SkyLink | Yes | SkyLink FHSS |
+| **Skydio** | Chipset OUI | Skydio-* | Yes | WiFi 802.11ac/ax |
+| **Yuneec** | Chipset OUI | YUNEEC-*, YuneecH520-* | Partial | Proprietary FHSS |
+| **Holy Stone** | Chipset OUI | HolyStone-*, HS-* | No | WiFi 802.11n |
+| **FIMI/Xiaomi** | Chipset OUI | FIMI_*, Xiaomi_* | No | Enhanced WiFi |
+| **Hubsan** | Chipset OUI | Hubsan-*, ZINO-* | No | WiFi/custom |
+| **Eachine** | Chipset OUI | EAchine-*, WiFi-UFO-* | No | WiFi/5.8 GHz analog |
+| **SJRC** | Chipset OUI | SJRC* | No | WiFi |
+| **JJRC** | Chipset OUI | JJRC* | No | WiFi |
+| **MJX** | Chipset OUI | MJX* | No | WiFi |
+| **Potensic** | Chipset OUI | Potensic* | No | WiFi |
+| **Ruko** | Chipset OUI | Ruko* | No | WiFi |
+
+### FPV Racing/Freestyle Drones
+
+| System | Frequency | Bandwidth | Detection Method |
+|--------|-----------|-----------|------------------|
+| Analog VTX (5 bands, 40 ch) | 5645-5945 MHz | ~18 MHz FM | HackRF spectrum |
+| DJI O3/O3+ Digital | 5660-5945 MHz | ~40 MHz OFDM | HackRF spectrum |
+| HDZero | 5725-5875 MHz | ~20 MHz | HackRF spectrum |
+| Walksnail Avatar | 5725-5875 MHz | ~40 MHz OFDM | HackRF spectrum |
+| ExpressLRS 2.4G | 2400-2480 MHz | ~800 kHz LoRa | HackRF/RTL-SDR |
+| ExpressLRS 868/915 | 868/902-928 MHz | ~500 kHz LoRa | RTL-SDR |
+| TBS Crossfire | 868/915 MHz | ~500 kHz LoRa | RTL-SDR |
+| FrSky ACCST/ACCESS | 2400-2480 MHz | ~2 MHz FHSS | HackRF |
+| Flysky AFHDS | 2408-2475 MHz | ~1 MHz GFSK | HackRF |
+
+### Military/Government Drones
+
+| Drone | Country | Frequencies | Detection Hardware |
+|-------|---------|-------------|-------------------|
+| **Orlan-10** | Russia | 200-450 MHz, 867-872 MHz, 915-920 MHz, 1.08-1.3 GHz, 2.2-2.7 GHz | RTL-SDR + HackRF |
+| **Lancet/ZALA** | Russia | 867-872 MHz, 902-928 MHz, 2.2-2.4 GHz | RTL-SDR + HackRF |
+| **Orion (Kronshtadt)** | Russia | 890-920 MHz, 4.2-5.7 GHz C-band | RTL-SDR + HackRF |
+| **Shahed-136/Geran-2** | Iran | GPS/GLONASS guided (minimal RF), ~900 MHz pre-launch | RTL-SDR (limited) |
+| **Mohajer-6** | Iran | 1.2-1.6 GHz L-band | RTL-SDR |
+| **CH-3A** | China | 325-390 MHz, 520-790 MHz, 2.3-2.65 GHz | RTL-SDR + HackRF |
+| **CH-4B** | China | 800-900 MHz, 4.2-6.1 GHz | RTL-SDR + HackRF |
+| **Bayraktar TB2/TB3** | Turkey | ~900 MHz UHF, 1.6-2.0 GHz L-band, ~5 GHz C-band | RTL-SDR + HackRF |
+| **Predator/Reaper** | USA | ~5 GHz C-band LOS, Ku-band SATCOM | HackRF (C-band only) |
+| **Switchblade** | USA | 902-928 MHz | RTL-SDR |
+| **Anduril Ghost** | USA | 902-928 MHz mesh, 2.4 GHz mesh | RTL-SDR + HackRF |
+| **ScanEagle** | USA | 2.2-2.4 GHz S-band | HackRF |
+| **Hermes 450/900** | Israel | 2.2-2.4 GHz S-band, Ku-band SATCOM | HackRF |
+| **Heron** | Israel | 1.2-1.4 GHz L-band, Ku-band SATCOM | RTL-SDR + HackRF |
+| **Harop** | Israel | ~900 MHz UHF | RTL-SDR |
+
+---
+
+## WiFi/BLE Detection (Real-Time, Passive)
+
+WiFi and BLE drone detection runs continuously as part of the normal WiFi monitor and BLE scan loops. No additional configuration is needed.
+
+### WiFi OUI Detection
+Every WiFi frame source MAC is checked against known drone manufacturer OUI prefixes. DJI alone has 10 registered OUI blocks.
+
+### WiFi SSID Pattern Matching
+SSIDs are checked against 30+ prefix patterns (`DJI-*`, `TELLO-*`, `ANAFI-*`, etc.) and 8 substring patterns (`RC400L`, `RC230`, `SkyLink`, etc.) for controllers with cellular modems that don't use drone-manufacturer OUIs.
+
+### WiFi NAN RemoteID (ASTM F3411-22a)
+Monitors 802.11 action frames (type 0, subtype 13) for:
+- Category 0x04 (Public Action)
+- OUI 0x50:6F:9A (Wi-Fi Alliance) with type 0x13 (NAN)
+- Parses ODID payloads: Basic ID, Location/Vector, System, Operator ID
+
+### DJI DroneID (Proprietary)
+Scans beacon vendor-specific IEs (tag 0xDD) with DJI OUIs for embedded DroneID data containing:
+- Drone serial number, GPS coordinates, altitude, speed, heading
+- Pilot GPS coordinates, home point GPS
+
+### BLE Open Drone ID
+Monitors BLE advertisements for service UUID 0xFFFA with ODID payloads:
+- **Basic ID** — UAS serial number or registration
+- **Location/Vector** — Latitude, longitude, altitude, speed, heading
+- **System** — Operator location, area count
+- **Operator ID** — Pilot registration number
+- **Message Pack** — Multiple messages in one advertisement (BLE 5)
+
+Also checks manufacturer data for DJI company ID 0x038F.
+
+### API
+
+```bash
+# Get all detected drones (WiFi + BLE + RF)
+curl http://<device-ip>:8085/api/sdr/drone/signals
+```
+
+Response includes `wifi_ble_detections` array with manufacturer, MAC, SSID, RSSI, detection method, and threat level.
 
 ---
 
@@ -196,6 +305,7 @@ For AI agent integration via MCP server:
 
 | Tool | Description |
 |------|-------------|
+| `get_detected_drones` | **[READ-ONLY]** Get all detected drones (WiFi/BLE/RF combined) |
 | `sdr_scan_drones` | RF-only scan (2.4/5.8 GHz) |
 | `sdr_scan_drone_emi` | EMI-only scan (motor harmonics) |
 | `sdr_scan_drones_full` | Combined RF + EMI scan |
