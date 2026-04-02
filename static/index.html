@@ -2333,42 +2333,138 @@
                     <summary style="cursor:pointer;color:var(--accent-blue);font-size:0.85rem;font-weight:bold;">📋 Recommended Setup Guide</summary>
                     <div style="margin-top:0.5rem; font-size:0.8rem; line-height:1.6; color:var(--text-primary);">
                         <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
-                            <strong style="color:var(--accent-blue);">Layer 1: Fixed Sector Sentries (your 4x RTL-SDR + 4x HackRF)</strong>
+                            <strong style="color:var(--accent-blue);">Layer 1: Fixed Sector Sentries (4x RTL-SDR + 4x HackRF)</strong>
                             <div style="margin-top:0.25rem;">
-                                Per direction (N/S/E/W):
+                                Per direction (N/S/E/W), mount two antennas at same azimuth, 1-3 ft vertical separation:
                                 <ul style="margin:0.25rem 0 0 1rem; padding:0;">
-                                    <li><strong>RTL-SDR + wideband LPDA</strong> -- continuous EMI baseline, anomaly detection, motor harmonics (24-30 MHz direct sampling), switching noise</li>
-                                    <li><strong>HackRF + band-targeted directional</strong> -- 2.4/5.8 GHz panel for controller links, sub-GHz yagi for telemetry (433/868/915 MHz)</li>
+                                    <li><strong>RTL-SDR + wideband LPDA</strong> -- continuous EMI baseline, anomaly detection, motor harmonics. LPDA = wideband AND directional (80 MHz - 2 GHz typical). RTL-SDR V4: ~$40, covers 24-1766 MHz.</li>
+                                    <li><strong>HackRF + band-targeted directional</strong> -- recommended split: 2x sub-GHz yagi (900/915 MHz, ~$50-$120 ea) + 2x dual-band panel (2.4/5 GHz, ~$25-$60 ea). HackRF: 1 MHz - 6 GHz, half-duplex, 20 MSPS.</li>
                                 </ul>
-                                Mount both antennas per sector: same azimuth, 1-3 ft vertical separation, short feedlines with ferrite chokes.
+                                Use short feedlines with ferrite chokes. Avoid splitting one antenna into both radios -- two antennas per sector is cleaner (passive splitter costs signal).
                             </div>
                         </div>
                         <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
-                            <strong style="color:var(--accent-green);">Layer 2: Central KrakenSDR DF Node ($749 + $249 antenna set)</strong>
+                            <strong style="color:var(--accent-green);">Layer 2: Central KrakenSDR DF Node</strong>
                             <div style="margin-top:0.25rem;">
-                                1x KrakenSDR (5-channel coherent RTL-SDR) with matched Krakentenna set at center of protected area.
-                                Provides real RF bearing estimation via phase-difference measurement across synchronized antennas.
-                                <br><strong>Key difference:</strong> Sectors say "east is hottest." Kraken says "bearing 073 degrees."
+                                <strong>KrakenSDR ($749)</strong> + <strong>Krakentenna matched set ($249)</strong> = $998<br>
+                                5-channel coherent RTL-SDR on single oscillator, 24-1766 MHz. Provides real phase-based bearing estimation.<br>
+                                <strong>Key difference:</strong> Sectors say "east is hottest." Kraken says "bearing 073 degrees."<br>
+                                <strong>Two DF methods:</strong><br>
+                                <em>Sector method</em> (your N/S/E/W) = "which antenna sees it strongest?" -- coarse bearing.<br>
+                                <em>Coherent DF</em> (KrakenSDR) = "what is the phase difference across synchronized antennas?" -- precise bearing.
                             </div>
                         </div>
                         <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
                             <strong style="color:var(--accent-yellow);">Altitude Coverage: Ground to 800 ft</strong>
                             <div style="margin-top:0.25rem;">
-                                At 0.25 mi range, 800 ft = ~30 deg elevation. At 0.5 mi, ~13.5 deg.
-                                Avoid ultra-narrow vertical beamwidth antennas. Use:
-                                <ul style="margin:0.25rem 0 0 1rem; padding:0;">
-                                    <li>RTL side: wideband LPDA (wide vertical pattern)</li>
-                                    <li>HackRF side: moderate-gain panel or yagi (not ultra-thin elevation)</li>
-                                </ul>
+                                At 0.25 mi, 800 ft up = ~30 deg elevation. At 0.5 mi = ~13.5 deg.<br>
+                                <strong>Antenna beamwidth matters:</strong> A 2.4 GHz panel may have 90 deg azimuth but only 22 deg elevation. Some 5 GHz sectors are 11-12 deg vertical. Yagis/LPDAs are wider: 40-100 deg vertical.<br>
+                                <strong>Use:</strong> RTL side = wideband LPDA (wide vertical). HackRF side = moderate-gain panel or yagi (not ultra-thin elevation). Tilt slightly upward if nearby overhead matters more than far horizon.
                             </div>
                         </div>
-                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;">
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
                             <strong style="color:var(--accent-red);">Fiber-Optic Drone Detection</strong>
                             <div style="margin-top:0.25rem;">
-                                Fiber-optic drones have no RF control link to intercept. Detection relies on incidental EMI from motors, ESCs, switching regulators.
-                                RTL-SDR EMI baselining can detect anomalous spikes, but <strong>EMI alone is not a reliable primary method</strong>.
-                                Best approach: fused alert pipeline (EMI anomaly + repeat detection + optional acoustic/thermal cue).
+                                Fiber-optic drones have <strong>no RF control link</strong> to intercept. Detection relies on incidental EMI from motors, ESCs, switching regulators.<br>
+                                <strong>Weak EMI only</strong> (motors/ESCs): tens to a few hundred meters in good conditions.<br>
+                                <strong>Stronger RF</strong> (telemetry/video): much farther, and where KrakenSDR DF excels.<br>
+                                <strong>Best approach:</strong> Fused alert pipeline: sector energy anomaly appears > repeats over multiple sweeps > matching activity in same sector > optional acoustic/thermal cue agrees > raise confidence and update track.<br>
+                                <em>EMI alone is not a reliable primary method. Treat it as confidence input, not proof.</em>
                             </div>
+                        </div>
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
+                            <strong style="color:var(--accent-green);">Baseline Subtraction & EMI Detection Range</strong>
+                            <div style="margin-top:0.25rem;">
+                                Recording a clean RF baseline per sector/band/time-of-day, then comparing live sweeps against it, improves contrast for weak anomalies. It does <strong>not</strong> cancel thermal noise or remove time-varying interference.<br>
+                                <strong>What it buys:</strong> new narrowband spikes, repeated harmonics, pulsed switching noise, directional transients become visible even near the noise floor. Fewer false alarms, cleaner "this is new" detections, better operator updates.<br>
+                                <strong>Estimated detection range with baseline subtraction:</strong>
+                                <table style="width:100%;font-size:0.78rem;margin-top:0.25rem;border-collapse:collapse;">
+                                    <tr style="border-bottom:1px solid var(--border-color);">
+                                        <td style="padding:3px;"><strong>Incidental EMI (motors/ESCs)</strong></td>
+                                        <td style="padding:3px;">Without baseline: ~50-150m</td>
+                                        <td style="padding:3px;color:var(--accent-green);">With baseline: ~100-250m (good), ~250-400m (favorable)</td>
+                                    </tr>
+                                    <tr style="border-bottom:1px solid var(--border-color);">
+                                        <td style="padding:3px;"><strong>Real RF emitters (telemetry/video)</strong></td>
+                                        <td style="padding:3px;">Hundreds of meters</td>
+                                        <td style="padding:3px;color:var(--accent-green);">Up to kilometers (where KrakenSDR DF excels)</td>
+                                    </tr>
+                                </table>
+                                <em style="font-size:0.75rem;">Ranges are planning estimates. Highly dependent on target signature repeatability, site background stability, and shielding.</em><br>
+                                <strong>Works best when:</strong> target EMI is repetitive, spectrally distinctive, directionally localized to one sector.<br>
+                                <strong>Works poorly when:</strong> target emission is broadband and very weak, environment is busy and constantly changing.
+                            </div>
+                        </div>
+                        <div style="padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;margin-bottom:0.5rem;">
+                            <strong>More HackRFs = faster?</strong> No. More HackRFs = more parallel observation (more bands or sectors at once). Each HackRF is still one half-duplex 20 MSPS radio. 4 HackRFs = 4 slices simultaneously, not 4x faster per sweep.
+                        </div>
+                    </div>
+                </details>
+
+                <!-- Bill of Materials -->
+                <details style="margin-bottom:0.75rem;">
+                    <summary style="cursor:pointer;color:var(--accent-blue);font-size:0.85rem;font-weight:bold;">🧾 Bill of Materials & Pricing</summary>
+                    <div style="margin-top:0.5rem; font-size:0.78rem;">
+                        <table style="width:100%;border-collapse:collapse;font-size:0.78rem;">
+                            <thead>
+                                <tr style="border-bottom:2px solid var(--border-color);text-align:left;">
+                                    <th style="padding:4px;">Qty</th><th style="padding:4px;">Item</th><th style="padding:4px;">Purpose</th><th style="padding:4px;text-align:right;">Est. Cost</th>
+                                </tr>
+                            </thead>
+                            <tbody style="color:var(--text-primary);">
+                                <tr style="border-bottom:1px solid var(--border-color);background:var(--bg-tertiary);">
+                                    <td colspan="4" style="padding:4px;font-weight:bold;color:var(--accent-blue);">SDR Core (you may already own the first two)</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">4</td><td>RTL-SDR Blog V4</td><td>Sector EMI baseline watch (24-1766 MHz)</td><td style="text-align:right;">~$40 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">4</td><td>HackRF One</td><td>Sector burst capture (1 MHz - 6 GHz, 20 MSPS)</td><td style="text-align:right;">~$340 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">1</td><td>KrakenSDR</td><td>5-ch coherent DF (24-1766 MHz)</td><td style="text-align:right;">$749</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">1</td><td>Krakentenna matched set (5)</td><td>Phase-matched DF antennas</td><td style="text-align:right;">$249</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);background:var(--bg-tertiary);">
+                                    <td colspan="4" style="padding:4px;font-weight:bold;color:var(--accent-blue);">Sector Antennas</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">4</td><td>Wideband LPDA (80 MHz - 2 GHz)</td><td>RTL-SDR: broad directional EMI watch</td><td style="text-align:right;">$25-$150 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">2</td><td>Sub-GHz Yagi (900/915 MHz)</td><td>HackRF: telemetry/ISM band watch</td><td style="text-align:right;">$50-$120 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">2</td><td>Dual-band 2.4/5 GHz Panel</td><td>HackRF: WiFi/FPV controller watch</td><td style="text-align:right;">$25-$60 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);background:var(--bg-tertiary);">
+                                    <td colspan="4" style="padding:4px;font-weight:bold;color:var(--accent-blue);">RF Plumbing & Mounting</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">8</td><td>Low-loss coax runs</td><td>Antenna to SDR feedlines</td><td style="text-align:right;">$20-$60 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">8</td><td>SMA/N adapters</td><td>Connector matching</td><td style="text-align:right;">$8-$20 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">8</td><td>Mounts / clamps</td><td>Mast or arm attachment</td><td style="text-align:right;">$10-$30 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">8</td><td>Lightning arrestors</td><td>Outdoor feed protection</td><td style="text-align:right;">$15-$40 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">8</td><td>Weatherproof boots/tape</td><td>Outdoor connector sealing</td><td style="text-align:right;">$5-$15 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">8+</td><td>Ferrite chokes</td><td>USB/common-mode noise suppression</td><td style="text-align:right;">$5-$15 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">1</td><td>Central mast or 4-arm crossboom</td><td>Mount N/S/E/W sectors</td><td style="text-align:right;">$100-$300</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);background:var(--bg-tertiary);">
+                                    <td colspan="4" style="padding:4px;font-weight:bold;color:var(--accent-blue);">Compute & Power</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">1</td><td>KrakenSDR host (Pi 4/5 or mini PC)</td><td>DF processing</td><td style="text-align:right;">$35-$150</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">1-2</td><td>Powered USB hubs</td><td>Clean power for 8 SDRs</td><td style="text-align:right;">$40-$150 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">1</td><td>Surge-protected power dist.</td><td>Stable field power</td><td style="text-align:right;">$30-$100</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);background:var(--bg-tertiary);">
+                                    <td colspan="4" style="padding:4px;font-weight:bold;color:var(--accent-blue);">Optional Front-End</td>
+                                </tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">--</td><td>Band-pass filters</td><td>Known target bands</td><td style="text-align:right;">$20-$80 ea</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">--</td><td>FM broadcast notch filter</td><td>Strong local FM interference</td><td style="text-align:right;">$15-$30</td></tr>
+                                <tr style="border-bottom:1px solid var(--border-color);"><td style="padding:4px;">--</td><td>LNA (low-noise amplifier)</td><td>Only if long coax runs</td><td style="text-align:right;">$20-$60 ea</td></tr>
+                            </tbody>
+                        </table>
+                        <div style="margin-top:0.5rem;padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;">
+                            <strong>Budget Summary (added cost, assuming you own 4x RTL + 4x HackRF):</strong><br>
+                            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.25rem;margin-top:0.25rem;">
+                                <span>KrakenSDR + Krakentenna:</span><span style="text-align:right;font-weight:bold;">$998</span>
+                                <span>8 sector antennas (mixed):</span><span style="text-align:right;">$250 - $960</span>
+                                <span>Coax, adapters, mounts, arrestors:</span><span style="text-align:right;">$400 - $1,200</span>
+                                <span>Mast, hubs, power, misc:</span><span style="text-align:right;">$170 - $550</span>
+                                <span style="font-weight:bold;border-top:1px solid var(--border-color);padding-top:0.25rem;">Total added budget:</span>
+                                <span style="text-align:right;font-weight:bold;color:var(--accent-green);border-top:1px solid var(--border-color);padding-top:0.25rem;">~$1,800 - $3,700</span>
+                            </div>
+                        </div>
+                        <div style="margin-top:0.5rem;padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;border-left:3px solid var(--accent-yellow);">
+                            <strong>Antenna Note:</strong> "Wideband" and "directional" are <em>separate</em> specs. LPDA (log-periodic) is wideband AND directional. Discone is wideband but omnidirectional. For sector monitoring, always use LPDA or similar directional wideband antenna.
+                        </div>
+                        <div style="margin-top:0.5rem;padding:0.5rem;background:var(--bg-tertiary);border-radius:6px;border-left:3px solid var(--accent-red);">
+                            <strong>Legal Note:</strong> This system is <strong>receive-only / passive monitoring</strong>. Transmitting on frequencies without authorization, causing harmful interference, or operating outside FCC Part 15 rules crosses legal lines. Calibrate with your own authorized low-power test sources at known distances.
                         </div>
                     </div>
                 </details>
