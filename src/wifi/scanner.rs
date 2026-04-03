@@ -200,13 +200,14 @@ impl WifiScanner {
                         let frame_body = &raw_packet[body_start..];
                         if let Some(dji_data) = drone_signatures::scan_beacon_for_droneid(frame_body) {
                             warn!(
-                                "DJI DroneID in beacon from {} RSSI={}: serial={:?} drone_lat={:?} drone_lon={:?} alt={:?}m",
-                                mac, rssi, dji_data.serial_number, dji_data.drone_lat, dji_data.drone_lon, dji_data.drone_alt_m
+                                "DJI DroneID in beacon from {} RSSI={}: serial={:?} product_type={:?} drone_lat={:?} drone_lon={:?} alt={:?}m",
+                                mac, rssi, dji_data.serial_number, dji_data.product_type, dji_data.drone_lat, dji_data.drone_lon, dji_data.drone_alt_m
                             );
-                            crate::web::api::register_drone_wifi(
+                            crate::web::api::register_drone_wifi_ex(
                                 &mac, None, rssi, 0,
                                 drone_signatures::DroneManufacturer::Dji,
                                 drone_signatures::WifiDetectionMethod::VendorIeDroneId,
+                                dji_data.product_type,
                             );
                         }
                     }

@@ -3011,6 +3011,18 @@ pub fn register_drone_wifi(
     manufacturer: crate::sdr::drone_signatures::DroneManufacturer,
     method: crate::sdr::drone_signatures::WifiDetectionMethod,
 ) {
+    register_drone_wifi_ex(mac, ssid, rssi, channel, manufacturer, method, None);
+}
+
+pub fn register_drone_wifi_ex(
+    mac: &str,
+    ssid: Option<&str>,
+    rssi: i32,
+    channel: u8,
+    manufacturer: crate::sdr::drone_signatures::DroneManufacturer,
+    method: crate::sdr::drone_signatures::WifiDetectionMethod,
+    product_type: Option<u8>,
+) {
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap_or_default()
@@ -3032,10 +3044,21 @@ pub fn register_drone_wifi(
     let mfr_label = manufacturer.label();
     let method_str = format!("{:?}", method);
     let threat = if rssi > -30 { "HIGH" } else if rssi > -50 { "MEDIUM" } else { "LOW" };
+    
+    let (controller_name, likely_drones) = crate::sdr::drone_signatures::identify_drone_type(ssid, product_type);
+    let drone_type_str = if !likely_drones.is_empty() {
+        likely_drones.join(" / ")
+    } else {
+        "Unknown Model".to_string()
+    };
+    
     let entry = serde_json::json!({
         "mac": mac, "ssid": ssid, "rssi": rssi, "channel": channel,
         "manufacturer": mfr_label, "detection_method": method_str,
         "threat_level": threat, "source": "wifi",
+        "controller_model": controller_name,
+        "likely_drone_models": likely_drones,
+        "drone_type": drone_type_str,
         "first_seen": now, "last_seen": now,
     });
     {
@@ -3047,11 +3070,16 @@ pub fn register_drone_wifi(
         }
         if drones.len() > 100 { drones.remove(0); }
     }
-    tracing::warn!("DRONE DETECTED via WiFi: {} ({}) MAC={} RSSI={} CH={} method={}", mfr_label, ssid.unwrap_or("-"), mac, rssi, channel, method_str);
+    tracing::warn!(
+        "DRONE DETECTED via WiFi: {} ({}) MAC={} RSSI={} CH={} method={} controller={} likely={}",
+        mfr_label, ssid.unwrap_or("-"), mac, rssi, channel, method_str,
+        controller_name.as_deref().unwrap_or("?"), drone_type_str
+    );
     
     let alert_msg = format!(
-        "DRONE DETECTED: {} controller ({}) at {}dBm on ch{} [{}]",
-        mfr_label, ssid.unwrap_or("unknown"), rssi, channel, method_str
+        "DRONE DETECTED: {} {} ({}) at {}dBm on ch{} — likely: {}",
+        mfr_label, controller_name.as_deref().unwrap_or("controller"),
+        ssid.unwrap_or("unknown"), rssi, channel, drone_type_str
     );
     let priority = if rssi > -30 { "Critical" } else if rssi > -50 { "High" } else { "Medium" };
     {

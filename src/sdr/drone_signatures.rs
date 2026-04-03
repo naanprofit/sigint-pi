@@ -229,6 +229,84 @@ pub const DRONE_SSID_SUBSTRINGS: &[(&str, DroneManufacturer)] = &[
     ("SkyLink", DroneManufacturer::Autel), // Autel SkyLink
 ];
 
+/// Controller model → likely drone type mapping
+/// Returns (controller_model, likely_drones)
+pub const CONTROLLER_DRONE_MAP: &[(&str, &str, &[&str])] = &[
+    ("RC400L",  "DJI RC (LTE/4G)",     &["Mavic 3 Pro", "Mavic 3 Classic", "Air 3", "Mini 4 Pro"]),
+    ("RC230",   "DJI RC Pro",           &["Mavic 3 Pro", "Mavic 3 Cine", "Inspire 3"]),
+    ("RC231",   "DJI RC Pro v2",        &["Mavic 3 Pro", "Air 3"]),
+    ("RC-N1",   "DJI RC-N1",           &["Mini 3 Pro", "Mini 3", "Mavic 3", "Air 2S", "Mini SE"]),
+    ("RC-N2",   "DJI RC-N2",           &["Air 3", "Mini 4 Pro", "Mini 3 Pro"]),
+    ("DJI-RC2", "DJI RC 2",            &["Air 3", "Mini 4 Pro"]),
+    ("DJI-RC",  "DJI RC",              &["Mini 3 Pro", "Mavic 3", "Mini 4 Pro"]),
+    ("OcuSync", "OcuSync Controller",  &["Mavic 2 Pro/Zoom", "Phantom 4 Pro V2"]),
+    ("SkyLink", "Autel SkyLink",       &["EVO II Pro", "EVO II V3", "EVO Max 4T", "EVO Nano+"]),
+];
+
+/// DJI product_type byte → drone model (from DJI DroneID beacon payload)
+pub const DJI_PRODUCT_TYPES: &[(u8, &str)] = &[
+    (0x01, "Inspire 1"),
+    (0x02, "Phantom 3 Series"),
+    (0x03, "Phantom 3 4K / Phantom 3 Std"),
+    (0x04, "Mavic Pro"),
+    (0x05, "Spark"),
+    (0x06, "Inspire 2"),
+    (0x07, "Phantom 4 Pro"),
+    (0x08, "Phantom 4 Advanced"),
+    (0x09, "Mavic Air"),
+    (0x0A, "Mavic 2 Pro"),
+    (0x0B, "Mavic 2 Zoom"),
+    (0x0E, "Mavic Mini"),
+    (0x0F, "Mavic Air 2"),
+    (0x10, "DJI FPV"),
+    (0x11, "Mini 2"),
+    (0x12, "Mavic 3"),
+    (0x13, "Mavic 3 Cine"),
+    (0x14, "Mini SE"),
+    (0x15, "Mini 3 Pro"),
+    (0x16, "Mavic 3 Classic"),
+    (0x17, "Mavic 3 Pro"),
+    (0x18, "Air 2S"),
+    (0x19, "Air 3"),
+    (0x1A, "Mini 4 Pro"),
+    (0x1B, "Avata"),
+    (0x1C, "Avata 2"),
+    (0x1D, "Mini 3"),
+    (0x1E, "Inspire 3"),
+    (0x1F, "Matrice 350 RTK"),
+    (0x20, "Matrice 30"),
+    (0x21, "Matrice 30T"),
+    (0x22, "DJI Flip"),
+];
+
+/// Resolve the likely drone model from an SSID or controller model string.
+/// Returns (controller_name, likely_drone_models).
+pub fn identify_drone_type(ssid: Option<&str>, product_type: Option<u8>) -> (Option<String>, Vec<String>) {
+    // If we have a product_type byte from DroneID, that's definitive
+    if let Some(pt) = product_type {
+        for (code, model) in DJI_PRODUCT_TYPES {
+            if *code == pt {
+                return (Some(model.to_string()), vec![model.to_string()]);
+            }
+        }
+    }
+
+    // Otherwise try to match controller model from SSID
+    if let Some(ssid) = ssid {
+        let ssid_upper = ssid.to_uppercase();
+        for (pattern, controller_name, drones) in CONTROLLER_DRONE_MAP {
+            if ssid_upper.contains(&pattern.to_uppercase()) {
+                return (
+                    Some(controller_name.to_string()),
+                    drones.iter().map(|s| s.to_string()).collect(),
+                );
+            }
+        }
+    }
+
+    (None, vec![])
+}
+
 pub fn mac_to_bytes(mac: &str) -> Option<[u8; 3]> {
     let parts: Vec<&str> = mac.split(':').collect();
     if parts.len() < 3 {
