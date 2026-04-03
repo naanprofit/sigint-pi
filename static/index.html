@@ -5374,6 +5374,19 @@
                 console.log('Settings not available');
             }
             
+            // Sync pcap toggle with actual capture state
+            try {
+                const r = await fetch('/api/pcap/status');
+                if (r.ok) {
+                    const st = await r.json();
+                    const btn = document.getElementById('pcapToggle');
+                    if (btn && st.capturing) {
+                        btn.classList.add('active');
+                        btn.textContent = 'ON';
+                    }
+                }
+            } catch (e) {}
+            
             // Check LLM status
             checkLlmStatus();
             
@@ -5397,7 +5410,11 @@
                 const start = !btn.classList.contains('active');
                 
                 const endpoint = start ? '/api/pcap/start' : '/api/pcap/stop';
-                const response = await fetch(endpoint, {method: 'POST'});
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({})
+                });
                 const data = await response.json();
                 
                 if (data.success) {

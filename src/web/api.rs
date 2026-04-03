@@ -1821,16 +1821,20 @@ struct StartPcapRequest {
     rotate_mb: Option<u32>,
 }
 
-/// POST /api/pcap/start - Start PCAP capture
+/// POST /api/pcap/start - Start PCAP capture (accepts empty body)
 async fn start_pcap_capture(
-    body: web::Json<StartPcapRequest>,
+    body: Option<web::Json<StartPcapRequest>>,
 ) -> impl Responder {
-    let req = body.into_inner();
+    let req = body.map(|b| b.into_inner()).unwrap_or(StartPcapRequest {
+        filename: None,
+        rotate_mb: None,
+    });
     
     let (already_capturing, _, _) = crate::wifi::scanner::get_pcap_stats();
     if already_capturing {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "PCAP capture already running"
+        return HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "PCAP capture already running"
         }));
     }
     
@@ -1860,8 +1864,11 @@ async fn stop_pcap_capture() -> impl Responder {
     let (capturing, packets, bytes) = crate::wifi::scanner::get_pcap_stats();
     
     if !capturing {
-        return HttpResponse::BadRequest().json(serde_json::json!({
-            "error": "PCAP capture not running"
+        return HttpResponse::Ok().json(serde_json::json!({
+            "success": true,
+            "message": "PCAP capture already stopped",
+            "packets_captured": packets,
+            "bytes_captured": bytes
         }));
     }
     

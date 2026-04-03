@@ -1529,7 +1529,19 @@
             setStatus('statusBle', s.bluetooth?.enabled);
             setStatus('statusGps', s.gps?.enabled);
             setStatus('statusAttack', s.wifi?.attack_detection);
-            setStatus('statusPcap', s.wifi?.capture_pcap);
+            // Sync pcap status from runtime state (not just config)
+            try {
+                const pcapResp = await fetch('/api/pcap/status');
+                if (pcapResp.ok) {
+                    const pcapSt = await pcapResp.json();
+                    setStatus('statusPcap', pcapSt.capturing);
+                    document.getElementById('pcapCapture').checked = pcapSt.capturing;
+                } else {
+                    setStatus('statusPcap', s.wifi?.capture_pcap);
+                }
+            } catch(e) {
+                setStatus('statusPcap', s.wifi?.capture_pcap);
+            }
             setStatus('statusSound', s.alerts?.sound?.enabled);
             setStatus('statusNinja', s.alerts?.sound?.ninja_mode);
             setStatus('statusTelegram', s.alerts?.telegram?.enabled);
@@ -1607,6 +1619,14 @@
                 });
                 
                 if (response.ok) {
+                    // Sync runtime pcap capture with the saved config toggle
+                    const pcapEnabled = document.getElementById('pcapCapture').checked;
+                    const endpoint = pcapEnabled ? '/api/pcap/start' : '/api/pcap/stop';
+                    await fetch(endpoint, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({})
+                    }).catch(() => {});
                     alert('Settings saved successfully!');
                 } else {
                     alert('Failed to save settings');
