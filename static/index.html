@@ -4215,6 +4215,7 @@
                 document.getElementById('tscmRunning').style.color = 'var(--accent-green)';
                 btn.textContent = continuous ? '🔄 Sweeping...' : '⏳ Sweeping...';
                 
+                window._tscmScrolledToThreats = false;
                 pollTscmStatus();
             } catch (e) {
                 alert('Failed to start sweep: ' + e.message);
@@ -4277,7 +4278,18 @@
                     }
                 }
                 
-                renderTscmThreats(data.threats || []);
+                const threats = data.threats || [];
+                renderTscmThreats(threats);
+                
+                // Update TSCM tab badge
+                const tscmBadge = document.getElementById('tscmBadge');
+                if (tscmBadge) tscmBadge.textContent = threats.length > 0 ? threats.length : (data.running ? '...' : '--');
+                
+                // Auto-scroll to threats on first detection
+                if (threats.length > 0 && !window._tscmScrolledToThreats) {
+                    window._tscmScrolledToThreats = true;
+                    document.getElementById('tscmThreatList')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
             } catch (e) {
                 console.error('TSCM status failed:', e);
             }
