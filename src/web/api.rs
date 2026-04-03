@@ -2989,6 +2989,12 @@ fn parse_kal_line(line: &str, band: &str) -> Option<serde_json::Value> {
 static DRONE_SIGNALS: Lazy<Mutex<Vec<serde_json::Value>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static DETECTED_DRONES: Lazy<Mutex<Vec<serde_json::Value>>> = Lazy::new(|| Mutex::new(Vec::new()));
 static DRONE_COOLDOWN: Lazy<Mutex<std::collections::HashMap<String, u64>>> = Lazy::new(|| Mutex::new(std::collections::HashMap::new()));
+static DRONE_ALERT_QUEUE: Lazy<Mutex<Vec<(String, String, Option<String>)>>> = Lazy::new(|| Mutex::new(Vec::new()));
+
+pub fn drain_drone_alerts() -> Vec<(String, String, Option<String>)> {
+    let mut q = DRONE_ALERT_QUEUE.lock().unwrap();
+    q.drain(..).collect()
+}
 
 pub fn register_drone_wifi(
     mac: &str,
@@ -3035,6 +3041,16 @@ pub fn register_drone_wifi(
         if drones.len() > 100 { drones.remove(0); }
     }
     tracing::warn!("DRONE DETECTED via WiFi: {} ({}) MAC={} RSSI={} CH={} method={}", mfr_label, ssid.unwrap_or("-"), mac, rssi, channel, method_str);
+    
+    let alert_msg = format!(
+        "DRONE DETECTED: {} controller ({}) at {}dBm on ch{} [{}]",
+        mfr_label, ssid.unwrap_or("unknown"), rssi, channel, method_str
+    );
+    let priority = if rssi > -30 { "Critical" } else if rssi > -50 { "High" } else { "Medium" };
+    {
+        let mut q = DRONE_ALERT_QUEUE.lock().unwrap();
+        q.push((priority.to_string(), alert_msg, Some(mac.to_string())));
+    }
 }
 
 pub fn register_drone_ble(
@@ -3079,6 +3095,16 @@ pub fn register_drone_ble(
         if drones.len() > 100 { drones.remove(0); }
     }
     tracing::warn!("DRONE DETECTED via BLE: {} name={} MAC={} RSSI={}", mfr_label, name.unwrap_or("-"), mac, rssi);
+    
+    let alert_msg = format!(
+        "DRONE DETECTED (BLE): {} ({}) at {}dBm",
+        mfr_label, name.unwrap_or("unknown"), rssi
+    );
+    let priority = if rssi > -30 { "Critical" } else if rssi > -50 { "High" } else { "Medium" };
+    {
+        let mut q = DRONE_ALERT_QUEUE.lock().unwrap();
+        q.push((priority.to_string(), alert_msg, Some(mac.to_string())));
+    }
 }
 
 async fn get_drone_signals() -> impl Responder {

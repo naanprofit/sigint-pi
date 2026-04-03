@@ -250,6 +250,24 @@ pub async fn start_server(
                 }
                 _ => {}
             }
+            
+            // Drain drone detection alerts (generated outside the event channel)
+            for (priority, message, device_mac) in crate::web::api::drain_drone_alerts() {
+                let mut alerts = state_clone.alerts.write().await;
+                let now = Utc::now().timestamp();
+                let id = alerts.len() as u64 + 1;
+                alerts.insert(0, AlertInfo {
+                    id,
+                    title: "Drone Alert".to_string(),
+                    message,
+                    priority,
+                    device_mac,
+                    timestamp: now,
+                });
+                if alerts.len() > 100 {
+                    alerts.pop();
+                }
+            }
         }
     });
     
