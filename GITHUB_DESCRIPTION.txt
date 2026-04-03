@@ -1,0 +1,6 @@
+SHORT DESCRIPTION (paste into GitHub repo Settings > General > Description):
+
+Portable RF SIGINT platform for Raspberry Pi -- WiFi/BLE monitoring, multi-SDR spectrum analysis, drone detection with antenna array DF, SIEM event logging, Sentinel Mode autonomous threat monitoring, Flipper Zero integration. v0.3.0
+
+TOPICS (paste as comma-separated tags):
+sigint, raspberry-pi, sdr, rtl-sdr, hackrf, krakensdr, drone-detection, wifi-monitoring, ble, spectrum-analysis, direction-finding, cybersecurity, rf-analysis, flipper-zero, tscm, antenna-array
