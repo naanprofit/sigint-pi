@@ -47,11 +47,32 @@ impl WifiScanner {
             .open()
             .context("Failed to open capture (is interface in monitor mode?)")?;
 
-        // Set datalink to IEEE 802.11 with radiotap header
-        cap.set_datalink(pcap::Linktype::IEEE802_11_RADIOTAP)
-            .context("Failed to set datalink type")?;
+        // Try to set radiotap datalink; fall back to whatever the device provides.
+        // Some drivers (rt2800usb/RT5572) already default to radiotap in monitor
+        // mode and reject an explicit set_datalink call.
+        let current_dl = cap.get_datalink();
+        let has_radiotap = current_dl == pcap::Linktype::IEEE802_11_RADIOTAP;
+        if !has_radiotap {
+            match cap.set_datalink(pcap::Linktype::IEEE802_11_RADIOTAP) {
+                Ok(()) => {
+                    info!("Set datalink to IEEE802_11_RADIOTAP");
+                }
+                Err(e) => {
+                    warn!("Could not set radiotap datalink ({}), using current: {:?}", e, current_dl);
+                    // If current is already raw 802.11 (105) or radiotap (127), that's fine.
+                    // If it's Ethernet (1), monitor mode isn't active.
+                    if current_dl == pcap::Linktype(1) {
+                        return Err(anyhow::anyhow!(
+                            "Interface {} is in Ethernet mode (not monitor mode). Enable monitor mode first.", interface
+                        ));
+                    }
+                }
+            }
+        } else {
+            info!("Interface {} already provides radiotap headers", interface);
+        }
 
-        info!("WiFi capture started on {}", interface);
+        info!("WiFi capture started on {} (datalink: {:?})", interface, cap.get_datalink());
 
         // Setup PCAP file saving if enabled
         let mut savefile: Option<Savefile> = None;
