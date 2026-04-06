@@ -139,6 +139,7 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/wifi/devices", web::get().to(get_wifi_devices))
             .route("/wifi/mode", web::get().to(get_wifi_mode))
             .route("/wifi/mode", web::post().to(set_wifi_mode))
+            .route("/wifi/reset-monitor", web::post().to(reset_wifi_monitor))
             .route("/ble/devices", web::get().to(get_ble_devices))
             .route("/power/mode", web::post().to(set_power_mode))
             .route("/power/sleep-inhibit", web::get().to(get_sleep_inhibit))
@@ -541,7 +542,7 @@ async fn get_wifi_mode(
     let interface = &config.wifi.interface;
     
     // Try iw first (always available via sudo), fall back to iwconfig
-    let (iw_ok, iw_out) = run_cmd("sudo", &["iw", "dev", interface, "info"]);
+    let (iw_ok, iw_out) = run_cmd("sudo", &["/usr/sbin/iw", "dev", interface, "info"]);
     let (mode, is_up) = if iw_ok {
         let mode = if iw_out.contains("type monitor") { "monitor" }
             else if iw_out.contains("type managed") { "managed" }
@@ -616,16 +617,16 @@ async fn set_wifi_mode(
     }
 
     // Check if adapter supports monitor mode (get phy for this interface, then check supported modes)
-    let (_, phy_out) = run_cmd("sudo", &["iw", "dev", interface, "info"]);
+    let (_, phy_out) = run_cmd("sudo", &["/usr/sbin/iw", "dev", interface, "info"]);
     let phy_name = phy_out.lines()
         .find(|l| l.contains("wiphy"))
         .and_then(|l| l.split_whitespace().last())
         .map(|n| format!("phy{}", n))
         .unwrap_or_default();
     let (ok, out) = if !phy_name.is_empty() {
-        run_cmd("sudo", &["iw", &phy_name, "info"])
+        run_cmd("sudo", &["/usr/sbin/iw", &phy_name, "info"])
     } else {
-        run_cmd("sudo", &["iw", "list"])
+        run_cmd("sudo", &["/usr/sbin/iw", "list"])
     };
     let supports_monitor = out.contains("* monitor");
     steps.push(serde_json::json!({"step": "check_monitor_support", "cmd": format!("iw {} info", if phy_name.is_empty() { "list".to_string() } else { phy_name }), "ok": ok, "supports_monitor": supports_monitor}));
@@ -653,7 +654,7 @@ async fn set_wifi_mode(
     }
 
     // Set mode
-    let (ok, out) = run_cmd("sudo", &["iw", "dev", interface, "set", "type", &mode]);
+    let (ok, out) = run_cmd("sudo", &["/usr/sbin/iw", "dev", interface, "set", "type", &mode]);
     steps.push(serde_json::json!({"step": "set_mode", "cmd": format!("sudo iw dev {} set type {}", interface, mode), "ok": ok, "output": out}));
     if !ok {
         // Bring interface back up before returning error
@@ -677,7 +678,7 @@ async fn set_wifi_mode(
     }
 
     // Verify mode was actually set (try iw first, fall back to iwconfig)
-    let (v_ok, verify_out) = run_cmd("sudo", &["iw", "dev", interface, "info"]);
+    let (v_ok, verify_out) = run_cmd("sudo", &["/usr/sbin/iw", "dev", interface, "info"]);
     let actual_mode = if !v_ok {
         // Fallback to iwconfig
         let (_, iw_out) = run_cmd("iwconfig", &[interface]);
@@ -697,6 +698,20 @@ async fn set_wifi_mode(
         "requested_mode": mode,
         "error": if !success { Some(format!("Mode is '{}' after switch attempt, expected '{}'", actual_mode, mode)) } else { None::<String> },
         "steps": steps
+    }))
+}
+
+/// POST /api/wifi/reset-monitor - Reset wlan1 to monitor mode via helper script
+async fn reset_wifi_monitor(
+    config: web::Data<Arc<Config>>,
+) -> impl Responder {
+    let interface = &config.wifi.interface;
+    let (ok, out) = run_cmd("sudo", &["/usr/local/bin/sigint-monitor-mode", interface]);
+    HttpResponse::Ok().json(serde_json::json!({
+        "success": ok,
+        "interface": interface,
+        "output": out.trim(),
+        "hint": if ok { "Monitor mode set. Restart sigint-pi to resume scanning." } else { "Failed. Check USB adapter is plugged in." }
     }))
 }
 

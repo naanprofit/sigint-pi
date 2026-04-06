@@ -131,7 +131,7 @@ async fn main() -> Result<()> {
     db.migrate().await?;
     info!("Database initialized");
 
-    let (event_tx, _) = broadcast::channel::<ScanEvent>(1000);
+    let (event_tx, _) = broadcast::channel::<ScanEvent>(4096);
     let db = Arc::new(db);
     let config = Arc::new(config);
 
