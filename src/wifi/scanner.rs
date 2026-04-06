@@ -268,8 +268,8 @@ pub fn enable_monitor_mode(interface: &str) -> Result<()> {
         .context("Failed to bring interface down")?;
 
     // Set monitor mode
-    Command::new("iw")
-        .args([interface, "set", "type", "monitor"])
+    Command::new("/usr/sbin/iw")
+        .args(["dev", interface, "set", "type", "monitor"])
         .status()
         .context("Failed to set monitor mode")?;
 
@@ -290,6 +290,12 @@ pub async fn channel_hopper(interface: &str, channels: Vec<u8>) -> Result<()> {
     
     info!("Channel hopper starting on {} with {} channels", interface, channels.len());
     
+    // Check if interface exists before starting
+    if !std::path::Path::new(&format!("/sys/class/net/{}", interface)).exists() {
+        warn!("Interface {} does not exist, channel hopper will not run", interface);
+        return Ok(());
+    }
+    
     // Small delay to let scanner initialize
     tokio::time::sleep(Duration::from_secs(2)).await;
     
@@ -299,7 +305,7 @@ pub async fn channel_hopper(interface: &str, channels: Vec<u8>) -> Result<()> {
     loop {
         for channel in &channels {
             let result = Command::new("sudo")
-                .args(["-n", "iw", "dev", interface, "set", "channel", &channel.to_string()])
+                .args(["-n", "/usr/sbin/iw", "dev", interface, "set", "channel", &channel.to_string()])
                 .output();
             
             match result {

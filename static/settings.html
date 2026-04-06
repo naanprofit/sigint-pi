@@ -1516,7 +1516,7 @@
             updateAboutPage(s);
         }
 
-        function updateAboutPage(s) {
+        async function updateAboutPage(s) {
             document.getElementById('aboutDeviceId').textContent = s.general?.device_id || '--';
             
             const setStatus = (id, enabled) => {

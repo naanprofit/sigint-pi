@@ -3040,6 +3040,9 @@
         // WebSocket connection
         let ws = null;
 
+        let wsRetryDelay = 3000;
+        let wsRetryCount = 0;
+        
         function connect() {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const wsUrl = `${protocol}//${window.location.host}/ws`;
@@ -3049,6 +3052,8 @@
 
                 ws.onopen = () => {
                     state.connected = true;
+                    wsRetryDelay = 3000;
+                    wsRetryCount = 0;
                     updateConnectionStatus();
                     ws.send(JSON.stringify({ cmd: 'subscribe', topics: ['all'] }));
                 };
@@ -3056,7 +3061,10 @@
                 ws.onclose = () => {
                     state.connected = false;
                     updateConnectionStatus();
-                    setTimeout(connect, 3000);
+                    wsRetryCount++;
+                    // Back off: 3s, 6s, 12s, max 30s
+                    wsRetryDelay = Math.min(wsRetryDelay * 1.5, 30000);
+                    setTimeout(connect, wsRetryDelay);
                 };
 
                 ws.onerror = () => {
