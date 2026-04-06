@@ -2676,7 +2676,11 @@
                     <button id="ninjaToggle" class="toggle-btn">OFF</button>
                 </div>
                 <div class="setting-item">
-                    <label>Browser TTS Alerts</label>
+                    <label>Browser Sound Alerts</label>
+                    <button id="browserSoundToggle" class="toggle-btn" onclick="toggleBrowserSound()">🔇 Sound OFF</button>
+                </div>
+                <div class="setting-item">
+                    <label>Browser TTS (Voice)</label>
                     <button id="browserTtsToggle" class="toggle-btn" onclick="toggleBrowserTts()">🔇 TTS OFF</button>
                 </div>
                 <div class="setting-item">
@@ -4936,24 +4940,44 @@
         // ============================================
         // Browser TTS - speaks alerts through the browser
         // ============================================
-        let browserTtsEnabled = false;
+        let browserTtsEnabled = localStorage.getItem('sigint_tts') === 'true';
+        let browserSoundEnabled = localStorage.getItem('sigint_sound') === 'true';
         let lastSpokenAlertTime = 0;
         const spokenAlertCache = new Set();
+        const soundedAlertCache = new Set();
 
         function initBrowserTts() {
-            // Check if Web Speech API is available
-            if (!('speechSynthesis' in window)) {
-                console.warn('Web Speech API not available');
-                return;
+            // Restore saved state
+            if (browserTtsEnabled) {
+                const btn = document.getElementById('browserTtsToggle');
+                if (btn) { btn.textContent = '🔊 TTS ON'; btn.classList.add('active'); }
+            }
+            if (browserSoundEnabled) {
+                const btn = document.getElementById('browserSoundToggle');
+                if (btn) { btn.textContent = '🔊 Sound ON'; btn.classList.add('active'); }
             }
             // Poll for TTS alerts from server
             setInterval(pollTtsAlerts, 3000);
             // Also check local alerts for new high-priority ones
-            setInterval(checkLocalAlerts, 5000);
+            setInterval(checkLocalAlerts, 2000);
+        }
+
+        function toggleBrowserSound() {
+            browserSoundEnabled = !browserSoundEnabled;
+            localStorage.setItem('sigint_sound', browserSoundEnabled);
+            const btn = document.getElementById('browserSoundToggle');
+            if (btn) {
+                btn.textContent = browserSoundEnabled ? '🔊 Sound ON' : '🔇 Sound OFF';
+                btn.classList.toggle('active', browserSoundEnabled);
+            }
+            if (browserSoundEnabled) {
+                playAlertTone('generic');
+            }
         }
 
         function toggleBrowserTts() {
             browserTtsEnabled = !browserTtsEnabled;
+            localStorage.setItem('sigint_tts', browserTtsEnabled);
             const btn = document.getElementById('browserTtsToggle');
             if (btn) {
                 btn.textContent = browserTtsEnabled ? '🔊 TTS ON' : '🔇 TTS OFF';
@@ -5019,13 +5043,35 @@
         }
 
         function checkLocalAlerts() {
-            if (!browserTtsEnabled || !state.alerts) return;
+            if (!state.alerts) return;
             const now = Date.now() / 1000;
             for (const alert of state.alerts) {
                 if (!alert.timestamp || alert.timestamp < lastSpokenAlertTime) continue;
                 const priority = (alert.priority || '').toLowerCase();
-                if (priority === 'critical' || priority === 'high') {
-                    const key = `${alert.timestamp}_${alert.message}`;
+                const msg = (alert.message || '').toLowerCase();
+                const key = `${alert.timestamp}_${alert.message}`;
+                
+                // Browser sound alerts (tones)
+                if (browserSoundEnabled && !soundedAlertCache.has(key)) {
+                    soundedAlertCache.add(key);
+                    if (msg.includes('drone')) {
+                        playAlertTone('drone');
+                    } else if (msg.includes('tracker') || msg.includes('airtag') || msg.includes('tile')) {
+                        playAlertTone('tracker');
+                    } else if (msg.includes('imsi') || msg.includes('stingray')) {
+                        createImsiAlertSound();
+                    } else if (priority === 'critical') {
+                        playAlertTone('critical');
+                    } else if (priority === 'high') {
+                        playAlertTone('high');
+                    }
+                    if (soundedAlertCache.size > 200) {
+                        soundedAlertCache.delete(soundedAlertCache.values().next().value);
+                    }
+                }
+                
+                // Browser TTS (voice)
+                if (browserTtsEnabled && (priority === 'critical' || priority === 'high')) {
                     if (!spokenAlertCache.has(key)) {
                         spokenAlertCache.add(key);
                         browserSpeak(`${priority} alert: ${alert.message}`);
@@ -5054,13 +5100,25 @@
                     osc.frequency.setValueAtTime(440, ctx.currentTime);
                     osc.frequency.setValueAtTime(550, ctx.currentTime + 0.15);
                     osc.frequency.setValueAtTime(440, ctx.currentTime + 0.3);
+                } else if (type === 'critical') {
+                    osc.type = 'sawtooth';
+                    gain.gain.setValueAtTime(0.4, ctx.currentTime);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime);
+                    osc.frequency.setValueAtTime(440, ctx.currentTime + 0.15);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3);
+                    osc.frequency.setValueAtTime(440, ctx.currentTime + 0.45);
+                } else if (type === 'high') {
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(660, ctx.currentTime);
+                    osc.frequency.setValueAtTime(880, ctx.currentTime + 0.3);
                 } else {
                     osc.type = 'sine';
                     osc.frequency.setValueAtTime(523, ctx.currentTime);
                 }
+                const duration = (type === 'critical') ? 0.8 : 0.6;
                 osc.start();
-                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-                osc.stop(ctx.currentTime + 0.6);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+                osc.stop(ctx.currentTime + duration);
             } catch(e) {}
         }
 
