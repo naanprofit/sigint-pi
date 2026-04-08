@@ -2675,6 +2675,10 @@
 
     <!-- Soundboard Tab -->
     <div class="tab-content" id="tab-soundboard">
+        <!-- Legal Disclaimer -->
+        <div style="background:#2a1a1a;border:1px solid #ff4444;border-radius:6px;padding:0.75rem;margin-bottom:1rem;font-size:0.75rem;color:#ff8888;">
+            <strong>LEGAL DISCLAIMER:</strong> RF transmission is regulated by federal law. Unauthorized transmission on licensed frequencies is a criminal offense under 47 U.S.C. &sect; 333 (willful interference) and can result in fines up to $100,000 and imprisonment. FRS channels are legal at &le;2W with certified equipment only. HackRF does NOT meet FCC Part 95 certification for FRS/GMRS TX. This tool is for <strong>authorized testing, education, and receive-only monitoring</strong>. You are solely responsible for compliance with all applicable laws. Broadcasting copyrighted material or interfering with commercial communications is illegal.
+        </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
             <h3>Soundboard</h3>
             <div style="display:flex;gap:0.5rem;align-items:center;">
@@ -2683,10 +2687,26 @@
                 <button class="btn btn-secondary" onclick="loadSoundboardClips()">Refresh</button>
             </div>
         </div>
-        <div class="info-box" style="margin-bottom:1rem;">
-            Play clips through your browser or transmit via HackRF RF. Browser playback works headless — no Pi speakers needed.
+        <!-- Interactive Console -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;padding:0.75rem;margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <h4 style="margin:0;">Audio Console</h4>
+                <div style="display:flex;gap:0.5rem;align-items:center;">
+                    <label style="font-size:0.7rem;color:var(--text-secondary);">Volume</label>
+                    <input type="range" id="sbVolume" min="0" max="100" value="80" style="width:80px;" oninput="document.getElementById('sbVolVal').textContent=this.value+'%'">
+                    <span id="sbVolVal" style="font-size:0.7rem;">80%</span>
+                </div>
+            </div>
+            <div id="sbNowPlaying" style="font-size:0.8rem;color:var(--text-secondary);margin-bottom:0.5rem;">No clip playing</div>
+            <div style="display:flex;gap:0.3rem;flex-wrap:wrap;" id="sbQuickButtons">
+                <!-- Populated by JS with alert tone quick-play buttons -->
+            </div>
+            <div style="margin-top:0.5rem;display:flex;gap:0.5rem;align-items:center;">
+                <button class="btn btn-sm" onclick="sbMonitorToggle()" id="sbMonitorBtn">Start Monitor</button>
+                <span id="sbMonitorStatus" style="font-size:0.7rem;color:var(--text-secondary);">Monitor: OFF (streams live SDR audio)</span>
+            </div>
         </div>
-        <div id="soundboardGrid" class="settings-grid" style="grid-template-columns:repeat(auto-fill,minmax(200px,1fr));">
+        <div id="soundboardGrid" class="settings-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr));">
             <div style="color:var(--text-secondary);padding:2rem;text-align:center;grid-column:1/-1;">Loading clips...</div>
         </div>
         <div style="margin-top:1.5rem;border-top:1px solid var(--border-color);padding-top:1rem;">
@@ -2699,9 +2719,7 @@
                 <div>
                     <label style="font-size:0.75rem;color:var(--text-secondary);">Modulation</label>
                     <select id="txModulation" style="padding:0.3rem;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
-                        <option value="FM">FM</option>
-                        <option value="NFM" selected>NFM</option>
-                        <option value="AM">AM</option>
+                        <option value="FM">FM</option><option value="NFM" selected>NFM</option><option value="AM">AM</option>
                     </select>
                 </div>
                 <div>
@@ -2713,18 +2731,26 @@
                     <label style="font-size:0.75rem;color:var(--text-secondary);">Quick Channel</label>
                     <select id="txQuickChannel" onchange="setQuickChannel(this.value)" style="padding:0.3rem;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
                         <option value="">Manual</option>
-                        <option value="462.5625">FRS Ch 1</option>
-                        <option value="462.5875">FRS Ch 2</option>
-                        <option value="462.6125">FRS Ch 3</option>
-                        <option value="462.6375">FRS Ch 4</option>
-                        <option value="462.6625">FRS Ch 5</option>
-                        <option value="462.6875">FRS Ch 6</option>
-                        <option value="462.7125">FRS Ch 7</option>
-                        <option value="151.820">MURS Ch 1</option>
-                        <option value="151.880">MURS Ch 2</option>
-                        <option value="151.940">MURS Ch 3</option>
-                        <option value="154.570">MURS Ch 4</option>
-                        <option value="154.600">MURS Ch 5</option>
+                        <optgroup label="FRS (No License)">
+                            <option value="462.5625">FRS Ch 1</option><option value="462.5875">FRS Ch 2</option>
+                            <option value="462.6125">FRS Ch 3</option><option value="462.6375">FRS Ch 4</option>
+                            <option value="462.6625">FRS Ch 5</option><option value="462.6875">FRS Ch 6</option>
+                            <option value="462.7125">FRS Ch 7</option>
+                        </optgroup>
+                        <optgroup label="MURS (No License)">
+                            <option value="151.820">MURS Ch 1</option><option value="151.880">MURS Ch 2</option>
+                            <option value="151.940">MURS Ch 3</option><option value="154.570">MURS Ch 4</option>
+                            <option value="154.600">MURS Ch 5</option>
+                        </optgroup>
+                        <optgroup label="Fast Food (RX ONLY)">
+                            <option value="35.020">McDonald's 35.020</option><option value="154.570">McDonald's 154.570</option>
+                            <option value="154.600">McDonald's 154.600</option><option value="457.5625">Burger King 457.5625</option>
+                            <option value="460.8875">Wendy's/Taco Bell 460.8875</option>
+                        </optgroup>
+                        <optgroup label="Security (RX ONLY)">
+                            <option value="467.850">Silver Star</option><option value="467.875">Gold Star</option>
+                            <option value="467.900">Red Star</option><option value="467.925">Blue Star</option>
+                        </optgroup>
                     </select>
                 </div>
             </div>
@@ -2733,27 +2759,74 @@
 
     <!-- Commercial RF Tab -->
     <div class="tab-content" id="tab-fastfood">
+        <!-- Legal Disclaimer -->
+        <div style="background:#2a1a1a;border:1px solid #ff4444;border-radius:6px;padding:0.75rem;margin-bottom:1rem;font-size:0.75rem;color:#ff8888;">
+            <strong>LEGAL DISCLAIMER:</strong> This module is for <strong>passive receive-only monitoring</strong>, which is legal under 47 CFR Part 15 (US), Wireless Telegraphy Act 2006 (UK), and equivalent regulations worldwide. <strong>Do NOT transmit</strong> on any frequency listed here unless you hold the appropriate license and authorization. Intercepting private communications and acting on their content may violate federal wiretapping laws (18 U.S.C. &sect; 2511). Drive-thru intercom monitoring is for educational/research purposes only. Transmission into commercial intercom systems constitutes willful interference under 47 U.S.C. &sect; 333.
+        </div>
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
             <h3>Commercial RF Monitor</h3>
-            <div style="display:flex;gap:0.5rem;">
+            <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                 <select id="fastfoodBandFilter" style="padding:0.3rem;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
                     <option value="">All Bands</option>
-                    <option value="Intercoms">Intercoms</option>
-                    <option value="Pagers">Pagers</option>
+                    <option value="Fast Food US">Fast Food US</option>
+                    <option value="Fast Food EU">Fast Food EU</option>
+                    <option value="Fast Food UK">Fast Food UK</option>
+                    <option value="Fast Food JP">Fast Food JP</option>
+                    <option value="Fast Food AU">Fast Food AU</option>
+                    <option value="Intercoms">Intercoms (Vendor)</option>
+                    <option value="Pagers">Pagers/Buzzers</option>
                     <option value="FRS/MURS">FRS/MURS</option>
-                    <option value="Digital">Digital</option>
+                    <option value="Security">Security Companies</option>
+                    <option value="Area 51">Area 51 / NTTR</option>
+                    <option value="Business Band">Business Band</option>
+                    <option value="Digital">Digital (DMR/P25)</option>
+                </select>
+                <select id="fastfoodCompany" style="padding:0.3rem;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;color:var(--text-primary);">
+                    <option value="">All Companies</option>
+                    <optgroup label="US Fast Food">
+                        <option value="McDonald's">McDonald's</option>
+                        <option value="Burger King">Burger King</option>
+                        <option value="Wendy's">Wendy's</option>
+                        <option value="Taco Bell">Taco Bell</option>
+                        <option value="KFC">KFC</option>
+                        <option value="Chick-fil-A">Chick-fil-A</option>
+                        <option value="Hardee's">Hardee's / Carl's Jr</option>
+                        <option value="White Castle">White Castle</option>
+                    </optgroup>
+                    <optgroup label="Intercom Vendors">
+                        <option value="HME">HME (Most US chains)</option>
+                        <option value="PAX/3M">PAX / 3M</option>
+                        <option value="TELEX/Bosch">TELEX / Bosch</option>
+                        <option value="Delphi">Delphi / OES</option>
+                    </optgroup>
+                    <optgroup label="Pagers">
+                        <option value="Long Range Systems">LRS Paging</option>
+                        <option value="Jtech">Jtech / KALLPOD</option>
+                        <option value="Revel">Revel / JTECH Digital</option>
+                    </optgroup>
+                    <optgroup label="Security">
+                        <option value="G4S/Allied Universal">G4S / Wackenhut / Allied Universal</option>
+                        <option value="Securitas">Securitas</option>
+                        <option value="Allied Universal">Allied Universal (DMR)</option>
+                    </optgroup>
                 </select>
                 <button class="btn" onclick="fastfoodScan()">Scan</button>
                 <button class="btn btn-secondary" onclick="loadFastfoodSignals()">Refresh</button>
             </div>
         </div>
-        <div class="info-box" style="margin-bottom:1rem;">
-            Passive monitoring of commercial RF: drive-thru intercoms, restaurant pagers, FRS/MURS radios, DMR/P25 digital voice.
-            <strong>Receive-only is legal under 47 CFR Part 15.</strong>
+        <!-- Saved Presets Box -->
+        <div style="background:var(--bg-secondary);border:1px solid var(--border-color);border-radius:6px;padding:0.75rem;margin-bottom:1rem;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.5rem;">
+                <h4 style="margin:0;">Saved Monitor Presets</h4>
+                <button class="btn btn-sm" onclick="addMonitorPreset()">+ Add Current</button>
+            </div>
+            <div id="monitorPresetsList" style="display:flex;gap:0.3rem;flex-wrap:wrap;">
+                <span style="font-size:0.75rem;color:var(--text-secondary);">No saved presets. Select a band/company and click '+ Add Current' to save.</span>
+            </div>
         </div>
         <div id="fastfoodDatabase" style="margin-bottom:1rem;">
-            <h4>Frequency Database</h4>
-            <div id="fastfoodDbTable" style="max-height:300px;overflow-y:auto;"></div>
+            <h4>Frequency Database <span id="fastfoodDbCount" class="badge">0</span></h4>
+            <div id="fastfoodDbTable" style="max-height:350px;overflow-y:auto;"></div>
         </div>
         <div>
             <h4>Detected Signals <span id="fastfoodSignalCount" class="badge">0</span></h4>
@@ -6435,6 +6508,8 @@
         // Soundboard
         // ============================================
         let soundboardClips = [];
+        let sbCurrentAudio = null;
+        let sbMonitorActive = false;
 
         async function loadSoundboardClips() {
             try {
@@ -6442,37 +6517,54 @@
                 const data = await r.json();
                 soundboardClips = data.clips || [];
                 renderSoundboardGrid();
-            } catch(e) {
-                console.error('Failed to load clips:', e);
+                renderSbQuickButtons();
+            } catch(e) { console.error('Failed to load clips:', e); }
+        }
+
+        function renderSbQuickButtons() {
+            const el = document.getElementById('sbQuickButtons');
+            if (!el) return;
+            const alertClips = soundboardClips.filter(c => c.name.startsWith('alert') || c.name.startsWith('sfx') || c.name.startsWith('notify'));
+            if (!alertClips.length) {
+                el.innerHTML = '<span style="font-size:0.7rem;color:var(--text-secondary);">Upload alert clips to see quick-play buttons here</span>';
+                return;
             }
+            el.innerHTML = alertClips.map(c => {
+                const short = c.name.replace(/^(alert|sfx|notify)[\s_]*/i, '').substring(0, 15);
+                return `<button class="btn btn-sm" onclick="playClipBrowser('${c.id}')" style="font-size:0.7rem;padding:0.2rem 0.4rem;">${short}</button>`;
+            }).join('');
         }
 
         function renderSoundboardGrid() {
             const grid = document.getElementById('soundboardGrid');
             if (!grid) return;
-            if (soundboardClips.length === 0) {
-                grid.innerHTML = '<div style="color:var(--text-secondary);padding:2rem;text-align:center;grid-column:1/-1;">No clips yet. Upload WAV/MP3/OGG files to get started.</div>';
+            if (!soundboardClips.length) {
+                grid.innerHTML = '<div style="color:var(--text-secondary);padding:2rem;text-align:center;grid-column:1/-1;">No clips. Upload WAV/MP3/OGG files to get started.</div>';
                 return;
             }
             grid.innerHTML = soundboardClips.map(clip => `
-                <div class="card" style="padding:0.75rem;cursor:pointer;" title="${clip.filename}">
-                    <div style="font-weight:600;font-size:0.85rem;margin-bottom:0.25rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${clip.name}</div>
-                    <div style="font-size:0.7rem;color:var(--text-secondary);margin-bottom:0.5rem;">${(clip.size_bytes/1024).toFixed(1)} KB</div>
-                    <div style="display:flex;gap:0.3rem;">
+                <div class="card" style="padding:0.6rem;" title="${clip.filename}">
+                    <div style="font-weight:600;font-size:0.8rem;margin-bottom:0.2rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${clip.name}</div>
+                    <div style="font-size:0.65rem;color:var(--text-secondary);margin-bottom:0.4rem;">${(clip.size_bytes/1024).toFixed(1)} KB</div>
+                    <div style="display:flex;gap:0.25rem;">
                         <button class="btn btn-sm" onclick="playClipBrowser('${clip.id}')" title="Play in browser">&#9654;</button>
-                        <button class="btn btn-sm btn-secondary" onclick="playClipLocal('${clip.id}')" title="Play on device (aplay)">&#128266;</button>
-                        <button class="btn btn-sm" style="background:#ff8800;" onclick="transmitClip('${clip.id}')" title="RF Transmit via HackRF">&#128225;</button>
+                        <button class="btn btn-sm btn-secondary" onclick="playClipLocal('${clip.id}')" title="Play on device">&#128266;</button>
+                        <button class="btn btn-sm" style="background:#ff8800;" onclick="transmitClip('${clip.id}')" title="RF TX">&#128225;</button>
                         <button class="btn btn-sm btn-danger" onclick="deleteClip('${clip.id}')" title="Delete">&#10005;</button>
                     </div>
                 </div>
             `).join('');
         }
 
-        async function playClipBrowser(id) {
-            try {
-                const audio = new Audio('/api/soundboard/clips/' + encodeURIComponent(id) + '/stream');
-                audio.play().catch(e => alert('Browser blocked autoplay. Click anywhere first.'));
-            } catch(e) { alert('Playback error: ' + e); }
+        function playClipBrowser(id) {
+            if (sbCurrentAudio) { sbCurrentAudio.pause(); sbCurrentAudio = null; }
+            const audio = new Audio('/api/soundboard/clips/' + encodeURIComponent(id) + '/stream');
+            audio.volume = (document.getElementById('sbVolume')?.value || 80) / 100;
+            sbCurrentAudio = audio;
+            const np = document.getElementById('sbNowPlaying');
+            if (np) np.textContent = 'Playing: ' + id;
+            audio.onended = () => { if (np) np.textContent = 'No clip playing'; sbCurrentAudio = null; };
+            audio.play().catch(e => alert('Browser blocked autoplay. Click anywhere first.'));
         }
 
         async function playClipLocal(id) {
@@ -6488,30 +6580,20 @@
             const mod = document.getElementById('txModulation').value;
             const power = parseInt(document.getElementById('txPower').value);
             if (!freqMhz || freqMhz < 1) { alert('Set a valid TX frequency first.'); return; }
-            if (!confirm(`Transmit on ${freqMhz} MHz (${mod}, ${power} dBm)?\n\nThis will key up HackRF. Ensure you have authorization to transmit on this frequency.`)) return;
+            if (!confirm(`LEGAL WARNING: You are about to transmit on ${freqMhz} MHz (${mod}, ${power} dBm).\n\nUnauthorized transmission is a federal crime under 47 U.S.C. 333.\nHackRF is NOT FCC Part 95 certified for FRS/GMRS.\n\nDo you have legal authorization to transmit on this frequency?`)) return;
             try {
                 const r = await fetch('/api/soundboard/clips/' + encodeURIComponent(id) + '/transmit', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify({
-                        frequency_hz: Math.round(freqMhz * 1000000),
-                        modulation: mod,
-                        power_dbm: power,
-                        authorized: true
-                    })
+                    method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({ frequency_hz: Math.round(freqMhz*1e6), modulation: mod, power_dbm: power, authorized: true })
                 });
                 const data = await r.json();
-                if (data.error) alert('TX Error: ' + data.error);
-                else alert(data.status);
+                if (data.error) alert('TX Error: ' + data.error); else alert(data.status);
             } catch(e) { alert('TX failed: ' + e); }
         }
 
         async function deleteClip(id) {
             if (!confirm('Delete clip ' + id + '?')) return;
-            try {
-                await fetch('/api/soundboard/clips/' + encodeURIComponent(id), {method:'DELETE'});
-                loadSoundboardClips();
-            } catch(e) {}
+            try { await fetch('/api/soundboard/clips/' + encodeURIComponent(id), {method:'DELETE'}); loadSoundboardClips(); } catch(e) {}
         }
 
         async function uploadClip(input) {
@@ -6521,70 +6603,99 @@
             try {
                 const r = await fetch('/api/soundboard/clips', {method:'POST', body: form});
                 const data = await r.json();
-                if (data.error) alert(data.error);
-                else loadSoundboardClips();
+                if (data.error) alert(data.error); else loadSoundboardClips();
             } catch(e) { alert('Upload failed: ' + e); }
             input.value = '';
         }
 
-        function setQuickChannel(freqMhz) {
-            if (freqMhz) document.getElementById('txFreqMhz').value = freqMhz;
+        function setQuickChannel(freqMhz) { if (freqMhz) document.getElementById('txFreqMhz').value = freqMhz; }
+
+        function sbMonitorToggle() {
+            sbMonitorActive = !sbMonitorActive;
+            const btn = document.getElementById('sbMonitorBtn');
+            const status = document.getElementById('sbMonitorStatus');
+            if (sbMonitorActive) {
+                btn.textContent = 'Stop Monitor';
+                if (status) status.textContent = 'Monitor: ON (streaming live SDR audio)';
+                fetch('/api/sdr/radio/tune', {method:'POST', headers:{'Content-Type':'application/json'},
+                    body: JSON.stringify({frequency: parseFloat(document.getElementById('txFreqMhz').value)*1e6, modulation:'NFM'})
+                }).catch(()=>{});
+            } else {
+                btn.textContent = 'Start Monitor';
+                if (status) status.textContent = 'Monitor: OFF';
+                fetch('/api/sdr/radio/stop', {method:'POST'}).catch(()=>{});
+            }
         }
 
         // ============================================
         // Commercial RF
         // ============================================
+        let fastfoodAllBands = [];
+
         async function loadFastfoodDatabase() {
             try {
                 const r = await fetch('/api/fastfood/database');
                 const data = await r.json();
-                const bands = data.bands || [];
-                const table = document.getElementById('fastfoodDbTable');
-                if (!table) return;
-                const typeColors = {
-                    'DriveThruIntercom': '#ff8800',
-                    'PagerSystem': '#44aaff',
-                    'Frs': '#44ff88',
-                    'Murs': '#88ff44',
-                    'Gmrs': '#ffcc00',
-                    'GuestBuzzer': '#cc88ff',
-                    'DmrDigital': '#ff4488',
-                    'P25Digital': '#ff4488',
-                    'BusinessUhf': '#888',
-                };
-                table.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.8rem;">
-                    <thead><tr style="border-bottom:1px solid var(--border-color);">
-                        <th style="text-align:left;padding:0.3rem;">System</th>
-                        <th style="text-align:left;padding:0.3rem;">Freq</th>
-                        <th style="text-align:left;padding:0.3rem;">Type</th>
-                        <th style="text-align:left;padding:0.3rem;">Mod</th>
-                        <th style="text-align:left;padding:0.3rem;">License</th>
-                    </tr></thead>
-                    <tbody>${bands.map(b => {
-                        const startMhz = (b.start_hz / 1e6).toFixed(3);
-                        const endMhz = (b.end_hz / 1e6).toFixed(3);
-                        const freq = b.start_hz === b.end_hz ? startMhz : startMhz + '-' + endMhz;
-                        const col = typeColors[b.signal_type] || '#888';
-                        return `<tr style="border-bottom:1px solid var(--border-color);">
-                            <td style="padding:0.3rem;">${b.name}</td>
-                            <td style="padding:0.3rem;font-family:monospace;">${freq}</td>
-                            <td style="padding:0.3rem;"><span style="color:${col};">${b.signal_type}</span></td>
-                            <td style="padding:0.3rem;">${b.modulation}</td>
-                            <td style="padding:0.3rem;">${b.license_required ? '&#x26A0; Yes' : '&#x2705; No'}</td>
-                        </tr>`;
-                    }).join('')}</tbody></table>`;
+                fastfoodAllBands = data.bands || [];
+                renderFastfoodDbFiltered();
             } catch(e) {}
+        }
+
+        function renderFastfoodDbFiltered() {
+            const bandFilter = document.getElementById('fastfoodBandFilter')?.value || '';
+            const companyFilter = document.getElementById('fastfoodCompany')?.value || '';
+            let bands = fastfoodAllBands;
+            if (bandFilter) bands = bands.filter(b => b.band_group.toLowerCase().includes(bandFilter.toLowerCase()));
+            if (companyFilter) bands = bands.filter(b => b.vendor && b.vendor.includes(companyFilter));
+
+            const table = document.getElementById('fastfoodDbTable');
+            const countEl = document.getElementById('fastfoodDbCount');
+            if (countEl) countEl.textContent = bands.length;
+            if (!table) return;
+            const typeColors = {
+                'DriveThruIntercom':'#ff8800','PagerSystem':'#44aaff','Frs':'#44ff88','Murs':'#88ff44',
+                'Gmrs':'#ffcc00','GuestBuzzer':'#cc88ff','DmrDigital':'#ff4488','P25Digital':'#ff4488',
+                'BusinessUhf':'#888','SecurityCompany':'#ff6644','MilitaryBase':'#44ff44','Pmr446':'#88aaff',
+            };
+            table.innerHTML = `<table style="width:100%;border-collapse:collapse;font-size:0.75rem;">
+                <thead><tr style="border-bottom:1px solid var(--border-color);">
+                    <th style="text-align:left;padding:0.25rem;">System</th>
+                    <th style="text-align:left;padding:0.25rem;">Freq (MHz)</th>
+                    <th style="text-align:left;padding:0.25rem;">Type</th>
+                    <th style="text-align:left;padding:0.25rem;">Mod</th>
+                    <th style="text-align:left;padding:0.25rem;">Lic</th>
+                    <th style="padding:0.25rem;">Tune</th>
+                </tr></thead>
+                <tbody>${bands.map(b => {
+                    const startMhz = (b.start_hz / 1e6).toFixed(3);
+                    const endMhz = (b.end_hz / 1e6).toFixed(3);
+                    const freq = b.start_hz === b.end_hz ? startMhz : startMhz + '-' + endMhz;
+                    const col = typeColors[b.signal_type] || '#888';
+                    const vendorStr = b.vendor ? ' <span style="color:var(--text-secondary);">(' + b.vendor + ')</span>' : '';
+                    return `<tr style="border-bottom:1px solid var(--border-color);" title="${b.notes}">
+                        <td style="padding:0.25rem;">${b.name}${vendorStr}</td>
+                        <td style="padding:0.25rem;font-family:monospace;">${freq}</td>
+                        <td style="padding:0.25rem;"><span style="color:${col};">${b.signal_type}</span></td>
+                        <td style="padding:0.25rem;">${b.modulation}</td>
+                        <td style="padding:0.25rem;">${b.license_required ? '&#x26A0;' : '&#x2705;'}</td>
+                        <td style="padding:0.25rem;text-align:center;"><button class="btn btn-sm" onclick="tuneToFreq(${b.start_hz},'${b.modulation.includes('AM')?'AM':'NFM'}')" style="font-size:0.65rem;padding:0.1rem 0.3rem;">&#128251;</button></td>
+                    </tr>`;
+                }).join('')}</tbody></table>`;
+        }
+
+        function tuneToFreq(freqHz, mod) {
+            fetch('/api/sdr/radio/tune', {method:'POST', headers:{'Content-Type':'application/json'},
+                body: JSON.stringify({frequency: freqHz, modulation: mod || 'NFM'})
+            }).then(r => r.json()).then(d => {
+                if (d.error) alert(d.error);
+            }).catch(()=>{});
         }
 
         async function fastfoodScan() {
             const filter = document.getElementById('fastfoodBandFilter').value;
             const body = filter ? {band_group: filter} : {};
             try {
-                const r = await fetch('/api/fastfood/scan', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json'},
-                    body: JSON.stringify(body)
-                });
+                const r = await fetch('/api/fastfood/scan', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
                 const data = await r.json();
                 if (data.error) { alert(data.error); return; }
                 renderFastfoodSignals(data.signals || []);
@@ -6609,31 +6720,86 @@
                 return;
             }
             el.innerHTML = signals.map(s => `
-                <div class="card" style="padding:0.75rem;margin-bottom:0.5rem;display:flex;justify-content:space-between;align-items:center;">
+                <div class="card" style="padding:0.6rem;margin-bottom:0.4rem;display:flex;justify-content:space-between;align-items:center;">
                     <div>
-                        <div style="font-weight:600;">${s.system_name}</div>
-                        <div style="font-size:0.75rem;color:var(--text-secondary);">${s.frequency_mhz.toFixed(3)} MHz &middot; ${s.modulation} &middot; ${s.power_dbm.toFixed(1)} dBm</div>
-                        ${s.system_vendor ? '<div style="font-size:0.7rem;color:var(--text-secondary);">Vendor: ' + s.system_vendor + '</div>' : ''}
-                        <div style="font-size:0.7rem;color:var(--text-secondary);">${s.notes}</div>
+                        <div style="font-weight:600;font-size:0.85rem;">${s.system_name}</div>
+                        <div style="font-size:0.7rem;color:var(--text-secondary);">${s.frequency_mhz.toFixed(3)} MHz &middot; ${s.modulation} &middot; ${s.power_dbm.toFixed(1)} dBm</div>
+                        ${s.system_vendor ? '<div style="font-size:0.65rem;color:var(--text-secondary);">Vendor: ' + s.system_vendor + '</div>' : ''}
                     </div>
-                    <div style="text-align:right;">
-                        <span class="badge" style="background:${s.license_required ? '#ff4444' : '#44aa44'};">${s.license_required ? 'Licensed' : 'Unlicensed'}</span>
-                        ${s.decode_available ? '<span class="badge" style="background:#4488ff;">Decodable</span>' : ''}
+                    <div style="display:flex;gap:0.3rem;align-items:center;">
+                        <button class="btn btn-sm" onclick="tuneToFreq(${s.frequency_hz},'NFM')" style="font-size:0.65rem;">Listen</button>
+                        <span class="badge" style="background:${s.license_required ? '#ff4444' : '#44aa44'};">${s.license_required ? 'Lic' : 'Free'}</span>
                     </div>
                 </div>
             `).join('');
         }
+
+        // ============================================
+        // Saved Monitor Presets (localStorage)
+        // ============================================
+        function getMonitorPresets() {
+            try { return JSON.parse(localStorage.getItem('sigint_monitor_presets') || '[]'); } catch(e) { return []; }
+        }
+        function saveMonitorPresets(presets) {
+            localStorage.setItem('sigint_monitor_presets', JSON.stringify(presets));
+        }
+        function addMonitorPreset() {
+            const band = document.getElementById('fastfoodBandFilter')?.value || 'All';
+            const company = document.getElementById('fastfoodCompany')?.value || '';
+            const label = company ? company + ' (' + band + ')' : band;
+            const presets = getMonitorPresets();
+            if (presets.find(p => p.label === label)) { alert('Preset already saved.'); return; }
+            presets.push({ label, band, company, created: Date.now() });
+            saveMonitorPresets(presets);
+            renderMonitorPresets();
+        }
+        function removeMonitorPreset(idx) {
+            const presets = getMonitorPresets();
+            presets.splice(idx, 1);
+            saveMonitorPresets(presets);
+            renderMonitorPresets();
+        }
+        function loadMonitorPreset(idx) {
+            const presets = getMonitorPresets();
+            const p = presets[idx];
+            if (!p) return;
+            const bf = document.getElementById('fastfoodBandFilter');
+            const cf = document.getElementById('fastfoodCompany');
+            if (bf) bf.value = p.band || '';
+            if (cf) cf.value = p.company || '';
+            renderFastfoodDbFiltered();
+        }
+        function renderMonitorPresets() {
+            const el = document.getElementById('monitorPresetsList');
+            if (!el) return;
+            const presets = getMonitorPresets();
+            if (!presets.length) {
+                el.innerHTML = '<span style="font-size:0.75rem;color:var(--text-secondary);">No saved presets. Select a band/company and click "+ Add Current" to save.</span>';
+                return;
+            }
+            el.innerHTML = presets.map((p, i) => `
+                <div style="display:inline-flex;align-items:center;gap:0.2rem;background:var(--bg-primary);border:1px solid var(--border-color);border-radius:4px;padding:0.15rem 0.4rem;font-size:0.75rem;cursor:pointer;" onclick="loadMonitorPreset(${i})">
+                    <span>${p.label}</span>
+                    <button onclick="event.stopPropagation();removeMonitorPreset(${i})" style="background:none;border:none;color:#ff4444;cursor:pointer;font-size:0.7rem;padding:0 0.2rem;">&times;</button>
+                </div>
+            `).join('');
+        }
+
+        // Wire filter changes to re-render database
+        document.getElementById('fastfoodBandFilter')?.addEventListener('change', renderFastfoodDbFiltered);
+        document.getElementById('fastfoodCompany')?.addEventListener('change', renderFastfoodDbFiltered);
 
         // Load tabs on activation
         const origSwitchTab = window.switchTab;
         window.switchTab = function(tab) {
             if (typeof origSwitchTab === 'function') origSwitchTab(tab);
             if (tab === 'soundboard') loadSoundboardClips();
-            if (tab === 'fastfood') { loadFastfoodDatabase(); loadFastfoodSignals(); }
+            if (tab === 'fastfood') { loadFastfoodDatabase(); loadFastfoodSignals(); renderMonitorPresets(); }
         };
-        // Also hook tab button clicks
         document.querySelectorAll('[data-tab="soundboard"]').forEach(b => b.addEventListener('click', () => loadSoundboardClips()));
-        document.querySelectorAll('[data-tab="fastfood"]').forEach(b => b.addEventListener('click', () => { loadFastfoodDatabase(); loadFastfoodSignals(); }));
+        document.querySelectorAll('[data-tab="fastfood"]').forEach(b => b.addEventListener('click', () => { loadFastfoodDatabase(); loadFastfoodSignals(); renderMonitorPresets(); }));
+        // Init presets on load
+        renderMonitorPresets();
     </script>
 </body>
 </html>
