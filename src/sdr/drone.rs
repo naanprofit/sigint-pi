@@ -25,8 +25,12 @@ pub struct DroneSignal {
     pub first_seen: u64,
     pub last_seen: u64,
     pub duration_secs: u64,
-    pub direction: Option<f64>,  // Bearing if directional antenna available
+    pub direction: Option<f64>,
     pub threat_level: ThreatLevel,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spectral_features: Option<crate::ml::features::SpectralFeatures>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ml_classification: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -647,6 +651,24 @@ impl DroneDetector {
             if max_power > self.config.min_signal_db {
                 let id = format!("{:?}_{}", sig.protocol, sig.center_freq_hz);
                 
+                // Extract spectral features from the signal's frequency range
+                let sig_powers: Vec<f32> = power_by_freq.iter()
+                    .filter(|(&freq, _)| freq >= sig_start && freq <= sig_end)
+                    .map(|(_, &p)| p as f32)
+                    .collect();
+                let ml_features = if sig_powers.len() >= 4 {
+                    Some(crate::ml::features::extract_spectral_features(&sig_powers))
+                } else { None };
+
+                // Classify based on spectral features
+                let ml_class = ml_features.as_ref().map(|f| {
+                    if f.flatness > 0.5 { "FHSS/Spread-Spectrum" }
+                    else if f.num_peaks <= 2 && f.bandwidth < 3.0 { "Narrowband Control" }
+                    else if f.num_peaks > 5 { "OFDM/Wideband" }
+                    else if f.peak_to_avg > 10.0 { "Burst/TDMA" }
+                    else { "Unknown Modulation" }
+                }.to_string());
+
                 let drone_signal = DroneSignal {
                     id: id.clone(),
                     frequency_hz: sig.center_freq_hz,
@@ -660,6 +682,8 @@ impl DroneDetector {
                     duration_secs: 0,
                     direction: None,
                     threat_level: assess_drone_threat(max_power, &sig.signal_type),
+                    spectral_features: ml_features,
+                    ml_classification: ml_class,
                 };
                 
                 self.detected.insert(id, drone_signal.clone());
@@ -730,6 +754,12 @@ pub struct EmiSignature {
     pub estimated_motor_count: u8,
     pub esc_type: EscType,
     pub confidence: f64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub spectral_features: Option<crate::ml::features::SpectralFeatures>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anomaly_detected: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub anomaly_z_score: Option<f64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -832,6 +862,8 @@ pub struct EmiDetector {
     config: EmiDetectorConfig,
     signatures: Vec<EscPwmSignature>,
     detected_emi: Vec<EmiSignature>,
+    pub anomaly_detector: crate::ml::anomaly::SpectrumAnomalyDetector,
+    baseline_collecting: bool,
 }
 
 impl EmiDetector {
@@ -840,7 +872,111 @@ impl EmiDetector {
             config,
             signatures: EscPwmSignature::known_signatures(),
             detected_emi: Vec::new(),
+            anomaly_detector: crate::ml::anomaly::SpectrumAnomalyDetector::new(3.5),
+            baseline_collecting: true,
         }
+    }
+
+    /// Analyze raw IQ file using Rust FFT (ML module) instead of Python.
+    /// Returns detected EMI signatures using ML-enhanced harmonic detection.
+    fn analyze_iq_with_ml(&mut self, iq_path: &str, sample_rate: u64) -> Vec<EmiSignature> {
+        let raw = match std::fs::read(iq_path) {
+            Ok(d) => d,
+            Err(_) => return vec![],
+        };
+        if raw.len() < 512 { return vec![]; }
+
+        // Convert RTL-SDR u8 IQ to f32 (centered at 0, range -1..1)
+        let iq_f32: Vec<f32> = raw.iter()
+            .map(|&b| (b as f32 - 127.5) / 127.5)
+            .collect();
+
+        let window_size = 4096.min(iq_f32.len() / 2);
+        let magnitudes = crate::ml::features::iq_to_fft_magnitude(&iq_f32, window_size);
+
+        // Feed into anomaly baseline if still collecting
+        if self.baseline_collecting {
+            self.anomaly_detector.update_baseline(&magnitudes);
+            if self.anomaly_detector.num_baseline_samples() >= 20 {
+                self.baseline_collecting = false;
+                info!("EMI ML baseline collected ({} samples)", self.anomaly_detector.num_baseline_samples());
+            }
+        }
+
+        // Check for anomalies against learned baseline
+        let anomaly = self.anomaly_detector.check_anomaly(&magnitudes);
+
+        // Extract spectral features for classification
+        let features = crate::ml::features::extract_spectral_features(&magnitudes);
+
+        // ML-enhanced harmonic detection (more robust than rule-based)
+        let harmonic_series = crate::ml::features::detect_harmonics(&magnitudes, 3, 3);
+
+        let mut detected = Vec::new();
+        let bin_hz = sample_rate as f64 / (window_size as f64 * 2.0);
+
+        for series in &harmonic_series {
+            let fund_khz = series.fundamental_bin as f64 * bin_hz / 1000.0;
+            let harmonics_khz: Vec<f64> = series.harmonics.iter()
+                .map(|(bin, _)| *bin as f64 * bin_hz / 1000.0)
+                .collect();
+            let avg_power: f64 = series.harmonics.iter()
+                .map(|(_, mag)| 20.0 * (*mag as f64).max(1e-10).log10())
+                .sum::<f64>() / series.harmonics.len() as f64;
+
+            // Try to match to known ESC type
+            let mut best_match: Option<(&EscPwmSignature, f64)> = None;
+            for sig in &self.signatures {
+                let dist = (fund_khz - sig.fundamental_khz).abs();
+                if dist < 5.0 {
+                    let score = 1.0 - (dist / sig.fundamental_khz).min(1.0);
+                    if best_match.map(|(_, s)| score > s).unwrap_or(true) {
+                        best_match = Some((sig, score));
+                    }
+                }
+            }
+
+            let (esc_type, confidence) = if let Some((sig, match_score)) = best_match {
+                let harmonic_ratio = series.harmonics.len() as f64 / sig.expected_harmonics.len() as f64;
+                (sig.esc_type.clone(), (match_score * 0.4 + harmonic_ratio.min(1.0) * 0.4 + if anomaly.is_anomaly { 0.2 } else { 0.0 }).min(1.0))
+            } else {
+                (EscType::Unknown, 0.3 + if anomaly.is_anomaly { 0.2 } else { 0.0 })
+            };
+
+            let motor_count = if series.harmonics.len() >= 6 { 4 }
+                else if series.harmonics.len() >= 4 { 2 }
+                else { 1 };
+
+            detected.push(EmiSignature {
+                fundamental_khz: fund_khz,
+                harmonics_detected: harmonics_khz,
+                power_db: avg_power,
+                estimated_motor_count: motor_count,
+                esc_type,
+                confidence,
+                spectral_features: Some(features.clone()),
+                anomaly_detected: Some(anomaly.is_anomaly),
+                anomaly_z_score: Some(anomaly.z_score),
+            });
+        }
+
+        // If anomaly detected but no harmonic series found, still flag it
+        if detected.is_empty() && anomaly.is_anomaly && self.anomaly_detector.has_baseline() {
+            info!("ML anomaly detected (z={:.1}) but no harmonic series found - possible novel signature", anomaly.z_score);
+            detected.push(EmiSignature {
+                fundamental_khz: 0.0,
+                harmonics_detected: vec![],
+                power_db: features.max_val as f64,
+                estimated_motor_count: 0,
+                esc_type: EscType::Unknown,
+                confidence: 0.15 + (anomaly.z_score / 10.0).min(0.3),
+                spectral_features: Some(features.clone()),
+                anomaly_detected: Some(true),
+                anomaly_z_score: Some(anomaly.z_score),
+            });
+        }
+
+        detected
     }
     
     /// Scan for motor EMI harmonics.
@@ -883,7 +1019,15 @@ impl EmiDetector {
         
         if let Ok(out) = &rtl_direct {
             if out.status.success() {
-                // FFT the raw IQ to get spectrum, then analyze
+                // ML-enhanced analysis: Rust FFT + harmonic detection + anomaly baseline
+                let ml_detected = self.analyze_iq_with_ml(iq_path, sample_rate);
+                if !ml_detected.is_empty() {
+                    detected = ml_detected;
+                    info!("EMI ML detected {} signatures from direct sampling IQ", detected.len());
+                    self.detected_emi = detected.clone();
+                    return Ok(detected);
+                }
+                // Fallback: Python FFT + rule-based analysis
                 if let Some(csv) = crate::web::api::iq_to_csv(iq_path, center_hz, sample_rate, false).await {
                     detected = self.analyze_emi_spectrum(&csv);
                     if !detected.is_empty() {
@@ -1062,6 +1206,9 @@ impl EmiDetector {
                 estimated_motor_count: estimated_motors,
                 esc_type: signature.esc_type.clone(),
                 confidence,
+                spectral_features: None,
+                anomaly_detected: None,
+                anomaly_z_score: None,
             });
         }
         
@@ -1105,9 +1252,12 @@ impl EmiDetector {
                     fundamental_khz: f1 as f64 / 1000.0,
                     harmonics_detected: harmonics,
                     power_db: avg_power,
-                    estimated_motor_count: 4,  // Assume quad
+                    estimated_motor_count: 4,
                     esc_type: EscType::Unknown,
-                    confidence: 0.5,  // Lower confidence for unknown pattern
+                    confidence: 0.5,
+                    spectral_features: None,
+                    anomaly_detected: None,
+                    anomaly_z_score: None,
                 });
             }
         }
@@ -1138,6 +1288,8 @@ pub struct CombinedDroneDetection {
     pub first_seen: u64,
     pub last_seen: u64,
     pub detection_method: DetectionMethod,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ml_anomaly_baseline_samples: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
@@ -1202,6 +1354,7 @@ impl CombinedDroneDetector {
                     first_seen: now,
                     last_seen: now,
                     detection_method: DetectionMethod::RfAndEmi,
+                    ml_anomaly_baseline_samples: Some(self.emi_detector.anomaly_detector.num_baseline_samples()),
                 };
                 self.detections.insert(id, detection.clone());
                 new_detections.push(detection);
@@ -1222,6 +1375,7 @@ impl CombinedDroneDetector {
                     first_seen: rf.first_seen,
                     last_seen: now,
                     detection_method: DetectionMethod::RfOnly,
+                    ml_anomaly_baseline_samples: None,
                 };
                 self.detections.insert(id, detection.clone());
                 new_detections.push(detection);
@@ -1232,7 +1386,6 @@ impl CombinedDroneDetector {
             for emi in &emi_signatures {
                 let id = format!("drone_emi_{}khz", emi.fundamental_khz as u32);
                 
-                // Determine drone type from ESC signature
                 let drone_type = match emi.esc_type {
                     EscType::DjiStock => DroneType::DjiMavic,
                     EscType::Industrial => DroneType::DjiMatrice,
@@ -1244,13 +1397,14 @@ impl CombinedDroneDetector {
                     id: id.clone(),
                     rf_signals: vec![],
                     emi_signature: Some(emi.clone()),
-                    combined_confidence: emi.confidence * 0.8,  // EMI-only is less certain
+                    combined_confidence: emi.confidence * 0.8,
                     estimated_distance_m: estimate_distance_emi(emi.power_db),
                     drone_type,
                     threat_level: if emi.power_db > -30.0 { ThreatLevel::High } else { ThreatLevel::Medium },
                     first_seen: now,
                     last_seen: now,
                     detection_method: DetectionMethod::EmiOnly,
+                    ml_anomaly_baseline_samples: Some(self.emi_detector.anomaly_detector.num_baseline_samples()),
                 };
                 self.detections.insert(id, detection.clone());
                 new_detections.push(detection);
