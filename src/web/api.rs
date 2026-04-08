@@ -270,6 +270,21 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/legal", web::get().to(get_legal))
             .route("/legal/accept", web::post().to(accept_legal))
             .route("/legal/status", web::get().to(legal_status))
+            // Soundboard
+            .route("/soundboard/clips", web::get().to(soundboard_list_clips))
+            .route("/soundboard/clips", web::post().to(soundboard_upload_clip))
+            .route("/soundboard/clips/{id}", web::delete().to(soundboard_delete_clip))
+            .route("/soundboard/clips/{id}/play", web::post().to(soundboard_play_clip))
+            .route("/soundboard/clips/{id}/transmit", web::post().to(soundboard_transmit_clip))
+            .route("/soundboard/clips/{id}/stream", web::get().to(soundboard_stream_clip))
+            // Fast Food / Commercial RF
+            .route("/fastfood/database", web::get().to(fastfood_get_database))
+            .route("/fastfood/scan", web::post().to(fastfood_scan))
+            .route("/fastfood/signals", web::get().to(fastfood_get_signals))
+            // ML Inference
+            .route("/ml/status", web::get().to(ml_get_status))
+            .route("/ml/classify", web::post().to(ml_classify_signal))
+            .route("/ml/features", web::post().to(ml_extract_features))
     );
 }
 
@@ -6228,4 +6243,265 @@ async fn delete_antenna_position(
     let _ = sqlx::query("DELETE FROM antenna_positions WHERE id = ?")
         .bind(path.into_inner()).execute(db.pool()).await;
     HttpResponse::Ok().json(serde_json::json!({"removed": true}))
+}
+
+// ============================================
+// Soundboard endpoints
+// ============================================
+
+async fn soundboard_list_clips() -> impl Responder {
+    let clips = crate::soundboard::list_clips();
+    HttpResponse::Ok().json(serde_json::json!({"clips": clips}))
+}
+
+async fn soundboard_upload_clip(
+    mut payload: actix_multipart::Multipart,
+) -> impl Responder {
+    use futures::StreamExt;
+    let clips_dir = crate::soundboard::get_clips_dir();
+    let mut saved_name = String::new();
+    while let Some(Ok(mut field)) = payload.next().await {
+        let content_disp = field.content_disposition().cloned();
+        let filename = content_disp
+            .as_ref()
+            .and_then(|cd| cd.get_filename().map(|s| s.to_string()))
+            .unwrap_or_else(|| "upload.wav".to_string());
+        let safe_name: String = filename.chars()
+            .map(|c: char| if c.is_alphanumeric() || c == '.' || c == '-' || c == '_' { c } else { '_' })
+            .collect();
+        let dest = clips_dir.join(&safe_name);
+        let mut f = match std::fs::File::create(&dest) {
+            Ok(f) => f,
+            Err(e) => return HttpResponse::InternalServerError()
+                .json(serde_json::json!({"error": format!("Failed to create file: {}", e)})),
+        };
+        use std::io::Write;
+        while let Some(Ok(chunk)) = field.next().await {
+            let _ = f.write_all(&chunk);
+        }
+        saved_name = safe_name;
+    }
+    if saved_name.is_empty() {
+        return HttpResponse::BadRequest().json(serde_json::json!({"error": "No file uploaded"}));
+    }
+    HttpResponse::Ok().json(serde_json::json!({"uploaded": saved_name}))
+}
+
+async fn soundboard_delete_clip(
+    path: web::Path<String>,
+) -> impl Responder {
+    match crate::soundboard::delete_clip(&path.into_inner()) {
+        Ok(()) => HttpResponse::Ok().json(serde_json::json!({"deleted": true})),
+        Err(e) => HttpResponse::NotFound().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+async fn soundboard_play_clip(
+    path: web::Path<String>,
+) -> impl Responder {
+    match crate::soundboard::play_clip_local(&path.into_inner()) {
+        Ok(msg) => HttpResponse::Ok().json(serde_json::json!({"status": msg})),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+#[derive(Deserialize)]
+struct TransmitRequest {
+    frequency_hz: u64,
+    modulation: Option<String>,
+    power_dbm: Option<u8>,
+    authorized: Option<bool>,
+}
+
+async fn soundboard_transmit_clip(
+    path: web::Path<String>,
+    body: web::Json<TransmitRequest>,
+) -> impl Responder {
+    if body.authorized != Some(true) {
+        return HttpResponse::Forbidden().json(serde_json::json!({
+            "error": "TX requires explicit authorization. Set authorized: true in request body."
+        }));
+    }
+    let modulation = body.modulation.as_deref().unwrap_or("FM");
+    let power = body.power_dbm.unwrap_or(20);
+    match crate::soundboard::transmit_clip(&path.into_inner(), body.frequency_hz, modulation, power) {
+        Ok(msg) => HttpResponse::Ok().json(serde_json::json!({"status": msg})),
+        Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
+    }
+}
+
+async fn soundboard_stream_clip(
+    path: web::Path<String>,
+) -> impl Responder {
+    let clips_dir = crate::soundboard::get_clips_dir();
+    let clip_path = clips_dir.join(path.into_inner());
+    if !clip_path.exists() {
+        return HttpResponse::NotFound().json(serde_json::json!({"error": "Clip not found"}));
+    }
+    match std::fs::read(&clip_path) {
+        Ok(data) => {
+            let ext = clip_path.extension().unwrap_or_default().to_string_lossy().to_lowercase();
+            let content_type = match ext.as_str() {
+                "wav" => "audio/wav",
+                "mp3" => "audio/mpeg",
+                "ogg" => "audio/ogg",
+                "flac" => "audio/flac",
+                _ => "application/octet-stream",
+            };
+            HttpResponse::Ok().content_type(content_type).body(data)
+        }
+        Err(e) => HttpResponse::InternalServerError()
+            .json(serde_json::json!({"error": format!("Failed to read clip: {}", e)})),
+    }
+}
+
+// ============================================
+// Fast Food / Commercial RF endpoints
+// ============================================
+
+async fn fastfood_get_database() -> impl Responder {
+    let db = crate::fastfood_rf::commercial_rf_database();
+    HttpResponse::Ok().json(serde_json::json!({"bands": db}))
+}
+
+static FASTFOOD_SIGNALS: Lazy<std::sync::Mutex<Vec<crate::fastfood_rf::CommercialRfSignal>>> =
+    Lazy::new(|| std::sync::Mutex::new(Vec::new()));
+
+#[derive(Deserialize)]
+struct FastFoodScanRequest {
+    band_group: Option<String>,
+}
+
+async fn fastfood_scan(
+    body: Option<web::Json<FastFoodScanRequest>>,
+) -> impl Responder {
+    let band_filter = body.map(|b| b.band_group.clone()).flatten();
+    let db = crate::fastfood_rf::commercial_rf_database();
+    let bands: Vec<_> = if let Some(ref filter) = band_filter {
+        db.iter().filter(|b| b.band_group.to_lowercase().contains(&filter.to_lowercase())).collect()
+    } else {
+        db.iter().collect()
+    };
+
+    // Check if rtl_fm or hackrf is available
+    let has_rtl = std::process::Command::new("which").arg("rtl_fm")
+        .output().map(|o| o.status.success()).unwrap_or(false);
+    let has_hackrf = std::process::Command::new("which").arg("hackrf_transfer")
+        .output().map(|o| o.status.success()).unwrap_or(false);
+
+    if !has_rtl && !has_hackrf {
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": "No SDR hardware available (need rtl_fm or hackrf_transfer)",
+            "bands_in_database": bands.len()
+        }));
+    }
+
+    // For each band, do a quick power measurement via rtl_power or hackrf_sweep
+    let mut detected = Vec::new();
+    for band in &bands {
+        let center = (band.start_hz + band.end_hz) / 2;
+        // Quick power check with rtl_power (1 second sweep)
+        if has_rtl && center < 1_766_000_000 {
+            let output = std::process::Command::new("timeout")
+                .args(["2", "rtl_power", "-f",
+                    &format!("{}:{}:25000", band.start_hz, band.end_hz),
+                    "-i", "1", "-1", "-"])
+                .output();
+            if let Ok(out) = output {
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                // Parse rtl_power output for max power
+                let mut max_power: f64 = -100.0;
+                for line in stdout.lines() {
+                    for field in line.split(',').skip(6) {
+                        if let Ok(p) = field.trim().parse::<f64>() {
+                            if p > max_power { max_power = p; }
+                        }
+                    }
+                }
+                if max_power > -60.0 {
+                    if let Some(sig) = crate::fastfood_rf::classify_signal(center, max_power) {
+                        detected.push(sig);
+                    }
+                }
+            }
+        }
+    }
+
+    if let Ok(mut sigs) = FASTFOOD_SIGNALS.lock() {
+        *sigs = detected.clone();
+    }
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "bands_scanned": bands.len(),
+        "signals_detected": detected.len(),
+        "signals": detected,
+        "sdr_available": {"rtl_sdr": has_rtl, "hackrf": has_hackrf}
+    }))
+}
+
+async fn fastfood_get_signals() -> impl Responder {
+    let sigs = FASTFOOD_SIGNALS.lock().map(|s| s.clone()).unwrap_or_default();
+    HttpResponse::Ok().json(serde_json::json!({"signals": sigs}))
+}
+
+// ============================================
+// ML Inference endpoints
+// ============================================
+
+async fn ml_get_status() -> impl Responder {
+    let status = crate::ml::get_ml_status();
+    HttpResponse::Ok().json(status)
+}
+
+#[derive(Deserialize)]
+struct MlClassifyRequest {
+    iq_samples: Option<Vec<f32>>,
+    features: Option<Vec<f32>>,
+}
+
+async fn ml_classify_signal(
+    body: web::Json<MlClassifyRequest>,
+) -> impl Responder {
+    // If IQ samples provided, extract features first
+    let features = if let Some(ref iq) = body.iq_samples {
+        let mags = crate::ml::features::iq_to_fft_magnitude(iq, 1024.min(iq.len() / 2));
+        let sf = crate::ml::features::extract_spectral_features(&mags);
+        sf.to_vec()
+    } else if let Some(ref f) = body.features {
+        f.clone()
+    } else {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Provide either iq_samples or features"
+        }));
+    };
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "status": "no_model_loaded",
+        "features_extracted": features.len(),
+        "note": "Place ONNX models in ml/models/ and rebuild with --features ml to enable classification",
+        "onnx_available": cfg!(feature = "ml")
+    }))
+}
+
+#[derive(Deserialize)]
+struct MlFeaturesRequest {
+    iq_samples: Vec<f32>,
+    window_size: Option<usize>,
+}
+
+async fn ml_extract_features(
+    body: web::Json<MlFeaturesRequest>,
+) -> impl Responder {
+    let window = body.window_size.unwrap_or(1024);
+    let magnitudes = crate::ml::features::iq_to_fft_magnitude(&body.iq_samples, window);
+    let features = crate::ml::features::extract_spectral_features(&magnitudes);
+    let harmonics = crate::ml::features::detect_harmonics(&magnitudes, 3, 2);
+
+    HttpResponse::Ok().json(serde_json::json!({
+        "spectral_features": features,
+        "feature_vector": features.to_vec(),
+        "num_magnitude_bins": magnitudes.len(),
+        "harmonic_series_detected": harmonics.len(),
+        "harmonics": harmonics
+    }))
 }

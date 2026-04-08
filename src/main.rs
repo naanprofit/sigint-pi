@@ -18,6 +18,9 @@ mod openclaw;
 mod meshtastic;
 mod sdr;
 mod flipper;
+mod soundboard;
+mod fastfood_rf;
+mod ml;
 
 #[cfg(feature = "simulation")]
 mod simulation;

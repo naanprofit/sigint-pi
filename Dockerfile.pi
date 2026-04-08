@@ -1,0 +1,14 @@
+FROM --platform=linux/arm64 rust:1.88-bookworm
+
+RUN apt-get update && apt-get install -y \
+    libpcap-dev \
+    libdbus-1-dev \
+    libsqlite3-dev \
+    libssl-dev \
+    pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /build
+COPY . .
+
+RUN cargo build --release && strip target/release/sigint-pi
