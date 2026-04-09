@@ -76,11 +76,13 @@ This software interacts with radio frequency spectrum and wireless communication
 ## Features
 
 - **WiFi Monitoring** (802.11)
-  - Device detection and tracking
-  - Probe request analysis  
+  - Device detection and tracking (56+ devices in testing)
+  - Probe request analysis and MAC randomization fingerprinting
   - Signal strength monitoring (RSSI)
   - Attack detection (deauth, evil twin, KARMA)
+  - DJI DroneID and ASTM F3411 RemoteID WiFi frame parsing
   - PCAP capture for forensics
+  - Auto monitor mode recovery via systemd
 
 - **Bluetooth/BLE Monitoring**
   - BLE advertisement scanning
@@ -89,9 +91,9 @@ This software interacts with radio frequency spectrum and wireless communication
   - Lost mode and separated device detection
 
 - **SDR Spectrum Analysis**
-  - RTL-SDR, HackRF One, LimeSDR support
+  - RTL-SDR, HackRF One, LimeSDR, KrakenSDR support
   - Spectrum analyzer with band presets
-  - TSCM sweep (counter-surveillance) with threat database
+  - TSCM sweep (counter-surveillance) with threat database and auto-scroll
   - Continuous drone RF monitoring (military + commercial bands)
   - RTL-433 ISM band device decoding
   - Cell tower scanning via kalibrate-rtl
@@ -104,16 +106,54 @@ This software interacts with radio frequency spectrum and wireless communication
   - Real-time monitoring with audible alerts
   - QMDL recording start/stop control
 
-- **Drone Detection**
+- **Drone Detection** (ML-Enhanced)
   - RF signature detection for military drones (9 countries)
-  - EMI harmonic analysis (ESC/PWM patterns)
+  - EMI harmonic analysis with ML-enhanced FFT (Rust `rustfft`)
+  - Spectral feature extraction (centroid, bandwidth, flatness, rolloff, peak-to-avg)
+  - Online anomaly baseline learning (Welford's algorithm, flags novel signatures)
+  - ML modulation classification (FHSS, OFDM, Burst/TDMA, Narrowband)
+  - DJI product_type byte mapping (32 known models)
+  - Controller SSID to drone model mapping (RC400L, RC230, RC-N1, etc.)
   - Combined RF+EMI correlation for high confidence
+  - ONNX Runtime inference ready (behind `--features ml` flag)
   - Continuous scanning with contact tracking
+
+- **Soundboard**
+  - 40 procedural alert clips (drone, tracker, IMSI, TSCM, geofence, FRS channel IDs, CTCSS tones)
+  - Web UI with clip grid, upload, browser playback, device playback (aplay)
+  - RF transmit via HackRF+csdr pipeline with safety interlocks
+  - TX frequency blocklist (cellular, aviation, emergency bands)
+  - Interactive audio console with volume control and SDR monitor
+  - Scraper script generates all clips via sox
+
+- **Commercial RF Monitor** (130-band database)
+  - US fast food: McDonald's, Burger King, Wendy's, Taco Bell, KFC, Chick-fil-A, Hardee's, White Castle
+  - Intercom vendors: HME (legacy + NEXEO DECT), PAX/3M, TELEX/Bosch, Delphi
+  - EU: PMR446 ch 1-8, DECT 1880-1900, ISM 868 MHz
+  - UK: Ofcom Simple Site Licence, Business Radio 453-454
+  - Japan: Tokutei 421-422, ARIB 900 MHz
+  - Australia: UHF CB 476-477, ISM 915-928
+  - Restaurant pagers: LRS POCSAG, Jtech, Revel
+  - FRS (22 channels) + MURS (5 channels) + GMRS
+  - Security companies: G4S/Wackenhut/Allied Universal, Securitas, Star/Dot itinerant freqs
+  - Area 51/NTTR: 24 frequencies (Dreamland MOA, Groom Lake, Cammo Dudes, Skunkworks, AWACS)
+  - Business band Color Dot/Star frequencies
+  - Tune-to-listen button on every frequency
+  - Company dropdown filter (worldwide)
+  - User-saved monitor presets (localStorage)
 
 - **AI/LLM Integration** (Optional)
   - Device analysis via local or cloud LLM
   - Support for llama.cpp, Ollama, LMStudio, OpenAI
   - Threat intelligence with 100+ surveillance equipment OUIs
+
+- **ML Infrastructure**
+  - Rust FFT via `rustfft` (no Python dependency for real-time analysis)
+  - Spectral feature extraction: 11 features per signal
+  - Harmonic series detection with tolerance bins
+  - Autoencoder anomaly detector with online baseline learning
+  - ONNX Runtime classifier ready for trained models (IQ modulation, ESC type, device fingerprint)
+  - `/api/ml/status`, `/api/ml/classify`, `/api/ml/features` endpoints
 
 - **GPS Integration**
   - Location tracking with USB GPS
@@ -126,10 +166,22 @@ This software interacts with radio frequency spectrum and wireless communication
   - Device fingerprinting (survives MAC randomization)
   - Configurable training period (default: 1 hour)
 
+- **Browser-Based Headless Audio**
+  - Browser Sound Alerts: distinct tones per alert type (drone, tracker, IMSI siren, critical, high)
+  - Browser TTS: speaks alert text via Piper WAV or Web Speech API fallback
+  - Both persist across reloads (localStorage)
+  - No Pi speakers/HDMI needed -- works from any browser on the network
+
 - **Multi-Channel Alerts**
   - Sound alerts with Ninja Mode
+  - Browser sound tones + TTS (headless)
   - Telegram, Signal, Email, MQTT
   - Custom webhooks
+
+- **SIEM Event Log**
+  - SQLite-backed event log with severity levels
+  - Configurable retention and pruning
+  - Search, export, and forward to external SIEM
 
 ## Hardware Requirements
 
