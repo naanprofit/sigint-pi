@@ -21,6 +21,7 @@ mod flipper;
 mod soundboard;
 mod fastfood_rf;
 mod ml;
+mod achievements;
 
 #[cfg(feature = "simulation")]
 mod simulation;
@@ -110,6 +111,7 @@ async fn main() -> Result<()> {
     }
 
     info!("SIGINT-Deck starting up...");
+    achievements::init();
 
     // Show legal disclaimer on first run or when requested
     if std::env::var("SIGINT_SHOW_DISCLAIMER").is_ok() || 

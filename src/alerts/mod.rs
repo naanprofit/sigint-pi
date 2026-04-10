@@ -48,6 +48,7 @@ pub fn unsilence_device(mac: &str) {
     let upper = mac.to_uppercase();
     SILENCED_DEVICES.lock().unwrap().remove(&upper);
     WATCHED_DEVICES.lock().unwrap().insert(upper);
+    crate::achievements::try_unlock("watched_device", Some(mac.to_string()));
 }
 
 pub fn get_silenced_devices() -> Vec<String> {
@@ -224,12 +225,32 @@ impl AlertManagerState {
     async fn process_event(&mut self, event: ScanEvent) -> Result<()> {
         match event {
             ScanEvent::WifiDevice(device) => {
+                crate::achievements::increment("wifi_devices_seen");
+                if device.rssi > -30 { crate::achievements::try_unlock("strong_signal", Some(format!("{} dBm", device.rssi))); }
+                if device.rssi < -90 { crate::achievements::try_unlock("weak_signal", Some(format!("{} dBm", device.rssi))); }
+                if device.ssid.as_deref().map(|s| s.to_lowercase().contains("fbi surveillance")).unwrap_or(false) {
+                    crate::achievements::try_unlock("fbi_van", device.ssid.clone());
+                }
+                if device.is_ap { crate::achievements::increment("access_points"); }
                 self.check_wifi_device(&device).await?;
             }
             ScanEvent::BleDevice(device) => {
+                crate::achievements::increment("ble_devices_seen");
+                if device.is_tracker() {
+                    crate::achievements::increment("trackers_found");
+                    let dtype = format!("{:?}", device.device_type).to_lowercase();
+                    if dtype.contains("airtag") { crate::achievements::try_unlock("airtag_found", None); }
+                    if dtype.contains("tile") { crate::achievements::try_unlock("tile_found", None); }
+                    if dtype.contains("smarttag") { crate::achievements::try_unlock("smarttag_found", None); }
+                    if device.tracker_info.as_ref().map(|t| t.is_lost_mode).unwrap_or(false) { crate::achievements::try_unlock("lost_mode_found", None); }
+                }
                 self.check_ble_device(&device).await?;
             }
             ScanEvent::Attack(attack) => {
+                let atype = format!("{:?}", attack.attack_type).to_lowercase();
+                if atype.contains("deauth") { crate::achievements::try_unlock("deauth_detected", None); }
+                if atype.contains("evil_twin") || atype.contains("eviltwin") { crate::achievements::try_unlock("evil_twin", None); }
+                if atype.contains("karma") { crate::achievements::try_unlock("karma_attack", None); }
                 self.handle_attack(&attack).await?;
             }
             ScanEvent::GpsUpdate(_) => {
@@ -242,7 +263,7 @@ impl AlertManagerState {
                 // RayHunter updates handled separately
             }
             ScanEvent::RayHunterAlert(alert) => {
-                // Forward RayHunter IMSI catcher alerts
+                crate::achievements::increment("imsi_detections");
                 let alert_msg = Alert {
                     id: uuid::Uuid::new_v4().to_string(),
                     priority: AlertPriority::Critical,
@@ -339,6 +360,12 @@ impl AlertManagerState {
 
             // Auto-silence after first contact alert
             silence_device(&device.mac_address);
+            crate::achievements::increment("unique_devices");
+            crate::achievements::increment("wifi_devices");
+            crate::achievements::increment("silenced_devices");
+            if device.ssid.is_none() || device.ssid.as_deref() == Some("") {
+                crate::achievements::try_unlock("hidden_ssid", None);
+            }
             debug!("Auto-silenced new device {} after first alert", device.mac_address);
         }
 
@@ -427,6 +454,9 @@ impl AlertManagerState {
 
             // Auto-silence after first contact alert
             silence_device(&device.mac_address);
+            crate::achievements::increment("unique_devices");
+            crate::achievements::increment("ble_devices");
+            crate::achievements::increment("silenced_devices");
             debug!("Auto-silenced new BLE device {} after first alert", device.mac_address);
         }
 

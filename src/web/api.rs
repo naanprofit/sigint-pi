@@ -287,6 +287,11 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             .route("/ml/status", web::get().to(ml_get_status))
             .route("/ml/classify", web::post().to(ml_classify_signal))
             .route("/ml/features", web::post().to(ml_extract_features))
+            // Achievements
+            .route("/achievements", web::get().to(achievements_list))
+            .route("/achievements/summary", web::get().to(achievements_summary))
+            .route("/achievements/unlock", web::post().to(achievements_unlock))
+            .route("/achievements/tab", web::post().to(achievements_tab_visit))
     );
 }
 
@@ -613,6 +618,7 @@ async fn set_wifi_mode(
 ) -> impl Responder {
     let interface = &config.wifi.interface;
     let mode = body.mode.to_lowercase();
+    if mode == "monitor" { crate::achievements::try_unlock("monitor_mode", None); }
     let mut steps: Vec<serde_json::Value> = Vec::new();
 
     if mode != "monitor" && mode != "managed" {
@@ -1328,6 +1334,7 @@ pub async fn test_llm_connection(
 
 /// GET /api/settings - Get all settings from config file
 async fn get_settings() -> impl Responder {
+    crate::achievements::try_unlock("settings_opened", None);
     // Find existing config file
     let config_paths = [
         dirs::home_dir()
@@ -1742,6 +1749,7 @@ async fn toggle_ninja_mode(
     body: web::Json<serde_json::Value>,
 ) -> impl Responder {
     let enabled = body.get("enabled").and_then(|v| v.as_bool()).unwrap_or(false);
+    if enabled { crate::achievements::try_unlock("ninja_mode", None); }
     
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
@@ -1805,6 +1813,7 @@ async fn set_geofence_home(
         }));
     }
     
+    crate::achievements::try_unlock("geofence_set", None);
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
         "message": "Home location set",
@@ -1882,6 +1891,7 @@ async fn start_pcap_capture(
     }
     
     crate::wifi::scanner::start_pcap_capture();
+    crate::achievements::try_unlock("pcap_started", None);
     
     HttpResponse::Ok().json(serde_json::json!({
         "success": true,
@@ -2034,11 +2044,14 @@ async fn add_device_note(
         lat,
         lon,
     ).await {
-        Ok(id) => HttpResponse::Ok().json(serde_json::json!({
-            "success": true,
-            "note_id": id,
-            "mac": mac
-        })),
+        Ok(id) => {
+            crate::achievements::try_unlock("note_added", None);
+            HttpResponse::Ok().json(serde_json::json!({
+                "success": true,
+                "note_id": id,
+                "mac": mac
+            }))
+        },
         Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({
             "success": false,
             "error": format!("Failed to add note: {}", e)
@@ -2589,7 +2602,11 @@ async fn rayhunter_start_recording(
     let base_url = rh_config.api_url.trim_end_matches('/');
     let client = reqwest::Client::builder().timeout(std::time::Duration::from_secs(5)).build().unwrap();
     match client.post(&format!("{}/api/start-recording", base_url)).send().await {
-        Ok(r) if r.status().is_success() => HttpResponse::Ok().json(serde_json::json!({"success": true, "message": "Recording started"})),
+        Ok(r) if r.status().is_success() => {
+            crate::achievements::try_unlock("rayhunter_connected", None);
+            crate::achievements::try_unlock("rayhunter_recording", None);
+            HttpResponse::Ok().json(serde_json::json!({"success": true, "message": "Recording started"}))
+        },
         Ok(r) => HttpResponse::Ok().json(serde_json::json!({"success": false, "error": format!("HTTP {}", r.status())})),
         Err(e) => HttpResponse::Ok().json(serde_json::json!({"success": false, "error": format!("{}", e)})),
     }
@@ -2620,6 +2637,8 @@ use crate::sdr::drone::{DroneDetectorConfig, DroneSignal};
 
 async fn get_sdr_status() -> impl Responder {
     let caps = SdrCapabilities::detect();
+    if caps.any_available() { crate::achievements::try_unlock("first_sdr", None); }
+    if caps.hackrf { crate::achievements::try_unlock("hackrf_used", None); }
     
     HttpResponse::Ok().json(serde_json::json!({
         "available": caps.any_available(),
@@ -2741,6 +2760,7 @@ struct SpectrumScanRequest {
 
 async fn scan_spectrum(body: web::Json<SpectrumScanRequest>) -> impl Responder {
     let caps = SdrCapabilities::detect();
+    crate::achievements::try_unlock("spectrum_viewed", None);
     
     if !caps.rtl_sdr && !caps.hackrf {
         return HttpResponse::BadRequest().json(serde_json::json!({
@@ -3102,6 +3122,12 @@ pub fn register_drone_wifi_ex(
         }
         if drones.len() > 100 { drones.remove(0); }
     }
+    crate::achievements::increment("drones_detected");
+    if mfr_label.to_lowercase().contains("dji") { crate::achievements::try_unlock("dji_detected", Some(drone_type_str.clone())); }
+    if drone_type_str.to_lowercase().contains("fpv") || drone_type_str.to_lowercase().contains("racing") {
+        crate::achievements::try_unlock("fpv_detected", None);
+    }
+    if drone_type_str == "Unknown Model" { crate::achievements::try_unlock("unknown_drone", None); }
     tracing::warn!(
         "DRONE DETECTED via WiFi: {} ({}) MAC={} RSSI={} CH={} method={} controller={} likely={}",
         mfr_label, ssid.unwrap_or("-"), mac, rssi, channel, method_str,
@@ -3784,6 +3810,7 @@ async fn llm_analyze_device(
     body: web::Json<LlmAnalyzeRequest>,
     config: web::Data<Arc<Config>>,
 ) -> impl Responder {
+    crate::achievements::try_unlock("llm_query", None);
     let mac = &body.mac;
     
     // First, look up the OUI
@@ -4451,6 +4478,7 @@ async fn add_preset(
     path: web::Path<String>,
     body: web::Json<AddPresetRequest>,
 ) -> impl Responder {
+    crate::achievements::try_unlock("preset_saved", None);
     let list_id = path.into_inner();
     let mut manager = PRESET_MANAGER.lock().unwrap();
     
@@ -4595,6 +4623,7 @@ pub fn estimate_distance(rssi_dbm: f64, frequency_mhz: f64) -> (f64, f64, String
 }
 
 async fn tune_radio(body: web::Json<TuneRadioRequest>) -> impl Responder {
+    crate::achievements::try_unlock("fm_listened", None);
     let caps = SdrCapabilities::detect();
     
     if !caps.rtl_sdr {
@@ -4785,6 +4814,7 @@ struct TscmSweepRequest {
 }
 
 async fn start_tscm_sweep(body: web::Json<TscmSweepRequest>) -> impl Responder {
+    crate::achievements::increment("tscm_sweeps");
     let caps = SdrCapabilities::detect();
     
     if !caps.hackrf && !caps.rtl_sdr {
@@ -5254,6 +5284,7 @@ async fn get_tscm_threats() -> impl Responder {
 
 // Legal disclaimer endpoint
 async fn get_legal() -> impl Responder {
+    crate::achievements::try_unlock("legal_read", None);
     use crate::settings::LEGAL_DISCLAIMER;
     
     // Try to read LEGAL.md from disk first, fall back to embedded disclaimer
@@ -5518,6 +5549,7 @@ fn default_wpm() -> u32 { 20 }
 fn default_tone_hz() -> u32 { 700 }
 
 async fn start_morse_decoder(body: web::Json<MorseStartRequest>) -> impl Responder {
+    crate::achievements::try_unlock("morse_decoded", None);
     let freq = body.frequency_hz;
     let wpm = body.wpm;
     let tone_hz = body.tone_hz;
@@ -5744,6 +5776,7 @@ async fn siem_get_events(
     db: web::Data<Arc<crate::storage::Database>>,
     query: web::Query<SiemQuery>,
 ) -> impl Responder {
+    crate::achievements::try_unlock("first_siem", None);
     match db.siem_search("", query.limit, query.offset,
                          query.severity.as_deref(), query.category.as_deref(),
                          query.since.as_deref(), query.until.as_deref()).await {
@@ -5807,6 +5840,7 @@ async fn siem_search_events(
     db: web::Data<Arc<crate::storage::Database>>,
     query: web::Query<SiemSearchQuery>,
 ) -> impl Responder {
+    crate::achievements::try_unlock("siem_search", None);
     match db.siem_search(&query.q, query.limit, query.offset,
                          query.severity.as_deref(), query.category.as_deref(),
                          query.since.as_deref(), query.until.as_deref()).await {
@@ -5860,6 +5894,7 @@ async fn siem_export_events(
     db: web::Data<Arc<crate::storage::Database>>,
     query: web::Query<SiemQuery>,
 ) -> impl Responder {
+    crate::achievements::try_unlock("siem_export", None);
     let limit = query.limit.min(10000);
     match db.siem_search("", limit, 0,
                          query.severity.as_deref(), query.category.as_deref(),
@@ -6306,6 +6341,7 @@ async fn soundboard_upload_clip(
     if saved_name.is_empty() {
         return HttpResponse::BadRequest().json(serde_json::json!({"error": "No file uploaded"}));
     }
+    crate::achievements::try_unlock("clip_uploaded", Some(saved_name.clone()));
     HttpResponse::Ok().json(serde_json::json!({"uploaded": saved_name}))
 }
 
@@ -6321,7 +6357,9 @@ async fn soundboard_delete_clip(
 async fn soundboard_play_clip(
     path: web::Path<String>,
 ) -> impl Responder {
-    match crate::soundboard::play_clip_local(&path.into_inner()) {
+    let clip_name = path.into_inner();
+    crate::achievements::record_clip_played(&clip_name);
+    match crate::soundboard::play_clip_local(&clip_name) {
         Ok(msg) => HttpResponse::Ok().json(serde_json::json!({"status": msg})),
         Err(e) => HttpResponse::InternalServerError().json(serde_json::json!({"error": format!("{}", e)})),
     }
@@ -6398,6 +6436,12 @@ async fn fastfood_scan(
     body: Option<web::Json<FastFoodScanRequest>>,
 ) -> impl Responder {
     let band_filter = body.map(|b| b.band_group.clone()).flatten();
+    if let Some(ref f) = band_filter {
+        let fl = f.to_lowercase();
+        if fl.contains("fast food") || fl.contains("drive") { crate::achievements::try_unlock("fastfood_detected", None); }
+        if fl.contains("area 51") || fl.contains("nttr") || fl.contains("dreamland") { crate::achievements::try_unlock("area51_tuned", None); }
+        if fl.contains("security") { crate::achievements::try_unlock("security_freq", None); }
+    }
     let db = crate::fastfood_rf::commercial_rf_database();
     let bands: Vec<_> = if let Some(ref filter) = band_filter {
         db.iter().filter(|b| b.band_group.to_lowercase().contains(&filter.to_lowercase())).collect()
@@ -6540,4 +6584,44 @@ async fn ml_extract_features(
         "harmonic_series_detected": harmonics.len(),
         "harmonics": harmonics
     }))
+}
+
+// ============================================
+// Achievements
+// ============================================
+
+async fn achievements_list() -> impl Responder {
+    HttpResponse::Ok().json(serde_json::json!({
+        "achievements": crate::achievements::get_all()
+    }))
+}
+
+async fn achievements_summary() -> impl Responder {
+    crate::achievements::check_uptime_achievements();
+    crate::achievements::check_midnight();
+    HttpResponse::Ok().json(crate::achievements::get_summary())
+}
+
+#[derive(Deserialize)]
+struct AchievementUnlockReq {
+    id: String,
+    detail: Option<String>,
+}
+
+async fn achievements_unlock(body: web::Json<AchievementUnlockReq>) -> impl Responder {
+    let unlocked = crate::achievements::try_unlock(&body.id, body.detail.clone());
+    HttpResponse::Ok().json(serde_json::json!({
+        "unlocked": unlocked,
+        "id": body.id
+    }))
+}
+
+#[derive(Deserialize)]
+struct TabVisitReq {
+    tab: String,
+}
+
+async fn achievements_tab_visit(body: web::Json<TabVisitReq>) -> impl Responder {
+    crate::achievements::record_tab_visited(&body.tab);
+    HttpResponse::Ok().json(serde_json::json!({"ok": true}))
 }

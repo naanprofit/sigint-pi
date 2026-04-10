@@ -1760,6 +1760,9 @@
         <button class="tab-btn" data-tab="fastfood" tabindex="0">
             🍔 Commercial RF
         </button>
+        <button class="tab-btn" data-tab="achievements" tabindex="0">
+            🏆 Achievements <span class="badge-count" id="achievementBadge" style="display:none"></span>
+        </button>
         <button class="tab-btn" data-tab="settings" tabindex="0">
             ⚙️ Settings
         </button>
@@ -2834,6 +2837,15 @@
                 <div style="color:var(--text-secondary);padding:1rem;text-align:center;">No signals detected yet. Click Scan to start.</div>
             </div>
         </div>
+    </div>
+
+    <div class="tab-content" id="tab-achievements">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;">
+            <h3 style="margin:0;">Achievements</h3>
+            <div id="achievementSummary" style="font-size:0.85rem;color:var(--text-secondary);"></div>
+        </div>
+        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:1rem;" id="achievementCategoryFilter"></div>
+        <div id="achievementGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:0.75rem;"></div>
     </div>
 
     <div class="tab-content" id="tab-settings">
@@ -6818,11 +6830,74 @@
             if (typeof origSwitchTab === 'function') origSwitchTab(tab);
             if (tab === 'soundboard') loadSoundboardClips();
             if (tab === 'fastfood') { loadFastfoodDatabase(); loadFastfoodSignals(); renderMonitorPresets(); }
+            if (tab === 'achievements') loadAchievements();
+            // Track tab visits for achievements
+            fetch('/api/achievements/tab', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({tab:tab})}).catch(()=>{});
         };
         document.querySelectorAll('[data-tab="soundboard"]').forEach(b => b.addEventListener('click', () => loadSoundboardClips()));
         document.querySelectorAll('[data-tab="fastfood"]').forEach(b => b.addEventListener('click', () => { loadFastfoodDatabase(); loadFastfoodSignals(); renderMonitorPresets(); }));
-        // Init presets on load
+        document.querySelectorAll('[data-tab="achievements"]').forEach(b => b.addEventListener('click', () => loadAchievements()));
         renderMonitorPresets();
+
+        // ============================================
+        // ACHIEVEMENTS
+        // ============================================
+        let achievementFilter = 'all';
+        async function loadAchievements() {
+            try {
+                const [listR, sumR] = await Promise.all([
+                    fetch('/api/achievements'),
+                    fetch('/api/achievements/summary')
+                ]);
+                const {achievements} = await listR.json();
+                const summary = await sumR.json();
+
+                // Summary
+                document.getElementById('achievementSummary').innerHTML =
+                    `<strong>${summary.unlocked}</strong> / ${summary.total_achievements} unlocked (${summary.completion_pct}%)`;
+
+                // Badge
+                const badge = document.getElementById('achievementBadge');
+                if (summary.unlocked > 0) { badge.textContent = summary.unlocked; badge.style.display = ''; }
+
+                // Category filter
+                const cats = [...new Set(achievements.map(a => a.category))];
+                const filterEl = document.getElementById('achievementCategoryFilter');
+                filterEl.innerHTML = `<button class="action-btn${achievementFilter==='all'?' active':''}" onclick="filterAchievements('all')" style="font-size:0.75rem;padding:3px 8px;">All</button>` +
+                    cats.map(c => `<button class="action-btn${achievementFilter===c?' active':''}" onclick="filterAchievements('${c}')" style="font-size:0.75rem;padding:3px 8px;">${c}</button>`).join('');
+
+                // Grid
+                const filtered = achievementFilter === 'all' ? achievements : achievements.filter(a => a.category === achievementFilter);
+                const rarityColor = {Common:'#888',Uncommon:'#4a9',Rare:'#49f',Epic:'#a4f',Legendary:'#fa4'};
+                document.getElementById('achievementGrid').innerHTML = filtered.map(a => {
+                    const unlocked = a.unlocked;
+                    const opacity = unlocked ? '1' : '0.45';
+                    const border = unlocked ? `2px solid ${rarityColor[a.rarity]||'#888'}` : '1px solid var(--border-color)';
+                    const bg = unlocked ? 'var(--card-bg)' : 'transparent';
+                    const ts = a.unlocked_at ? new Date(a.unlocked_at).toLocaleDateString() : '';
+                    return `<div style="opacity:${opacity};border:${border};border-radius:8px;padding:0.75rem;background:${bg};">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <span style="font-size:1.5rem;">${a.icon}</span>
+                            <span style="font-size:0.65rem;color:${rarityColor[a.rarity]||'#888'};text-transform:uppercase;font-weight:bold;">${a.rarity}</span>
+                        </div>
+                        <div style="font-weight:bold;margin:0.25rem 0;">${a.name}</div>
+                        <div style="font-size:0.8rem;color:var(--text-secondary);">${a.description}</div>
+                        ${unlocked ? `<div style="font-size:0.7rem;color:var(--accent);margin-top:0.25rem;">Unlocked ${ts}</div>` : ''}
+                        ${a.detail ? `<div style="font-size:0.7rem;color:var(--text-secondary);margin-top:0.15rem;">${a.detail}</div>` : ''}
+                    </div>`;
+                }).join('');
+            } catch(e) {
+                document.getElementById('achievementGrid').innerHTML = '<span style="color:var(--text-secondary);">Could not load achievements</span>';
+            }
+        }
+        window.filterAchievements = function(cat) {
+            achievementFilter = cat;
+            loadAchievements();
+        };
+        // Load achievement badge on startup
+        fetch('/api/achievements/summary').then(r=>r.json()).then(s=>{
+            if(s.unlocked>0){const b=document.getElementById('achievementBadge');b.textContent=s.unlocked;b.style.display='';}
+        }).catch(()=>{});
     </script>
 </body>
 </html>
