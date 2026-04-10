@@ -19,20 +19,59 @@ use std::sync::Mutex;
 /// Globally silenced device MACs - alerts suppressed for these
 pub static SILENCED_DEVICES: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| Mutex::new(HashSet::new()));
 
+/// Watched devices (explicitly unsilenced) - alert on any signal change
+pub static WATCHED_DEVICES: Lazy<Mutex<HashSet<String>>> = Lazy::new(|| Mutex::new(HashSet::new()));
+
+/// Last known RSSI for watched devices - used to detect signal changes
+pub static DEVICE_LAST_RSSI: Lazy<Mutex<std::collections::HashMap<String, i32>>> =
+    Lazy::new(|| Mutex::new(std::collections::HashMap::new()));
+
+/// Threshold in dBm for RSSI change to trigger a watched-device alert
+pub const RSSI_CHANGE_THRESHOLD: i32 = 8;
+
 pub fn is_device_silenced(mac: &str) -> bool {
     SILENCED_DEVICES.lock().unwrap().contains(&mac.to_uppercase())
 }
 
-pub fn silence_device(mac: &str) {
-    SILENCED_DEVICES.lock().unwrap().insert(mac.to_uppercase());
+pub fn is_device_watched(mac: &str) -> bool {
+    WATCHED_DEVICES.lock().unwrap().contains(&mac.to_uppercase())
 }
 
+pub fn silence_device(mac: &str) {
+    let upper = mac.to_uppercase();
+    SILENCED_DEVICES.lock().unwrap().insert(upper.clone());
+    WATCHED_DEVICES.lock().unwrap().remove(&upper);
+}
+
+/// Unsilence a device and add it to the watched set for signal change alerts
 pub fn unsilence_device(mac: &str) {
-    SILENCED_DEVICES.lock().unwrap().remove(&mac.to_uppercase());
+    let upper = mac.to_uppercase();
+    SILENCED_DEVICES.lock().unwrap().remove(&upper);
+    WATCHED_DEVICES.lock().unwrap().insert(upper);
 }
 
 pub fn get_silenced_devices() -> Vec<String> {
     SILENCED_DEVICES.lock().unwrap().iter().cloned().collect()
+}
+
+pub fn get_watched_devices() -> Vec<String> {
+    WATCHED_DEVICES.lock().unwrap().iter().cloned().collect()
+}
+
+/// Record RSSI for a device; returns true + old RSSI if the change exceeds threshold
+pub fn check_signal_change(mac: &str, rssi: i32) -> Option<i32> {
+    let upper = mac.to_uppercase();
+    let mut last = DEVICE_LAST_RSSI.lock().unwrap();
+    if let Some(&prev_rssi) = last.get(&upper) {
+        last.insert(upper, rssi);
+        if (rssi - prev_rssi).abs() >= RSSI_CHANGE_THRESHOLD {
+            return Some(prev_rssi);
+        }
+        None
+    } else {
+        last.insert(upper, rssi);
+        None
+    }
 }
 
 use crate::config::Config;
@@ -227,15 +266,43 @@ impl AlertManagerState {
     }
 
     async fn check_wifi_device(&mut self, device: &WifiDevice) -> Result<()> {
-        // Check if device is silenced
+        // Watched devices: alert on signal changes even if known
+        if is_device_watched(&device.mac_address) {
+            if let Some(prev_rssi) = check_signal_change(&device.mac_address, device.rssi) {
+                let delta = device.rssi - prev_rssi;
+                let direction = if delta > 0 { "stronger" } else { "weaker" };
+                let alert = Alert {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    priority: if delta.abs() > 15 { AlertPriority::High } else { AlertPriority::Medium },
+                    alert_type: AlertType::RfAnomaly,
+                    title: format!("Signal change: {}", device.mac_address),
+                    message: format!(
+                        "Watched device signal change\nMAC: {}\nVendor: {}\nRSSI: {} -> {} dBm ({:+} dBm, {})\nSSID: {}",
+                        device.mac_address,
+                        device.vendor.as_deref().unwrap_or("Unknown"),
+                        prev_rssi, device.rssi, delta, direction,
+                        device.ssid.as_deref().unwrap_or("N/A")
+                    ),
+                    device_mac: Some(device.mac_address.clone()),
+                    device_vendor: device.vendor.clone(),
+                    rssi: Some(device.rssi),
+                    location: Some(self.config.device.location_name.clone()),
+                    timestamp: Utc::now(),
+                };
+                self.send_alert(&alert).await?;
+            }
+            return Ok(());
+        }
+
+        // Silenced devices: skip entirely
         if is_device_silenced(&device.mac_address) {
             return Ok(());
         }
+
         // Check if device is known
         let is_known = self.db.is_device_known(&device.mac_address, 1).await?;
         
         if !is_known {
-            // New device - determine alert priority based on signal strength
             let priority = if device.rssi > -50 {
                 AlertPriority::High
             } else if device.rssi > -60 {
@@ -269,17 +336,48 @@ impl AlertManagerState {
             };
 
             self.send_alert(&alert).await?;
+
+            // Auto-silence after first contact alert
+            silence_device(&device.mac_address);
+            debug!("Auto-silenced new device {} after first alert", device.mac_address);
         }
 
         Ok(())
     }
 
     async fn check_ble_device(&mut self, device: &BleDevice) -> Result<()> {
-        // Check if device is silenced
+        // Watched devices: alert on signal changes
+        if is_device_watched(&device.mac_address) {
+            if let Some(prev_rssi) = check_signal_change(&device.mac_address, device.rssi) {
+                let delta = device.rssi - prev_rssi;
+                let direction = if delta > 0 { "stronger" } else { "weaker" };
+                let alert = Alert {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    priority: if delta.abs() > 15 { AlertPriority::High } else { AlertPriority::Medium },
+                    alert_type: AlertType::RfAnomaly,
+                    title: format!("Signal change: {}", device.name.as_deref().unwrap_or(&device.mac_address)),
+                    message: format!(
+                        "Watched BLE device signal change\nMAC: {}\nName: {}\nRSSI: {} -> {} dBm ({:+} dBm, {})",
+                        device.mac_address,
+                        device.name.as_deref().unwrap_or("Unknown"),
+                        prev_rssi, device.rssi, delta, direction
+                    ),
+                    device_mac: Some(device.mac_address.clone()),
+                    device_vendor: device.vendor.clone(),
+                    rssi: Some(device.rssi),
+                    location: Some(self.config.device.location_name.clone()),
+                    timestamp: Utc::now(),
+                };
+                self.send_alert(&alert).await?;
+            }
+            return Ok(());
+        }
+
         if is_device_silenced(&device.mac_address) {
             return Ok(());
         }
-        // Always alert on trackers
+
+        // Always alert on trackers (never auto-silence trackers)
         if device.is_tracker() {
             let alert = Alert {
                 id: uuid::Uuid::new_v4().to_string(),
@@ -303,7 +401,6 @@ impl AlertManagerState {
             return Ok(());
         }
 
-        // Check if device is known
         let is_known = self.db.is_device_known(&device.mac_address, 1).await?;
         
         if !is_known && device.rssi > -60 {
@@ -327,6 +424,10 @@ impl AlertManagerState {
             };
 
             self.send_alert(&alert).await?;
+
+            // Auto-silence after first contact alert
+            silence_device(&device.mac_address);
+            debug!("Auto-silenced new BLE device {} after first alert", device.mac_address);
         }
 
         Ok(())

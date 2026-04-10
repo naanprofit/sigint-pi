@@ -2895,8 +2895,13 @@
         </div>
         
         <div class="settings-section">
-            <h3>Silenced Devices</h3>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">Devices below will not generate alerts. Silence from the WiFi or BLE device list.</p>
+            <h3>Device Alert Management</h3>
+            <p style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.5rem;">
+                New devices beep once on first contact then auto-silence. Unsilence a device to <strong>watch</strong> it -- you'll get alerts whenever its signal strength changes significantly.
+            </p>
+            <h4 style="margin:0.5rem 0 0.25rem; font-size:0.9rem;">Watched Devices (signal change alerts)</h4>
+            <div id="watchedDevicesList" style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom:0.5rem;">Loading...</div>
+            <h4 style="margin:0.5rem 0 0.25rem; font-size:0.9rem;">Silenced Devices (auto-silenced after first beep)</h4>
             <div id="silencedDevicesList" style="font-size: 0.85rem; color: var(--text-secondary);">Loading...</div>
             <button class="action-btn" onclick="loadSilencedDevices()" style="margin-top: 0.5rem;">🔄 Refresh</button>
         </div>
@@ -5506,6 +5511,24 @@
             try {
                 const r = await fetch('/api/devices/silenced');
                 const data = await r.json();
+
+                // Watched devices
+                const watchEl = document.getElementById('watchedDevicesList');
+                if (watchEl) {
+                    if (!data.watched_devices || data.watched_devices.length === 0) {
+                        watchEl.innerHTML = '<span style="color: var(--text-secondary);">No watched devices. Unsilence a device to watch it.</span>';
+                    } else {
+                        watchEl.innerHTML = data.watched_devices.map(mac =>
+                            `<div style="display:flex;align-items:center;gap:0.5rem;padding:3px 0;">
+                                <code style="font-size:0.85rem;">${mac}</code>
+                                <span style="color:var(--accent);font-size:0.7rem;">watching signal</span>
+                                <button class="action-btn" style="padding:2px 8px;font-size:0.75rem;" onclick="silenceDevice('${mac}')">🔇 Re-silence</button>
+                            </div>`
+                        ).join('');
+                    }
+                }
+
+                // Silenced devices
                 const el = document.getElementById('silencedDevicesList');
                 if (!data.silenced_devices || data.silenced_devices.length === 0) {
                     el.innerHTML = '<span style="color: var(--text-secondary);">No silenced devices</span>';
@@ -5514,7 +5537,7 @@
                 el.innerHTML = data.silenced_devices.map(mac =>
                     `<div style="display:flex;align-items:center;gap:0.5rem;padding:3px 0;">
                         <code style="font-size:0.85rem;">${mac}</code>
-                        <button class="action-btn" style="padding:2px 8px;font-size:0.75rem;" onclick="unsilenceDevice('${mac}')">🔔 Unsilence</button>
+                        <button class="action-btn" style="padding:2px 8px;font-size:0.75rem;" onclick="unsilenceDevice('${mac}')">👁 Watch</button>
                     </div>`
                 ).join('');
             } catch(e) {

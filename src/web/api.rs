@@ -226,7 +226,9 @@ pub fn configure(cfg: &mut web::ServiceConfig) {
             // Device Silencing
             .route("/devices/{mac}/silence", web::post().to(silence_device_alerts))
             .route("/devices/{mac}/unsilence", web::post().to(unsilence_device_alerts))
+            .route("/devices/{mac}/watch", web::post().to(unsilence_device_alerts))
             .route("/devices/silenced", web::get().to(get_silenced_devices))
+            .route("/devices/watched", web::get().to(get_watched_devices))
             // Ham Radio - Morse Decoder
             .route("/sdr/morse/start", web::post().to(start_morse_decoder))
             .route("/sdr/morse/stop", web::post().to(stop_morse_decoder))
@@ -5461,17 +5463,37 @@ async fn silence_device_alerts(path: web::Path<String>) -> impl Responder {
 async fn unsilence_device_alerts(path: web::Path<String>) -> impl Responder {
     let mac = path.into_inner();
     crate::alerts::unsilence_device(&mac);
-    tracing::info!("Unsilenced alerts for device: {}", mac);
+    tracing::info!("Unsilenced (now watching) device: {}", mac);
     HttpResponse::Ok().json(serde_json::json!({
         "silenced": false,
-        "mac": mac.to_uppercase()
+        "watched": true,
+        "mac": mac.to_uppercase(),
+        "message": "Device is now watched. You will receive alerts when its signal changes."
     }))
 }
 
 async fn get_silenced_devices() -> impl Responder {
-    let devices = crate::alerts::get_silenced_devices();
+    let silenced = crate::alerts::get_silenced_devices();
+    let watched = crate::alerts::get_watched_devices();
     HttpResponse::Ok().json(serde_json::json!({
-        "silenced_devices": devices
+        "silenced_devices": silenced,
+        "watched_devices": watched,
+        "rssi_change_threshold_db": crate::alerts::RSSI_CHANGE_THRESHOLD
+    }))
+}
+
+async fn get_watched_devices() -> impl Responder {
+    let watched = crate::alerts::get_watched_devices();
+    let last_rssi = crate::alerts::DEVICE_LAST_RSSI.lock().unwrap();
+    let devices: Vec<_> = watched.iter().map(|mac| {
+        serde_json::json!({
+            "mac": mac,
+            "last_rssi": last_rssi.get(mac)
+        })
+    }).collect();
+    HttpResponse::Ok().json(serde_json::json!({
+        "watched_devices": devices,
+        "rssi_change_threshold_db": crate::alerts::RSSI_CHANGE_THRESHOLD
     }))
 }
 
@@ -6450,7 +6472,21 @@ async fn fastfood_get_signals() -> impl Responder {
 
 async fn ml_get_status() -> impl Responder {
     let status = crate::ml::get_ml_status();
-    HttpResponse::Ok().json(status)
+    let silenced_count = crate::alerts::get_silenced_devices().len();
+    let watched_count = crate::alerts::get_watched_devices().len();
+    HttpResponse::Ok().json(serde_json::json!({
+        "onnx_available": status.onnx_available,
+        "models_loaded": status.models_loaded,
+        "models_dir": status.models_dir,
+        "fft_available": status.fft_available,
+        "device_alert_management": {
+            "auto_silence_on_first_contact": true,
+            "silenced_devices": silenced_count,
+            "watched_devices": watched_count,
+            "rssi_change_threshold_db": crate::alerts::RSSI_CHANGE_THRESHOLD,
+            "description": "New devices beep once then auto-silence. Unsilence to watch for signal changes."
+        }
+    }))
 }
 
 #[derive(Deserialize)]
