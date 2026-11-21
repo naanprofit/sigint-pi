@@ -73,6 +73,9 @@ hex = "0.4"
 # UUID generation
 uuid = { version = "1.7", features = ["v4"] }
 
+# ASTM F3411 Remote ID decoding (BLE, Wi-Fi NAN/Beacon)
+remoteid = "0.3.2"
+
 # Radiotap header parsing (802.11)
 radiotap = "1.3"
 
